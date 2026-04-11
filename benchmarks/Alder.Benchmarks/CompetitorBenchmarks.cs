@@ -8,9 +8,8 @@ using NCalc;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Fair head-to-head comparison on workloads that all engines can express and
-/// evaluate with verified semantic parity. This class measures warm execution
-/// after each engine's required preparation has already happened in setup.
+/// Measures warm execution on workloads that every compared engine can express and evaluate with verified parity.
+/// Setup performs each engine's required preparation so the benchmark samples steady execution rather than setup cost.
 /// </summary>
 [Config(typeof(SteadyStateConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
@@ -52,6 +51,7 @@ public class CompetitorBenchmarks : BenchmarkBase
         var fleeContext = CreateFleeContext(_data);
         _fleeExpr = fleeContext.CompileDynamic(Scenario.FleeExpr);
 
+        // Head-to-head results are only meaningful when every engine produces the same answer for the selected scenario.
         var parity = BenchmarkParityVerifier.VerifyCompetitorScenario(Scenario, _data);
         if (!parity.IsSuccess)
             throw new InvalidOperationException(parity.Message);

@@ -5,9 +5,8 @@ using Alder.Compiled;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Typed-delegate benchmark for hot reusable expressions. This class isolates
-/// the trade-off between compiled delegate invocation and repeated engine evaluation
-/// for both scalar expressions and reusable business-rule predicates.
+/// Measures hot-path invocation cost for typed delegates versus repeated engine evaluation.
+/// The scenarios cover both scalar arithmetic and a reusable business-rule predicate.
 /// </summary>
 [Config(typeof(SteadyStateConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
@@ -15,8 +14,6 @@ namespace Alder.Benchmarks;
 public class TypedDelegateCompilationBenchmarks : BenchmarkBase
 {
     private BenchmarkData _data = null!;
-
-    #region Invocation — typed delegate vs engine.Evaluate
 
     private Func<int, int, int> _typedScalarFunc = null!;
     private AlderEngine _compiledEngine = null!;
@@ -36,26 +33,22 @@ public class TypedDelegateCompilationBenchmarks : BenchmarkBase
         _data = BenchmarkData.CreateStandard();
         _sampleProduct = _data.Products[0];
 
-        // Typed delegate path — scalar
         using (var scalarEngine = new AlderEngine(new AlderOptions().UseCompiler()))
             _typedScalarFunc = scalarEngine.Compile<Func<int, int, int>>(ScalarCode, "a", "b");
 
-        // Engine.Evaluate path — scalar
         _compiledEngine = new AlderEngine(new AlderOptions().UseCompiler());
         _compiledEngine.SetVariable<int>("a", _data.X);
         _compiledEngine.SetVariable<int>("b", _data.Y);
         _compiledExpr = _compiledEngine.Parse(ScalarCode);
-        _compiledEngine.Evaluate(_compiledExpr); // warm
+        _compiledEngine.Evaluate(_compiledExpr);
 
-        // Typed delegate path — business rule
         using (var ruleEngine = new AlderEngine(new AlderOptions().UseCompiler()))
             _typedRuleFunc = ruleEngine.Compile<Func<Product, bool>>(RuleCode, "p");
 
-        // Engine.Evaluate path — business rule
         _ruleEngine = new AlderEngine(new AlderOptions().UseCompiler());
         _ruleEngine.SetVariable<Product>("p", _sampleProduct);
         _ruleExpr = _ruleEngine.Parse(RuleCode);
-        _ruleEngine.Evaluate(_ruleExpr); // warm
+        _ruleEngine.Evaluate(_ruleExpr);
         var scalarExpected = _typedScalarFunc(_data.X, _data.Y);
         var scalarActual = _compiledEngine.Evaluate(_compiledExpr);
         if (!BenchmarkParityVerifier.AreEquivalent(scalarExpected, scalarActual))
@@ -108,6 +101,4 @@ public class TypedDelegateCompilationBenchmarks : BenchmarkBase
     {
         return _typedRuleFunc(_sampleProduct);
     }
-
-    #endregion
 }

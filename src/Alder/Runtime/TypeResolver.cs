@@ -6,12 +6,9 @@ using Alder.Runtime.Collections;
 namespace Alder.Runtime;
 
 /// <summary>
-/// Unified type resolution with Roslyn-inspired precedence:
-/// 1. Built-in type keywords (int, string, bool, etc.)
-/// 2. Implicit BCL imports (List, Dictionary, Task, etc.) when enabled
-/// 3. Explicit namespace imports (from RegisterNamespace)
-/// 4. Fully qualified name against registered assemblies
-/// 5. FAIL with clear error
+/// Resolves type names using a precedence order aligned with ordinary C# expectations.
+/// Resolution checks built-in keywords first, then implicit imports, then explicit imports,
+/// and finally fully qualified names rooted in the registered assemblies.
 /// </summary>
 internal sealed class TypeResolver
 {
@@ -37,8 +34,8 @@ internal sealed class TypeResolver
         "System.Text.Json",
         "System.Numerics",
         "System.Globalization",
-        // System.Security.Cryptography is indexed (FQN works) but NOT implicitly imported.
-        // Short names like CngKey should not be ambient — require explicit --namespace opt-in.
+        // Security-sensitive namespaces remain available through fully qualified names,
+        // but they are not made ambient through implicit imports.
     ];
 
     /// <summary>
@@ -113,8 +110,8 @@ internal sealed class TypeResolver
     }
 
     /// <summary>
-    /// Resolves a type name. Throws AlderException if the type cannot be found.
-    /// Handles generic types (List&lt;int&gt;), nullable suffixes, and fully qualified names.
+    /// Resolves a type name and throws if resolution fails.
+    /// Generic forms, nullable suffixes, and array suffixes are handled here before the cached core lookup runs.
     /// </summary>
     public Type ResolveType(string typeName)
     {
@@ -132,7 +129,7 @@ internal sealed class TypeResolver
     }
 
     /// <summary>
-    /// Non-throwing variant. Returns null if the type cannot be found.
+    /// Attempts to resolve a type name and returns <c>null</c> when resolution fails.
     /// </summary>
     public Type? TryResolveType(string typeName)
     {
@@ -179,11 +176,11 @@ internal sealed class TypeResolver
 
     private Type? ResolveTypeCore(string typeName)
     {
-        // Step 1: Built-in type keywords
+        // Built-in keyword aliases take precedence over all imported namespaces.
         if (_builtInTypes.TryGetValue(typeName, out var builtIn))
             return builtIn;
 
-        // Step 2: Implicit BCL imports
+        // Implicit imports emulate the ambient BCL surface Alder exposes by default.
         if (_implicitBclImports)
         {
             var fastImplicit = TryResolveImplicitImportFast(typeName);
@@ -195,7 +192,7 @@ internal sealed class TypeResolver
         if (implicitImports != null && implicitImports.TryGetValue(typeName, out var implicitType))
             return implicitType;
 
-        // Step 3: Explicit namespace imports (check for ambiguity)
+        // Explicit imports are searched next and preserve ambiguity reporting.
         Type? importedMatch = null;
         string? matchedNamespace = null;
         List<(string Namespace, Type Type)>? ambiguousMatches = null;
@@ -229,7 +226,7 @@ internal sealed class TypeResolver
         if (importedMatch != null)
             return importedMatch;
 
-        // Step 4: Fully qualified name (contains dots)
+        // Fully qualified names are the last lookup stage before resolution fails.
         if (typeName.Contains('.'))
             return ResolveFullyQualifiedName(typeName);
 
@@ -237,16 +234,11 @@ internal sealed class TypeResolver
     }
 
     /// <summary>
-    /// Namespace vs nested type disambiguation per Roslyn approach:
-    /// First try namespace resolution, then try Assembly.GetType for nested types.
+    /// Resolves a fully qualified name while handling the namespace versus nested-type ambiguity.
     /// </summary>
     private Type? ResolveFullyQualifiedName(string typeName)
     {
-        // Try namespace resolution: progressively split from the right
-        // For "System.Collections.Generic.List":
-        //   Try namespace="System.Collections.Generic" type="List"
-        //   Try namespace="System.Collections" type="Generic.List"
-        //   Try namespace="System" type="Collections.Generic.List"
+        // Progressively split from the right so namespace-qualified types win before nested-type fallback runs.
         var lastDot = typeName.LastIndexOf('.');
         while (lastDot > 0)
         {
@@ -288,8 +280,7 @@ internal sealed class TypeResolver
                 return resolved;
         }
 
-        // Preserve support for generic type names without explicit arity
-        // (e.g., "List" -> "List`1") in implicit namespaces.
+        // Support friendly generic names such as List by probing the CLR arity form List`1 within the implicit namespaces.
         if (CanProbeGenericArity(typeName))
         {
             for (var arity = 1; arity <= 8; arity++)
@@ -326,8 +317,7 @@ internal sealed class TypeResolver
     }
 
     /// <summary>
-    /// Resolves a generic type name like "List&lt;int&gt;" or
-    /// "System.Collections.Generic.Dictionary&lt;string, int&gt;".
+    /// Resolves a generic type name such as <c>List&lt;int&gt;</c> or <c>System.Collections.Generic.Dictionary&lt;string, int&gt;</c>.
     /// </summary>
     private Type ResolveGenericType(string typeName)
     {
@@ -335,15 +325,15 @@ internal sealed class TypeResolver
         var baseName = typeName[..ltIndex];
         var argsString = typeName[(ltIndex + 1)..^1]; // strip < and >
 
-        // Parse type arguments respecting nested generics
+        // Parse type arguments while respecting nested generic argument lists.
         var typeArgNames = SplitGenericArgs(argsString);
         var arity = typeArgNames.Count;
 
-        // Resolve the open generic type using CLR backtick notation
+        // Resolve the open generic type through its CLR metadata name.
         var openGenericName = baseName + "`" + arity;
         var openType = ResolveType(openGenericName);
 
-        // Resolve each type argument recursively
+        // Resolve each type argument recursively before closing the generic type.
         var typeArgs = new Type[arity];
         for (var i = 0; i < arity; i++)
             typeArgs[i] = ResolveType(typeArgNames[i].Trim());
@@ -377,8 +367,7 @@ internal sealed class TypeResolver
     }
 
     /// <summary>
-    /// Splits generic type arguments at top-level commas, respecting nested angle brackets.
-    /// e.g. "string, List&lt;int&gt;" -> ["string", "List&lt;int&gt;"]
+    /// Splits generic type arguments at top-level commas while respecting nested angle brackets.
     /// </summary>
     private static List<string> SplitGenericArgs(string argsString)
     {
@@ -415,8 +404,8 @@ internal sealed class TypeResolver
     }
 
     /// <summary>
-    /// Creates a TypeResolver from the given configuration.
-    /// Builds the namespace index from registered assemblies at freeze time.
+    /// Creates a <see cref="TypeResolver"/> for the supplied configuration data.
+    /// The resolver augments the explicit assembly set with the core platform assemblies Alder depends on for ambient resolution.
     /// </summary>
     internal static TypeResolver Create(
         ImmutableArray<Assembly> assemblies,
@@ -452,7 +441,7 @@ internal sealed class TypeResolver
     }
 
     /// <summary>
-    /// Builds a namespace -> (short name -> Type) index from all registered assemblies.
+    /// Builds a namespace-to-type index from the registered assemblies.
     /// </summary>
     private static FixedDictionary<string, FixedDictionary<string, Type>> BuildNamespaceIndex(
         ImmutableArray<Assembly> assemblies,
@@ -473,8 +462,7 @@ internal sealed class TypeResolver
                     index[ns] = nsTypes;
                 }
 
-                // Use type's short name (without namespace). For generic types,
-                // store with backtick notation (e.g., "List`1")
+                // Generic types remain keyed by their CLR metadata name so arity stays explicit at the index level.
                 var shortName = type.Name;
                 nsTypes.TryAdd(shortName, type);
             }
@@ -517,12 +505,8 @@ internal sealed class TypeResolver
     }
 
     /// <summary>
-    /// Builds the implicit import map from default implicit namespaces.
-    /// Maps short type names to their Type for types in System,
-    /// System.Collections.Generic, and System.Threading.Tasks.
-    /// System.Reflection types are EXCLUDED for security.
-    /// For generic types, stores the open generic type under the name without backtick
-    /// (e.g., "List" -> typeof(List&lt;&gt;)).
+    /// Builds the implicit-import map from Alder's default ambient namespaces.
+    /// Reflection types stay excluded, and open generic types are also recorded under their friendly name without the CLR backtick suffix.
     /// </summary>
     private static FixedDictionary<string, Type> BuildImplicitImports(
         FixedDictionary<string, FixedDictionary<string, Type>> namespaceIndex,

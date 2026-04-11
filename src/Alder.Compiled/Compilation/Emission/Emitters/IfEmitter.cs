@@ -1,10 +1,13 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class IfEmitter : INodeEmitter<BoundIfStatementExpr>
+[EmitsNode(BoundNodeKind.IfStatement)]
+internal static class IfEmitter
 {
-    public LinqExpression Emit(BoundIfStatementExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundIfStatementExpr node, EmissionContext ctx)
     {
         var condition = ctx.EmitBoolCondition(node.Condition);
         var thenBody = BlockEmitter.EmitScopedStatements(ctx, node.ThenStatements);

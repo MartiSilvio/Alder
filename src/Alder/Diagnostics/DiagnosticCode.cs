@@ -1,5 +1,10 @@
 namespace Alder.Diagnostics;
 
+/// <summary>
+/// Diagnostic identifiers used by Alder.
+/// Roslyn-compatible codes are preserved where Alder mirrors an existing C# error,
+/// and Alder-specific codes are used where no Roslyn equivalent exists.
+/// </summary>
 public enum DiagnosticCode
 {
     /// <summary>Operator '{0}' cannot be applied to operands of type '{1}' and '{2}'</summary>

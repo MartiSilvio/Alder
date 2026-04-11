@@ -29,8 +29,8 @@ internal sealed class McpServerConfig
         var extraNamespaces = new List<string>();
         var extraAssemblies = new List<string>();
 
-        // Both env vars and CLI args share the same error handling: invalid values
-        // produce a clean message and exit, never an unhandled exception.
+        // Environment variables and CLI arguments share the same validation path so failures
+        // produce a clean usage error instead of an unhandled exception.
         try
         {
             ApplyEnvVars(ref sandboxPreset, ref sandbox, ref languageMode,
@@ -137,8 +137,7 @@ internal sealed class McpServerConfig
                     break;
 
                 case "--assembly":
-                    // Normalize to absolute path so File.Exists and LoadFromAssemblyPath
-                    // both resolve relative to the same base directory.
+                    // Normalize to an absolute path so file checks and assembly loading use the same base directory.
                     var path = Path.GetFullPath(NextValue(args, ref i, "--assembly"));
                     if (!File.Exists(path))
                         throw new ArgumentException($"Assembly file not found: '{path}'.");
@@ -190,7 +189,7 @@ internal sealed class McpServerConfig
     {
         if (value.Equals("unlimited", StringComparison.OrdinalIgnoreCase))
             return null;
-        // Use InvariantCulture — decimal separator is always '.' regardless of system locale.
+        // Use InvariantCulture so the decimal separator stays '.' regardless of the system locale.
         if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0)
             return TimeSpan.FromSeconds(seconds);
         throw new ArgumentException(

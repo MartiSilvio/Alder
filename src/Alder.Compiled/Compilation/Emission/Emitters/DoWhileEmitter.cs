@@ -1,10 +1,13 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class DoWhileEmitter : INodeEmitter<BoundDoWhileExpr>
+[EmitsNode(BoundNodeKind.DoStatement)]
+internal static class DoWhileEmitter
 {
-    public LinqExpression Emit(BoundDoWhileExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundDoWhileExpr node, EmissionContext ctx)
     {
         var loopBreakLabel = LinqExpression.Label(typeof(object), "doBreak");
         var loopContinueLabel = LinqExpression.Label("doContinue");

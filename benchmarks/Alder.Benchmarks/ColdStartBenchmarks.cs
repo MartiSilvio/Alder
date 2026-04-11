@@ -7,13 +7,10 @@ using NCalc;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Measures end-to-end first-use cost on workloads that all engines can express.
-/// This is the benchmark to cite for short-lived processes and serverless-style
-/// usage, not for steady-state throughput claims.
-///
-/// No GlobalSetup: ColdStartConfig uses RunStrategy.ColdStart which launches a
-/// fresh process per measurement. Any setup work would pre-JIT the code paths
-/// we're trying to measure cold. Parity is validated by BenchmarkSmokeValidator.
+/// Measures end-to-end first-use cost on workloads that every compared engine can express.
+/// This suite is intended for short-lived process scenarios and must not be used to argue steady-state throughput.
+/// There is intentionally no <c>GlobalSetup</c>, because <see cref="ColdStartConfig"/> relies on fresh processes
+/// to keep startup work inside the measured sample.
 /// </summary>
 [Config(typeof(ColdStartConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]

@@ -4,16 +4,9 @@ using BenchmarkDotNet.Configs;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Measures concurrent throughput for a shared reusable engine under a fixed
-/// operation budget. This reflects server-style request fan-out, not single-
-/// expression microbenchmarking.
-///
-/// Fixed total operations (10,000) distributed across [1, 2, 4, 8] threads.
-/// If the engine scales linearly, doubling threads halves wall-clock time.
-/// Contention or lock overhead shows up as sub-linear scaling.
-///
-/// Tests both a simple expression (dispatch overhead dominant)
-/// and a LINQ pipeline (work-dominant, should scale near-linearly).
+/// Measures concurrent throughput for a shared reusable engine under a fixed operation budget.
+/// The workload is intended to resemble server-style request fan-out rather than single-expression microbenchmarking.
+/// It exercises both a simple dispatch-heavy expression and a more work-dominant LINQ-style pipeline.
 /// </summary>
 [Config(typeof(MonitoringConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
@@ -98,8 +91,6 @@ public class ThroughputBenchmarks : BenchmarkBase
         return last!;
     }
 
-    #region Scalar expression throughput
-
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Operational/ConcurrentThroughput/Scalar")]
     public object Interpreted_Scalar() => RunParallel(_interpEngine, _interpScalar);
@@ -111,10 +102,6 @@ public class ThroughputBenchmarks : BenchmarkBase
     [Benchmark]
     [BenchmarkCategory("Operational/ConcurrentThroughput/Scalar")]
     public object CompiledFec_Scalar() => RunParallel(_fecEngine, _fecScalar);
-
-    #endregion
-
-    #region LINQ expression throughput
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Operational/ConcurrentThroughput/Linq")]
@@ -128,5 +115,4 @@ public class ThroughputBenchmarks : BenchmarkBase
     [BenchmarkCategory("Operational/ConcurrentThroughput/Linq")]
     public object CompiledFec_LINQ() => RunParallel(_fecEngine, _fecLinq);
 
-    #endregion
 }

@@ -3,9 +3,8 @@ using Alder.Runtime.Collections;
 namespace Alder.Runtime.Extensions;
 
 /// <summary>
-/// Resolves bare math function and constant names in Extended mode.
-/// sin(x), cos(x), pi, e, tau, etc. are available without Math. prefix.
-/// User variables always shadow these built-in names.
+/// Resolves bare math constants and functions in extended mode.
+/// These names behave like a built-in convenience layer over <see cref="Math"/>, while ordinary variables still take precedence.
 /// </summary>
 internal static class BareMathNames
 {
@@ -19,8 +18,7 @@ internal static class BareMathNames
     }, StringComparer.Ordinal);
 
     /// <summary>
-    /// Tries to resolve a bare name as a math constant.
-    /// Returns false if the name is not a recognized constant.
+    /// Attempts to resolve a bare name as a math constant.
     /// </summary>
     internal static bool TryGetConstant(string name, out object? value)
     {
@@ -35,8 +33,7 @@ internal static class BareMathNames
     }
 
     /// <summary>
-    /// Tries to resolve a bare name as a math function with the given argument count.
-    /// Returns false if the name/argCount combination is not recognized.
+    /// Attempts to resolve a bare name as a math function with the supplied argument count.
     /// </summary>
     internal static bool TryGetFunction(string name, int argCount, out Func<object?[], object?> func)
     {
@@ -77,7 +74,6 @@ internal static class BareMathNames
 
     private static readonly FixedDictionary<string, Func<object?[], object?>> SingleArgFunctions = FixedDictionary<string, Func<object?[], object?>>.Create(new Dictionary<string, Func<object?[], object?>>(StringComparer.Ordinal)
     {
-        // Trigonometric
         ["sin"] = args => Math.Sin(ToDouble(args[0])),
         ["cos"] = args => Math.Cos(ToDouble(args[0])),
         ["tan"] = args => Math.Tan(ToDouble(args[0])),
@@ -85,14 +81,12 @@ internal static class BareMathNames
         ["acos"] = args => Math.Acos(ToDouble(args[0])),
         ["atan"] = args => Math.Atan(ToDouble(args[0])),
 
-        // Hyperbolic
         ["sinh"] = args => Math.Sinh(ToDouble(args[0])),
         ["cosh"] = args => Math.Cosh(ToDouble(args[0])),
         ["tanh"] = args => Math.Tanh(ToDouble(args[0])),
 
         ["abs"] = args => Abs(args[0]),
 
-        // Roots
         ["sqrt"] = args => Math.Sqrt(ToDouble(args[0])),
 #if NET5_0_OR_GREATER
         ["cbrt"] = args => Math.Cbrt(ToDouble(args[0])),
@@ -100,22 +94,19 @@ internal static class BareMathNames
         ["cbrt"] = args => { var x = ToDouble(args[0]); return x < 0 ? -Math.Pow(-x, 1.0 / 3.0) : Math.Pow(x, 1.0 / 3.0); },
 #endif
 
-        // Logarithms
         ["log"] = args => Math.Log(ToDouble(args[0])),
         ["log2"] = args => Math.Log(ToDouble(args[0]), 2.0),
         ["log10"] = args => Math.Log10(ToDouble(args[0])),
         ["ln"] = args => Math.Log(ToDouble(args[0])),
 
-        // Exponential
         ["exp"] = args => Math.Exp(ToDouble(args[0])),
 
-        // Rounding: preserves decimal type per Math.Floor(decimal)/Math.Ceiling(decimal) overloads
+        // Decimal overloads are preserved so extended bare names do not silently demote decimal inputs to double.
         ["floor"] = args => args[0] is decimal m ? Math.Floor(m) : Math.Floor(ToDouble(args[0])),
         ["ceil"] = args => args[0] is decimal m ? Math.Ceiling(m) : Math.Ceiling(ToDouble(args[0])),
         ["round"] = args => args[0] is decimal m ? Math.Round(m) : Math.Round(ToDouble(args[0])),
         ["truncate"] = args => args[0] is decimal m ? Math.Truncate(m) : Math.Truncate(ToDouble(args[0])),
 
-        // Sign: all overloads return int
         ["sign"] = args => Math.Sign(ToDouble(args[0]))
     }, StringComparer.Ordinal);
 
@@ -135,7 +126,7 @@ internal static class BareMathNames
     }, StringComparer.Ordinal);
 
     /// <summary>
-    /// Preserves int/long/float/double/decimal types instead of converting to double.
+    /// Preserves common numeric runtime types instead of eagerly normalizing everything to double.
     /// </summary>
     private static object? Abs(object? arg)
     {
@@ -151,7 +142,7 @@ internal static class BareMathNames
     }
 
     /// <summary>
-    /// Preserves int/long/float/double/decimal types instead of converting to double.
+    /// Preserves common numeric runtime types instead of eagerly normalizing everything to double.
     /// </summary>
     private static object? Min(object? a, object? b)
     {
@@ -167,7 +158,7 @@ internal static class BareMathNames
     }
 
     /// <summary>
-    /// Preserves int/long/float/double/decimal types instead of converting to double.
+    /// Preserves common numeric runtime types instead of eagerly normalizing everything to double.
     /// </summary>
     private static object? Max(object? a, object? b)
     {
@@ -183,7 +174,7 @@ internal static class BareMathNames
     }
 
     /// <summary>
-    /// Preserves int/long/float/double/decimal types instead of converting to double.
+    /// Preserves common numeric runtime types instead of eagerly normalizing everything to double.
     /// </summary>
     private static object? Clamp(object? value, object? min, object? max)
     {

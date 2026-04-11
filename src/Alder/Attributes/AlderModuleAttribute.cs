@@ -1,18 +1,18 @@
 namespace Alder.Attributes;
 
 /// <summary>
-/// Marks a class as an Alder module, making its public members accessible via <c>ModuleName.Member</c> syntax.
+/// Marks a type as an Alder module whose members can be reached with <c>ModuleName.Member</c> syntax.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
 public class AlderModuleAttribute : Attribute
 {
     /// <summary>
-    /// The expression-visible module name (e.g., <c>"Math"</c> for <c>Math.Abs()</c>).
+    /// Name exposed to expressions, for example <c>Math</c>.
     /// </summary>
     public string? Name { get; }
 
     /// <summary>
-    /// When <c>true</c>, only methods marked with <see cref="AlderFunctionAttribute"/> are exposed.
+    /// When <c>true</c>, only members marked with <see cref="AlderFunctionAttribute"/> are exposed.
     /// </summary>
     public bool ExplicitOnly { get; init; } = false;
 

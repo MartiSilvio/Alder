@@ -143,7 +143,7 @@ internal static class TypedDispatchHelper
 
     /// <summary>
     /// In case-insensitive mode, resolves the canonical (PascalCase) member name via reflection
-    /// so AOT dispatch — which uses exact names — can match. Returns null if case-sensitive
+    /// so AOT dispatch, which uses exact names, can match. Returns null if case-sensitive
     /// or if no matching member exists. Returns null (not the original name) when the canonical
     /// name equals the input, so callers can skip the retry.
     /// </summary>

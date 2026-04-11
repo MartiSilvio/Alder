@@ -16,7 +16,6 @@ public static class FecSmokeTest
 
         var expressions = new (string name, string expr, AlderEngine engine)[]
         {
-            // Competitor-level expressions
             ("Arithmetic/Constant", "1 + 2 * 3 - 4 / 2", standardFec),
             ("Arithmetic/Variables", "(x + y) * z - x / 2", standardFec),
             ("Boolean/Composite", "x > y && y < z || x == 10", standardFec),
@@ -28,7 +27,6 @@ public static class FecSmokeTest
                 standardFec),
             ("Stress/BigBoolean", CompetitorExpressionFactory.BuildBigBooleanStress(CompetitorExpressionDialect.CSharp), standardFec),
 
-            // Advanced C# features
             ("Advanced/NestedMath", "Math.Abs((x - y) * (z + 2)) + Math.Max(x, z)", standardFec),
             ("Advanced/StringPredicate", "text.StartsWith(\"a\") && text.Length > 3", standardFec),
             ("Advanced/StringChain", "text.Trim().ToUpper().Length", standardFec),
@@ -36,14 +34,12 @@ public static class FecSmokeTest
             ("Advanced/CollectionProperties", "numbers.Count > 500 && orders.Count == 5", standardFec),
             ("Advanced/ObjectGraphAccess", "orders[0].Quantity + orders[1].Quantity + orders.Count", standardFec),
 
-            // LINQ
             ("LINQ/WhereCount", "numbers.Where(x => x > 500).Count()", standardFec),
             ("LINQ/SelectSum", "numbers.Select(x => x * 2).Sum()", standardFec),
             ("LINQ/WhereSelectSum", "numbers.Where(x => x > 100).Select(x => x * x).Sum()", standardFec),
             ("LINQ/AnyPredicate", "numbers.Any(x => x > 999)", standardFec),
             ("LINQ/OrderByFirst", "numbers.OrderByDescending(x => x).First()", standardFec),
 
-            // Invocation patterns
             ("Invocation/OverloadResolution_Int", "target.Overload(x)", invocationFec),
             ("Invocation/OverloadResolution_Long", "target.Overload(10000000000L)", invocationFec),
             ("Invocation/ImplicitConversion", "target.ConsumeDouble(x)", invocationFec),
@@ -51,7 +47,6 @@ public static class FecSmokeTest
             ("Invocation/OptionalArgument", "target.WithOptional(x)", invocationFec),
             ("Invocation/ChainedInstance", "target.Normalize(text).Contains(\"AL\")", invocationFec),
 
-            // Extended syntax
             ("Extended/BareMath", "sin(x)", extendedFec),
             ("Extended/Pipeline", "x |> inc", extendedFec),
             ("Extended/ChainedComparison", "0 < x < y", extendedFec),
@@ -72,7 +67,6 @@ public static class FecSmokeTest
         var failed = 0;
         var failures = new List<(string name, string error)>();
 
-        // Typed delegate compilation (Compile<TDelegate>) smoke tests
         var typedDelegateTests = new (string name, Action test)[]
         {
             ("TypedDelegate/Func1Param", () =>

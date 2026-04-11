@@ -2,6 +2,9 @@ namespace Alder.Runtime;
 
 internal static class TypeInference
 {
+    /// <summary>
+    /// Applies ECMA-334 method type inference to a generic method candidate.
+    /// </summary>
     public static Type[]? Infer(MethodInfo genericMethod, Type?[] argTypes, object?[]? lambdaArgs, AlderContext? runtimeContext)
     {
         var genericParams = genericMethod.GetGenericArguments();
@@ -12,7 +15,7 @@ internal static class TypeInference
 
         var ctx = new InferenceContext(genericParams);
 
-        // Phase 1: Initial bounds collection (ECMA-334 section 12.6.3.2)
+        // Phase 1 collects initial bounds from concrete arguments and explicit lambda parameter types.
         for (var i = 0; i < parameters.Length && i < argTypes.Length; i++)
         {
             if (argTypes[i] != null)
@@ -22,7 +25,7 @@ internal static class TypeInference
                 ExplicitParameterTypeInference(lambdaArgs[i]!, parameters[i].ParameterType, ctx);
         }
 
-        // Phase 2: Iterative fixing (ECMA-334 section 12.6.3.3)
+        // Phase 2 fixes type parameters iteratively as more bounds become usable.
         IterativeFix(ctx, parameters, argTypes, lambdaArgs, runtimeContext);
 
         for (var i = 0; i < ctx.FixedTypes.Length; i++)
@@ -52,7 +55,7 @@ internal static class TypeInference
 
             var dependsOn = ComputeDependencies(ctx, parameters, lambdaArgs);
 
-            // Try to fix unfixed params with no dependencies on other unfixed params
+            // Prefer parameters whose remaining bounds no longer depend on other unfixed parameters.
             var fixedAny = false;
             for (var i = 0; i < ctx.GenericParams.Length; i++)
             {
@@ -71,7 +74,7 @@ internal static class TypeInference
 
             if (!fixedAny)
             {
-                // Try to fix unfixed params with non-empty bounds that are depended on by others
+                // If that stalls, try parameters that already constrain other unfixed parameters.
                 for (var i = 0; i < ctx.GenericParams.Length; i++)
                 {
                     if (ctx.IsFixed[i])
@@ -88,7 +91,7 @@ internal static class TypeInference
 
             if (!fixedAny)
             {
-                // Last resort: fix anything with bounds
+                // Last resort: attempt any parameter that has usable bounds.
                 for (var i = 0; i < ctx.GenericParams.Length; i++)
                 {
                     if (ctx.IsFixed[i])
@@ -103,7 +106,7 @@ internal static class TypeInference
             if (!fixedAny)
                 return false;
 
-            // Output type inference for lambdas whose input type params are now all fixed
+            // Once lambda input types are fixed, use the lambda body to infer output bounds.
             if (lambdaArgs != null)
                 PerformOutputTypeInference(ctx, parameters, argTypes, lambdaArgs, runtimeContext);
         }
@@ -198,7 +201,7 @@ internal static class TypeInference
         return type;
     }
 
-    // ECMA-334 section 12.6.3.9: Exact inference
+    // ECMA-334 §12.6.3.9 exact inference.
     private static void ExactInference(Type u, Type v, InferenceContext ctx)
     {
         var vIdx = ctx.IndexOf(v);
@@ -231,7 +234,7 @@ internal static class TypeInference
         }
     }
 
-    // ECMA-334 section 12.6.3.10: Lower-bound inference
+    // ECMA-334 §12.6.3.10 lower-bound inference.
     private static void LowerBoundInference(Type u, Type v, InferenceContext ctx)
     {
         var vIdx = ctx.IndexOf(v);

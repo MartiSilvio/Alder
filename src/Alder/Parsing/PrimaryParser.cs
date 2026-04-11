@@ -4,8 +4,9 @@ using Alder.Parsing.Extensions;
 namespace Alder.Parsing;
 
 /// <summary>
-/// Parses primary expressions: literals, identifiers, new expressions, casts, groupings,
-/// lambdas, tuples, array/object literals, typeof, nameof, default, interpolated strings.
+/// Parses primary expressions.
+/// This stage owns literals, identifiers, grouping, lambda entry points, object and collection literals,
+/// and the syntax forms that begin with dedicated keywords such as <c>new</c>, <c>typeof</c>, and <c>nameof</c>.
 /// </summary>
 internal sealed class PrimaryParser : ParserBase
 {
@@ -80,28 +81,28 @@ internal sealed class PrimaryParser : ParserBase
         if (Match(TokenType.Sizeof))
             return ParseSizeofExpression(mark);
 
-        // §12.19: async anonymous function
+        // ECMA-334 §12.19: async anonymous functions must be recognized before plain identifier parsing.
         if (Check(TokenType.Async) && IsAsyncLambdaAhead())
         {
-            Advance(); // consume 'async'
+            Advance();
             if (Match(TokenType.LeftParen))
                 return ParseAsyncParenthesizedLambda(mark);
-            Advance(); // consume identifier
+            Advance();
             return ParseAsyncSingleParamLambda(mark);
         }
 
-        // §12.19: Anonymous method expression
+        // ECMA-334 §12.19: anonymous method expressions begin with delegate.
         if (Match(TokenType.Delegate))
             return ParseAnonymousDelegate(mark);
 
         if (Match(TokenType.Identifier))
             return ParseIdentifier(mark);
 
-        // ECMA-334 §12.20: query expression, must check before contextual keyword fallback
+        // ECMA-334 §12.20: query syntax must win before contextual-keyword fallback turns "from" into an identifier.
         if (Check(TokenType.From) && _queryParser.IsQueryExpressionStart())
             return _queryParser.ParseQueryExpression();
 
-        // ECMA-334 §6.4.4: contextual keywords can be used as identifiers in expression contexts
+        // ECMA-334 §6.4.4: contextual keywords remain legal identifiers outside their contextual positions.
         if (IsContextualKeyword(Peek().Type))
         {
             Advance();

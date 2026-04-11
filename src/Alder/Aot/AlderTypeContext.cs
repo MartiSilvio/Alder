@@ -1,8 +1,8 @@
 namespace Alder.Aot;
 
 /// <summary>
-/// Base class for AOT-generated type contexts. Each context provides <see cref="TypedDispatch"/>
-/// instances for a set of registered types, enabling reflection-free member access at runtime.
+/// Base class for AOT-generated type contexts.
+/// A context supplies pre-generated dispatch metadata so Alder can avoid reflection in trim-sensitive environments.
 /// </summary>
 public abstract class AlderTypeContext
 {
@@ -10,17 +10,15 @@ public abstract class AlderTypeContext
     public abstract IReadOnlyList<TypedDispatch> GetTypeMetadata();
 
     /// <summary>
-    /// Returns pre-instantiated delegate factories for AOT environments where
-    /// <c>MakeGenericMethod</c> is unavailable for value-type generic arguments.
-    /// Each entry maps a closed delegate type (e.g., <c>Func&lt;int, bool&gt;</c>) to a
-    /// factory that wraps a <c>LambdaValue</c> in that delegate type.
+    /// Returns delegate factories for environments where runtime generic closure is unavailable or unsafe.
+    /// Each entry maps a closed delegate type such as <c>Func&lt;int, bool&gt;</c> to a factory
+    /// that wraps an Alder lambda in that delegate type.
     /// </summary>
     public virtual IReadOnlyDictionary<Type, Func<object, Delegate>>? GetDelegateFactories() => null;
 
     /// <summary>
-    /// Returns extension method dispatch entries for value-type collections
-    /// (e.g., LINQ methods on <c>List&lt;int&gt;</c>) where <c>MakeGenericMethod</c>
-    /// fails under NativeAOT.
+    /// Returns extra dispatch entries for cases where runtime generic closure is not reliable,
+    /// such as LINQ over value-type collections under NativeAOT.
     /// </summary>
     public virtual IReadOnlyList<TypedDispatch>? GetExtensionDispatches() => null;
 }

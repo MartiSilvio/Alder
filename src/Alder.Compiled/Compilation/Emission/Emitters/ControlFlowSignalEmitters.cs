@@ -1,13 +1,16 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Diagnostics;
 using Alder.Interpretation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class BreakEmitter : INodeEmitter<BoundBreakExpr>
+[EmitsNode(BoundNodeKind.BreakStatement)]
+internal static class BreakEmitter
 {
-    public LinqExpression Emit(BoundBreakExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundBreakExpr node, EmissionContext ctx)
     {
         if (ctx.LoopDepth > 0 || ctx.SwitchDepth > 0)
             return LinqExpression.Assign(ctx.SignalParam, LinqExpression.Field(null, ControlFlowBreakField));
@@ -18,9 +21,10 @@ internal sealed class BreakEmitter : INodeEmitter<BoundBreakExpr>
     }
 }
 
-internal sealed class ContinueEmitter : INodeEmitter<BoundContinueExpr>
+[EmitsNode(BoundNodeKind.ContinueStatement)]
+internal static class ContinueEmitter
 {
-    public LinqExpression Emit(BoundContinueExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundContinueExpr node, EmissionContext ctx)
     {
         if (ctx.LoopDepth > 0)
             return LinqExpression.Assign(ctx.SignalParam, LinqExpression.Field(null, ControlFlowContinueField));
@@ -31,9 +35,10 @@ internal sealed class ContinueEmitter : INodeEmitter<BoundContinueExpr>
     }
 }
 
-internal sealed class ReturnEmitter : INodeEmitter<BoundReturnExpr>
+[EmitsNode(BoundNodeKind.ReturnStatement)]
+internal static class ReturnEmitter
 {
-    public LinqExpression Emit(BoundReturnExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundReturnExpr node, EmissionContext ctx)
     {
         return LinqExpression.Assign(
             ctx.SignalParam,
@@ -45,9 +50,10 @@ internal sealed class ReturnEmitter : INodeEmitter<BoundReturnExpr>
     }
 }
 
-internal sealed class GotoEmitter : INodeEmitter<BoundGotoExpr>
+[EmitsNode(BoundNodeKind.GotoStatement)]
+internal static class GotoEmitter
 {
-    public LinqExpression Emit(BoundGotoExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundGotoExpr node, EmissionContext ctx)
     {
         return LinqExpression.Assign(
             ctx.SignalParam,
@@ -55,9 +61,10 @@ internal sealed class GotoEmitter : INodeEmitter<BoundGotoExpr>
     }
 }
 
-internal sealed class GotoCaseEmitter : INodeEmitter<BoundGotoCaseExpr>
+[EmitsNode(BoundNodeKind.GotoCaseStatement)]
+internal static class GotoCaseEmitter
 {
-    public LinqExpression Emit(BoundGotoCaseExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundGotoCaseExpr node, EmissionContext ctx)
     {
         return LinqExpression.Assign(
             ctx.SignalParam,

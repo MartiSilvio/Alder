@@ -1,14 +1,16 @@
 using System.Collections.Immutable;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class DynamicCallEmitter : INodeEmitter<BoundDynamicCallExpr>
+[EmitsNode(BoundNodeKind.DynamicCall)]
+internal static class DynamicCallEmitter
 {
-    public LinqExpression Emit(BoundDynamicCallExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundDynamicCallExpr node, EmissionContext ctx)
     {
         var chain = PostfixChain.TryCollect(node);
         if (chain != null) return ResolvedCallEmitter.EmitPostfixChain(chain.Value, ctx);

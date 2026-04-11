@@ -1,12 +1,15 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class ForEmitter : INodeEmitter<BoundForExpr>
+[EmitsNode(BoundNodeKind.ForStatement)]
+internal static class ForEmitter
 {
-    public LinqExpression Emit(BoundForExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundForExpr node, EmissionContext ctx)
     {
         var previousContextVar = LinqExpression.Variable(typeof(AlderContext), "forPrevCtx");
         var resultVar = LinqExpression.Variable(typeof(object), "forResult");

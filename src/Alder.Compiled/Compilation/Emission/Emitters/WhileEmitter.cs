@@ -1,10 +1,13 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class WhileEmitter : INodeEmitter<BoundWhileExpr>
+[EmitsNode(BoundNodeKind.WhileStatement)]
+internal static class WhileEmitter
 {
-    public LinqExpression Emit(BoundWhileExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundWhileExpr node, EmissionContext ctx)
     {
         var loopBreakLabel = LinqExpression.Label(typeof(object), "whileBreak");
         var loopContinueLabel = LinqExpression.Label("whileContinue");

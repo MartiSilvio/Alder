@@ -8,8 +8,8 @@ using Microsoft.CodeAnalysis;
 namespace Alder.Generators;
 
 /// <summary>
-/// Extracts type metadata from Roslyn symbols into generator-friendly models.
-/// Separated from the pipeline for independent testability.
+/// Extracts Roslyn symbol information into the generator model types used by Alder's AOT pipeline.
+/// Keeping this logic isolated from the source-generation entry point makes the transformation testable on its own.
 /// </summary>
 internal static class TypeParser
 {
@@ -122,13 +122,10 @@ internal static class TypeParser
     }
 
     /// <summary>
-    /// Result type matrix for TResult expansion.
+    /// Candidate result types used when expanding generic method shapes that require a materialized <c>TResult</c>.
+    /// Value types need rooted instantiations for AOT dispatch, and <see cref="string"/> plus <see cref="object"/>
+    /// cover the common reference-type cases without opening the door to unbounded expansion.
     /// </summary>
-    // Value types + string + object. Value types need pre-compiled instantiations.
-    // String and object are included because generic static methods like Repeat<string>,
-    // Empty<string>, Task.FromResult<string> need them for TryInvokeStatic dispatch.
-    // Extension methods are skipped from expansion (IsExtensionMethod check), so
-    // including string/object here doesn't cause combinatorial explosion.
     private static readonly SpecialType[] ResultSpecialTypes =
     {
         SpecialType.System_Int32, SpecialType.System_Int64,
@@ -137,7 +134,8 @@ internal static class TypeParser
     };
 
     /// <summary>
-    /// Resolves the result type symbols used for TResult expansion. Call once per compilation.
+    /// Resolves the Roslyn symbols that back <see cref="ResultSpecialTypes"/>.
+    /// Call once per compilation and reuse the result for expansion.
     /// </summary>
     public static ImmutableArray<INamedTypeSymbol> ResolveResultTypeSymbols(Compilation compilation)
     {
@@ -153,9 +151,8 @@ internal static class TypeParser
     }
 
     /// <summary>
-    /// Expands generic methods on a type by constructing closed instantiations
-    /// using Roslyn's type system. Constraints are validated by Roslyn, not guessed.
-    /// Returns a new TypeRegistrationModel with expanded methods appended.
+    /// Expands generic methods into closed instantiations that the generated dispatch layer can address directly.
+    /// Roslyn performs the constraint checks, so the generator only records combinations that the compiler accepts.
     /// </summary>
     public static TypeRegistrationModel ExpandGenericMethods(
         INamedTypeSymbol typeSymbol,
@@ -184,14 +181,12 @@ internal static class TypeParser
             if (HasExcludedParameterTypes(method))
                 continue;
 
-            // Skip methods where the type parameter isn't inferable from parameter types.
-            // E.g., Cast<TResult>(IEnumerable): the first param is non-generic IEnumerable,
-            // so typed dispatch can't determine which TResult to use. Let reflection handle these.
+            // Dispatch generation only works when the closed type arguments can be inferred from the call shape.
+            // Methods such as Cast<TResult>(IEnumerable) therefore stay on the reflection path.
             if (!HasTypeParameterInParameters(method))
                 continue;
 
-            // Classify each type parameter by role: element types expand with the element pool
-            // (they appear as IEnumerable<T> type arguments), result types with the result pool.
+            // Expansion pools are chosen from the role each type parameter plays in the public signature.
             var pools = ClassifyTypeParameterPools(method, ienumerableOpen, elementTypeSymbols, resultTypeSymbols);
             ExpandCombinations(method, pools, 0, new ITypeSymbol[pools.Length], expanded);
         }
@@ -209,10 +204,9 @@ internal static class TypeParser
     }
 
     /// <summary>
-    /// Determines the expansion pool for each type parameter based on where it appears
-    /// in the method signature. Type params that appear as IEnumerable&lt;T&gt; arguments
-    /// (directly or nested inside Func/Action) are "element" types and expand with the
-    /// element pool. All others expand with the result pool.
+    /// Chooses an expansion pool for each type parameter based on how it appears in the method signature.
+    /// Parameters that behave like enumerable element types expand against the element pool.
+    /// All remaining parameters expand against the result pool.
     /// </summary>
     private static ImmutableArray<INamedTypeSymbol>[] ClassifyTypeParameterPools(
         IMethodSymbol method,
@@ -232,8 +226,7 @@ internal static class TypeParser
     }
 
     /// <summary>
-    /// Walks a type tree looking for IEnumerable&lt;T&gt; where T is one of the method's
-    /// type parameters. Recurses into generic arguments (Func, Action, nested generics).
+    /// Walks a type tree looking for <c>IEnumerable&lt;T&gt;</c> occurrences whose <c>T</c> is one of the method type parameters.
     /// </summary>
     private static void MarkEnumerableTypeParams(
         ITypeSymbol type,

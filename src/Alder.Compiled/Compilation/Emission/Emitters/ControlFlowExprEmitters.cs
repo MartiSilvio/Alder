@@ -1,13 +1,16 @@
 using System.Linq.Expressions;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class CheckedEmitter : INodeEmitter<BoundCheckedExpr>
+[EmitsNode(BoundNodeKind.CheckedExpression)]
+internal static class CheckedEmitter
 {
-    public LinqExpression Emit(BoundCheckedExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundCheckedExpr node, EmissionContext ctx)
     {
         var previous = ctx.IsChecked;
         ctx.IsChecked = node.IsChecked;
@@ -22,9 +25,10 @@ internal sealed class CheckedEmitter : INodeEmitter<BoundCheckedExpr>
     }
 }
 
-internal sealed class ChainedComparisonEmitter : INodeEmitter<BoundChainedComparisonExpr>
+[EmitsNode(BoundNodeKind.ChainedComparisonOperator)]
+internal static class ChainedComparisonEmitter
 {
-    public LinqExpression Emit(BoundChainedComparisonExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundChainedComparisonExpr node, EmissionContext ctx)
     {
         var resultLabel = LinqExpression.Label(typeof(bool), "chainResult");
         var variables = new List<ParameterExpression>();
@@ -57,9 +61,10 @@ internal sealed class ChainedComparisonEmitter : INodeEmitter<BoundChainedCompar
     }
 }
 
-internal sealed class RangeEmitter : INodeEmitter<BoundRangeExpr>
+[EmitsNode(BoundNodeKind.RangeExpression)]
+internal static class RangeEmitter
 {
-    public LinqExpression Emit(BoundRangeExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundRangeExpr node, EmissionContext ctx)
     {
         var startExpr = node.Start != null
             ? ctx.EmitBoxed(node.Start)
@@ -80,9 +85,10 @@ internal sealed class RangeEmitter : INodeEmitter<BoundRangeExpr>
     }
 }
 
-internal sealed class IndexFromEndEmitter : INodeEmitter<BoundIndexFromEndExpr>
+[EmitsNode(BoundNodeKind.FromEndIndexExpression)]
+internal static class IndexFromEndEmitter
 {
-    public LinqExpression Emit(BoundIndexFromEndExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundIndexFromEndExpr node, EmissionContext ctx)
     {
         var operand = ctx.Emit(node.Operand);
         var intOperand = operand.Type == typeof(int) ? operand : LinqExpression.Convert(operand, typeof(int));
@@ -93,9 +99,10 @@ internal sealed class IndexFromEndEmitter : INodeEmitter<BoundIndexFromEndExpr>
     }
 }
 
-internal sealed class SliceEmitter : INodeEmitter<BoundSliceExpr>
+[EmitsNode(BoundNodeKind.SliceExpression)]
+internal static class SliceEmitter
 {
-    public LinqExpression Emit(BoundSliceExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundSliceExpr node, EmissionContext ctx)
     {
         var target = ctx.EmitBoxed(node.Target);
         var start = node.Start != null ? ctx.EmitBoxed(node.Start) : LinqExpression.Constant(null, typeof(object));

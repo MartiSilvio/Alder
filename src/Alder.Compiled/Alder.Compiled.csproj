@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Alder\Alder.csproj" />
+    <ProjectReference Include="..\Alder.Generators\Alder.Generators.csproj" PrivateAssets="all" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
   </ItemGroup>
 
   <ItemGroup>

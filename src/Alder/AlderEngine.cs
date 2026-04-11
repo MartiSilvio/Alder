@@ -13,15 +13,14 @@ using Binder = Alder.Binding.Binder;
 namespace Alder;
 
 /// <summary>
-/// The main entry point for parsing, evaluating, validating, and compiling C# expressions at runtime.
+/// The primary runtime entry point for parsing, validating, evaluating, and compiling Alder expressions.
 /// </summary>
 /// <remarks>
-/// <para><b>Thread Safety:</b></para>
-/// <para>The engine is fully configured at construction time via <see cref="AlderOptions"/>.
-/// All evaluation methods are thread-safe and can be called concurrently from multiple threads.</para>
-/// <para><see cref="SetVariable{T}"/> is thread-safe and can be called at any time, including between evaluations.</para>
-/// <para>Child engines created via <see cref="CreateChild"/> can be evaluated concurrently with the parent
-/// and with each other.</para>
+/// <para>The engine is configured once at construction time.</para>
+/// <para>Concurrent evaluation is supported on the root engine and on child engines created by <see cref="CreateChild"/>.</para>
+/// <para>Concurrent mutation of shared parent-scoped variables is not a synchronization contract.
+/// Compound updates such as <c>x = x + 1</c> are not atomic, and evaluation does not provide snapshot isolation
+/// against concurrent writes. Use child-local variables or external synchronization when shared state is mutated.</para>
 /// </remarks>
 public sealed partial class AlderEngine : IDisposable
 {
@@ -70,7 +69,7 @@ public sealed partial class AlderEngine : IDisposable
     }
 
     /// <summary>
-    /// Creates a new engine configured via the provided options action.
+    /// Creates a new engine configured through an options callback.
     /// </summary>
     /// <param name="configure">An action that configures the engine options.</param>
     public AlderEngine(Action<AlderOptions> configure) : this(Apply(configure))
@@ -78,7 +77,7 @@ public sealed partial class AlderEngine : IDisposable
     }
 
     /// <summary>
-    /// Creates a new engine with the specified options.
+    /// Creates a new engine with the supplied options.
     /// </summary>
     /// <param name="options">The configuration options for this engine.</param>
     public AlderEngine(AlderOptions options)
@@ -337,9 +336,9 @@ public sealed partial class AlderEngine : IDisposable
     }
 
     /// <summary>
-    /// Parses an expression string into a reusable <see cref="AlderExpression"/> that can be evaluated multiple times.
+    /// Parses source into a reusable <see cref="AlderExpression"/>.
     /// </summary>
-    /// <param name="expression">The C# expression string to parse.</param>
+    /// <param name="expression">Expression source to parse.</param>
     /// <returns>A parsed expression ready for evaluation.</returns>
     /// <exception cref="ObjectDisposedException">The engine has been disposed.</exception>
     /// <exception cref="AlderException">The expression contains syntax errors.</exception>
@@ -364,9 +363,9 @@ public sealed partial class AlderEngine : IDisposable
     }
 
     /// <summary>
-    /// Attempts to parse an expression string without throwing on failure.
+    /// Attempts to parse source without throwing for ordinary parse failures.
     /// </summary>
-    /// <param name="expression">The C# expression string to parse.</param>
+    /// <param name="expression">Expression source to parse.</param>
     /// <param name="result">When successful, the parsed expression; otherwise, <c>null</c>.</param>
     /// <param name="error">When parsing fails, the error message; otherwise, <c>null</c>.</param>
     /// <returns><c>true</c> if parsing succeeded; otherwise, <c>false</c>.</returns>
@@ -394,9 +393,9 @@ public sealed partial class AlderEngine : IDisposable
     }
 
     /// <summary>
-    /// Evaluates a C# expression string and returns the result.
+    /// Evaluates source text and returns the result.
     /// </summary>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
     /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
@@ -413,7 +412,7 @@ public sealed partial class AlderEngine : IDisposable
     }
 
     /// <summary>
-    /// Evaluates a pre-parsed expression and returns the result.
+    /// Evaluates a previously parsed expression and returns the result.
     /// </summary>
     /// <param name="expression">The pre-parsed expression to evaluate.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
@@ -437,6 +436,7 @@ public sealed partial class AlderEngine : IDisposable
         }
 
         var context = target.GetOrCreateContext();
+        context.ActiveCancellationToken = cancellationToken;
         var constraintState = new ExecutionConstraintState();
         constraintState.Reset(_config.Constraints);
 
@@ -498,7 +498,7 @@ public sealed partial class AlderEngine : IDisposable
     /// <summary>
     /// Evaluates a C# expression with variables supplied as an anonymous object.
     /// </summary>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">An object whose public properties become expression variables.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
     /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
@@ -533,7 +533,7 @@ public sealed partial class AlderEngine : IDisposable
     /// Evaluates a C# expression and converts the result to <typeparamref name="T"/>.
     /// </summary>
     /// <typeparam name="T">The expected return type.</typeparam>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
     /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
@@ -567,7 +567,7 @@ public sealed partial class AlderEngine : IDisposable
     /// Evaluates a C# expression with anonymous object variables and converts the result to <typeparamref name="T"/>.
     /// </summary>
     /// <typeparam name="T">The expected return type.</typeparam>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">An object whose public properties become expression variables.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
     /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
@@ -605,7 +605,7 @@ public sealed partial class AlderEngine : IDisposable
     /// Variables are accessible as <c>@0</c>, <c>@1</c>, etc. by position.
     /// Dictionaries and objects are also destructured into named variables.
     /// </summary>
-    /// <param name="expression">The C# expression string.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">Variables accessible within the expression.</param>
     /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
     public object? Evaluate(string expression, params object?[] variables)
@@ -622,7 +622,7 @@ public sealed partial class AlderEngine : IDisposable
     /// Dictionaries and objects are also destructured into named variables.
     /// </summary>
     /// <typeparam name="T">The expected return type.</typeparam>
-    /// <param name="expression">The C# expression string.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">Variables accessible within the expression.</param>
     /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
     public T? Evaluate<T>(string expression, params object?[] variables)
@@ -634,7 +634,7 @@ public sealed partial class AlderEngine : IDisposable
     /// <summary>
     /// Attempts to evaluate a C# expression without throwing on failure.
     /// </summary>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="result">When successful, the evaluation result; otherwise, <c>null</c>.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
@@ -662,7 +662,7 @@ public sealed partial class AlderEngine : IDisposable
     /// Attempts to evaluate a C# expression and convert the result to <typeparamref name="T"/> without throwing on failure.
     /// </summary>
     /// <typeparam name="T">The expected return type.</typeparam>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="result">When successful, the result converted to <typeparamref name="T"/>; otherwise, <c>default</c>.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
@@ -689,7 +689,7 @@ public sealed partial class AlderEngine : IDisposable
     /// <summary>
     /// Validates an expression for syntax and binding errors without evaluating it.
     /// </summary>
-    /// <param name="expression">The C# expression string to validate.</param>
+    /// <param name="expression">Expression source to validate.</param>
     /// <param name="diagnostics">When validation fails, the list of diagnostics; otherwise, an empty list.</param>
     /// <returns><c>true</c> if the expression is valid; otherwise, <c>false</c>.</returns>
     public bool TryValidate(string expression, out IReadOnlyList<AlderDiagnostic> diagnostics)

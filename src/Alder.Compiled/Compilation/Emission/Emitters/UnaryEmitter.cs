@@ -1,13 +1,15 @@
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Parsing;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class UnaryEmitter : INodeEmitter<BoundUnaryExpr>
+[EmitsNode(BoundNodeKind.UnaryOperator)]
+internal static class UnaryEmitter
 {
-    public LinqExpression Emit(BoundUnaryExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundUnaryExpr node, EmissionContext ctx)
     {
         if (node.PromotedType is { } promoted && !ctx.IsChecked)
         {

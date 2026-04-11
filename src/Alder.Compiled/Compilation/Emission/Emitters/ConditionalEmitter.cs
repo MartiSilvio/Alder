@@ -1,12 +1,15 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class ConditionalEmitter : INodeEmitter<BoundConditionalExpr>
+[EmitsNode(BoundNodeKind.ConditionalOperator)]
+internal static class ConditionalEmitter
 {
-    public LinqExpression Emit(BoundConditionalExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundConditionalExpr node, EmissionContext ctx)
     {
         var conditionCandidate = ctx.Emit(node.Condition);
         var condition = conditionCandidate.Type == typeof(bool)

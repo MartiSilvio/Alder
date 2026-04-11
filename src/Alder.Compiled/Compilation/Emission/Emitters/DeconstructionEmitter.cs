@@ -1,11 +1,14 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class DeconstructionEmitter : INodeEmitter<BoundDeconstructionExpr>
+[EmitsNode(BoundNodeKind.DeconstructionAssignment)]
+internal static class DeconstructionEmitter
 {
-    public LinqExpression Emit(BoundDeconstructionExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundDeconstructionExpr node, EmissionContext ctx)
     {
         var variableNames = LinqExpression.NewArrayInit(
             typeof(string),

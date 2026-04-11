@@ -1,12 +1,15 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Diagnostics;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class NamedArgumentEmitter : INodeEmitter<BoundNamedArgumentExpr>
+[EmitsNode(BoundNodeKind.NamedArgument)]
+internal static class NamedArgumentEmitter
 {
-    public LinqExpression Emit(BoundNamedArgumentExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundNamedArgumentExpr node, EmissionContext ctx)
     {
         return LinqExpression.Convert(
             LinqExpression.New(
@@ -17,9 +20,10 @@ internal sealed class NamedArgumentEmitter : INodeEmitter<BoundNamedArgumentExpr
     }
 }
 
-internal sealed class OutArgEmitter : INodeEmitter<BoundOutArgExpr>
+[EmitsNode(BoundNodeKind.OutArgument)]
+internal static class OutArgEmitter
 {
-    public LinqExpression Emit(BoundOutArgExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundOutArgExpr node, EmissionContext ctx)
     {
         return LinqExpression.Convert(
             LinqExpression.New(
@@ -31,9 +35,10 @@ internal sealed class OutArgEmitter : INodeEmitter<BoundOutArgExpr>
     }
 }
 
-internal sealed class SpreadEmitter : INodeEmitter<BoundSpreadExpr>
+[EmitsNode(BoundNodeKind.SpreadElement)]
+internal static class SpreadEmitter
 {
-    public LinqExpression Emit(BoundSpreadExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundSpreadExpr node, EmissionContext ctx)
     {
         throw new AlderException(DiagnosticDescriptors.SpreadOutsideLiteral);
     }

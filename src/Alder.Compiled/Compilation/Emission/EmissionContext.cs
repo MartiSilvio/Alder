@@ -6,15 +6,13 @@ using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission;
 
-internal sealed class EmissionContext
+internal sealed partial class EmissionContext
 {
     public ParameterExpression ContextParam { get; }
     public ParameterExpression ConfigParam { get; }
     public ParameterExpression ConstraintStateParam { get; }
     public ParameterExpression CancellationTokenParam { get; }
     public bool PreferResolvedRuntimeDispatch { get; }
-
-    private readonly Dictionary<BoundNodeKind, Func<BoundExpr, EmissionContext, Expression>> _emitters = new();
 
     internal Dictionary<int, PromotedLocal>? PromotedLocals { get; set; }
     internal Dictionary<string, HoistedIdentifier>? HoistedIdentifiers { get; set; }
@@ -38,19 +36,7 @@ internal sealed class EmissionContext
         PreferResolvedRuntimeDispatch = preferResolvedRuntimeDispatch;
     }
 
-    internal void Register<TNode>(BoundNodeKind kind, INodeEmitter<TNode> emitter) where TNode : BoundExpr
-    {
-        _emitters[kind] = (expr, ctx) => emitter.Emit((TNode)expr, ctx);
-    }
-
-    public Expression Emit(BoundExpr expr)
-    {
-        if (_emitters.TryGetValue(expr.Kind, out var emitter))
-            return emitter(expr, this);
-
-        throw new BindingNotSupportedException(
-            $"Bound compiled emission not implemented for '{expr.GetType().Name}'");
-    }
+    public Expression Emit(BoundExpr expr) => Dispatch(expr);
 
     public Expression EmitAs(BoundExpr expr, Type targetType)
     {

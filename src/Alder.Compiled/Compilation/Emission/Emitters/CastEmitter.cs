@@ -1,20 +1,22 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class CastEmitter : INodeEmitter<BoundCastExpr>
+[EmitsNode(BoundNodeKind.Conversion)]
+internal static class CastEmitter
 {
-    public LinqExpression Emit(BoundCastExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundCastExpr node, EmissionContext ctx)
     {
         var sourceType = node.Expression.StaticType.ClrType;
         var targetType = node.TargetType;
 
         if (sourceType != typeof(object) && !sourceType.IsEnum && !targetType.IsEnum)
         {
-            if ((TypeHelpers.IsArithmetic(sourceType) || sourceType == typeof(bool)) &&
-                (TypeHelpers.IsArithmetic(targetType) || targetType == typeof(bool)))
+            if (TypeHelpers.IsArithmetic(sourceType) && TypeHelpers.IsArithmetic(targetType))
             {
                 var operand = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Expression), sourceType);
                 return ctx.IsChecked

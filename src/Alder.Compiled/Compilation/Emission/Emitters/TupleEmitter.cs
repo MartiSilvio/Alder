@@ -1,13 +1,16 @@
 using System.Linq.Expressions;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class TupleEmitter : INodeEmitter<BoundTupleExpr>
+[EmitsNode(BoundNodeKind.TupleLiteral)]
+internal static class TupleEmitter
 {
-    public LinqExpression Emit(BoundTupleExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundTupleExpr node, EmissionContext ctx)
     {
         var hasNames = node.ElementNames.Any(static n => n != null);
         if (!hasNames && TypeHelpers.IsValueTupleType(node.StaticType.ClrType) && node.Elements.Length <= 7)

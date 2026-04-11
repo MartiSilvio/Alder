@@ -10,7 +10,7 @@ public sealed partial class AlderEngine
     /// <summary>
     /// Evaluates an expression and returns both the result and a step-by-step evaluation trace tree.
     /// </summary>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
     /// <returns>An <see cref="EvaluationTraceResult"/> containing the result, the trace tree, and any exception.</returns>

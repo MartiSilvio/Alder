@@ -24,8 +24,8 @@ internal readonly record struct ParameterModel(
     DelegateSignature? DelegateInfo = null);
 
 /// <summary>
-/// Decomposed delegate signature extracted from Roslyn symbols at generation time.
-/// Eliminates string parsing of type names in emitters.
+/// Delegate shape extracted from Roslyn symbols during generation.
+/// Emitters consume this directly instead of reparsing delegate types from strings.
 /// </summary>
 internal readonly record struct DelegateSignature(
     ImmutableArray<string> ParamTypes,
@@ -54,9 +54,8 @@ internal readonly record struct MethodModel(
     public bool IsGenericInstantiation => !GenericTypeArgs.IsDefaultOrEmpty;
 
     /// <summary>
-    /// True when any generic type arg is object (the canonical reference type).
-    /// These entries exist to root shared-generic canonical forms for NativeAOT
-    /// but must NOT be used for dispatch because Func covariance causes type loss.
+    /// True when any generic type argument is object, which marks a shared-generic canonical root.
+    /// These entries keep NativeAOT canonical forms alive but are not safe dispatch candidates.
     /// </summary>
     public bool IsCanonicalRoot => IsGenericInstantiation &&
         GenericTypeArgs.Any(a => a == "global::System.Object" || a == "object");

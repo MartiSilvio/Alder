@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 var config = McpServerConfig.Parse(args);
 
-// Pass [] — the host does not parse Alder's CLI args.
+// Pass an empty argument list because the host does not parse Alder CLI arguments.
 var builder = Host.CreateApplicationBuilder([]);
 builder.Logging.AddConsole(options =>
 {

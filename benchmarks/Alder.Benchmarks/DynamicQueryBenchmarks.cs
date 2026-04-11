@@ -6,9 +6,8 @@ using Alder.Compiled;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Dynamic string-query benchmark on large in-memory collections. This class
-/// measures the full string-query pipeline of each library, not just execution
-/// after the query has already been compiled elsewhere.
+/// Measures dynamic string-query execution over large in-memory collections.
+/// Each scenario includes the full query path used by the library under test.
 /// </summary>
 public sealed record DynamicQuery(
     string Name,
@@ -46,10 +45,10 @@ public class DynamicQueryBenchmarks : BenchmarkBase
         var dynLinq = Query.DynLinqCore(_data.Products);
         if (!BenchmarkParityVerifier.AreEquivalent(native, alder))
             throw new InvalidOperationException(
-                $"Parity failure: {Query.Name} SF{ScaleFactor} — Native={native}, Alder={alder}");
+                $"Parity failure: {Query.Name} SF{ScaleFactor} | Native={native}, Alder={alder}");
         if (!BenchmarkParityVerifier.AreEquivalent(native, dynLinq))
             throw new InvalidOperationException(
-                $"Parity failure: {Query.Name} SF{ScaleFactor} — Native={native}, DynLinqCore={dynLinq}");
+                $"Parity failure: {Query.Name} SF{ScaleFactor} | Native={native}, DynLinqCore={dynLinq}");
     }
 
     [GlobalCleanup]

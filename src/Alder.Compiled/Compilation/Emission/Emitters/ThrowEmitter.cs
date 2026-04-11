@@ -1,11 +1,14 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class ThrowEmitter : INodeEmitter<BoundThrowExpr>
+[EmitsNode(BoundNodeKind.ThrowExpression)]
+internal static class ThrowEmitter
 {
-    public LinqExpression Emit(BoundThrowExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundThrowExpr node, EmissionContext ctx)
     {
         var resultType = node.StaticType.ClrType != typeof(object) ? node.StaticType.ClrType : typeof(object);
 

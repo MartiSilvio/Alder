@@ -119,7 +119,7 @@ internal static class MethodInvoker
         if (!HasAnyMethodWithName(target!, methodRef.MethodName, context))
             throw new AlderException(DiagnosticDescriptors.MemberNotFound, target!.GetType().Name, methodRef.MethodName);
 
-        throw new AlderException(DiagnosticDescriptors.MethodInvocationFailed, methodRef.MethodName);
+        throw new AlderException(DiagnosticDescriptors.MissingRequiredArgument, args.Length.ToString(), methodRef.MethodName);
     }
 
     public static (bool Success, object? Value) TryInvokeInstanceMethod(
@@ -330,7 +330,7 @@ internal static class MethodInvoker
         if (ambiguous)
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
-        throw new AlderException(DiagnosticDescriptors.MethodInvocationFailed, methodName);
+        throw new AlderException(DiagnosticDescriptors.MissingRequiredArgument, args.Length.ToString(), methodName);
     }
 
     private static object? InvokeStaticMethod(
@@ -367,6 +367,9 @@ internal static class MethodInvoker
 
         if (ambiguous)
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, $"{type.Name}.{methodName}");
+
+        if (methods.Length > 0)
+            throw new AlderException(DiagnosticDescriptors.MissingRequiredArgument, args.Length.ToString(), $"{type.Name}.{methodName}");
 
         throw new AlderException(DiagnosticDescriptors.MemberNotFound, type.Name, methodName);
     }
@@ -465,6 +468,8 @@ internal static class MethodInvoker
 
     internal static object? InvokeLambda(LambdaValue lambda, object?[] args, AlderContext context)
     {
+        lambda.Closure.GetActiveCancellationToken().ThrowIfCancellationRequested();
+
         if (lambda.IsAsync)
             return InvokeLambdaAsyncCore(lambda, args);
 
@@ -501,11 +506,13 @@ internal static class MethodInvoker
 
     internal static object? InvokeCompiledLambda(CompiledLambdaValue lambda, object?[] args)
     {
+        lambda.Closure.GetActiveCancellationToken().ThrowIfCancellationRequested();
         return lambda.CompiledBody(args, lambda.Closure);
     }
 
     internal static object? InvokeCompiledLambda0(CompiledLambdaValue lambda)
     {
+        lambda.Closure.GetActiveCancellationToken().ThrowIfCancellationRequested();
         if (lambda.CompiledBody0 != null)
             return lambda.CompiledBody0(lambda.Closure);
         return lambda.CompiledBody([], lambda.Closure);
@@ -513,6 +520,7 @@ internal static class MethodInvoker
 
     internal static object? InvokeCompiledLambda1(CompiledLambdaValue lambda, object? arg0)
     {
+        lambda.Closure.GetActiveCancellationToken().ThrowIfCancellationRequested();
         if (lambda.CompiledBody1 != null)
             return lambda.CompiledBody1(arg0, lambda.Closure);
         return lambda.CompiledBody([arg0], lambda.Closure);
@@ -520,6 +528,7 @@ internal static class MethodInvoker
 
     internal static object? InvokeCompiledLambda2(CompiledLambdaValue lambda, object? arg0, object? arg1)
     {
+        lambda.Closure.GetActiveCancellationToken().ThrowIfCancellationRequested();
         if (lambda.CompiledBody2 != null)
             return lambda.CompiledBody2(arg0, arg1, lambda.Closure);
         return lambda.CompiledBody([arg0, arg1], lambda.Closure);

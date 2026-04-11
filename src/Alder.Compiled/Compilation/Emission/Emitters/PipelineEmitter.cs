@@ -1,11 +1,14 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class PipelineEmitter : INodeEmitter<BoundPipelineExpr>
+[EmitsNode(BoundNodeKind.PipelineExpression)]
+internal static class PipelineEmitter
 {
-    public LinqExpression Emit(BoundPipelineExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundPipelineExpr node, EmissionContext ctx)
     {
         if (node.Right is BoundIdentifierExpr rightIdentifier)
         {

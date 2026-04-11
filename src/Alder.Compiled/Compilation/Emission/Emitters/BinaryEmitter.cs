@@ -1,15 +1,17 @@
 using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Parsing;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class BinaryEmitter : INodeEmitter<BoundBinaryExpr>
+[EmitsNode(BoundNodeKind.BinaryOperator)]
+internal static class BinaryEmitter
 {
-    public LinqExpression Emit(BoundBinaryExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundBinaryExpr node, EmissionContext ctx)
     {
         var chain = new List<BoundBinaryExpr>();
         BoundExpr leftmost = node;

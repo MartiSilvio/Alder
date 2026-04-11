@@ -5,9 +5,8 @@ using Microsoft.CodeAnalysis.Scripting;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Alder-only language coverage benchmark. These scenarios are not comparable
-/// to simpler expression engines, so the comparison set is limited to Native C#
-/// and Roslyn scripting.
+/// Measures Alder language features that fall outside a fair head-to-head comparison with simpler expression engines.
+/// The comparison set is therefore limited to Native C# and Roslyn scripting.
 /// </summary>
 [Config(typeof(SteadyStateConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
@@ -37,7 +36,7 @@ public class AdvancedLanguageBenchmarks : BenchmarkBase
         script.Compile();
         _roslynRunner = script.CreateDelegate();
 
-        // Verify parity
+        // Capability benchmarks still require parity checks so feature coverage claims remain tied to correctness.
         var parity = BenchmarkParityVerifier.VerifyAlderScenario(Scenario, _data);
         if (!parity.IsSuccess)
             throw new InvalidOperationException(parity.Message);

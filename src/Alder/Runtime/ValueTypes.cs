@@ -5,13 +5,18 @@ using Alder.Parsing;
 namespace Alder.Runtime;
 
 /// <summary>
-/// Reference to a registered function, used by IL-compiled and interpreted expressions.
+/// References a registered global function.
+/// This wrapper gives the interpreter and compiled backend a shared runtime representation.
 /// </summary>
 internal sealed record FunctionRef(string Name, Func<object?[], object?> Function)
 {
     public object? Invoke(object?[] args) => Function(args);
 }
 
+/// <summary>
+/// Represents a runtime lambda value together with its closure.
+/// The binder emits lambdas as syntax plus captured scope, and this runtime wrapper preserves both until invocation.
+/// </summary>
 internal sealed class LambdaValue
 {
     public List<string> Parameters { get; }
@@ -23,6 +28,7 @@ internal sealed class LambdaValue
     public Type? IteratorElementType { get; set; }
 
     private bool? _isIterator;
+    // Cache bindings by lambda argument types. Closure values still flow from the captured context at execution time.
     private (Type[] ArgTypes, BoundExpr BoundBody)? _bindingCache;
 
     public LambdaValue(BoundLambdaExpr node, AlderContext closure)
@@ -99,7 +105,8 @@ internal sealed class LambdaValue
 }
 
 /// <summary>
-/// Compiled lambda with IL-compiled body delegate.
+/// Represents a lambda whose body has already been compiled to delegates.
+/// Specialized delegate slots avoid array allocation in the common low-arity cases.
 /// </summary>
 internal sealed record CompiledLambdaValue(
     List<string> Parameters,
@@ -117,22 +124,20 @@ internal sealed record StaticMethodRef(Type Type, string MethodName);
 internal sealed record ModuleMethodRef(ModuleInfo Module, IServiceProvider? ServiceProvider, MethodInfo Method);
 
 /// <summary>
-/// Wraps a System.Range to indicate inclusive-end semantics for iteration.
-/// When used as an array index, unwraps to the raw Range (exclusive-end).
-/// When iterated, includes the end value.
+/// Wraps a <see cref="Range"/> to preserve Alder's inclusive-end iteration semantics.
+/// The raw <see cref="Range"/> still flows through unchanged when .NET indexing semantics are required.
 /// </summary>
 internal sealed record InclusiveRange(Range Value);
 
 /// <summary>
-/// Sentinel for partially-resolved namespace paths during FQN type access.
-/// Flows through MemberAccess chains until TypeResolver resolves a full type name.
-/// Example: IdentifierExpr("System") -> NamespaceRef("System") -> member "Linq" -> NamespaceRef("System.Linq") -> member "Enumerable" -> Type
+/// Carries a partially-resolved namespace path during fully qualified type access.
+/// Member-access evaluation extends this sentinel until <see cref="TypeResolver"/> can resolve a final type.
 /// </summary>
 internal sealed record NamespaceRef(string Path);
 
 /// <summary>
-/// Wraps a ValueTuple to carry named element metadata at runtime.
-/// Allows `.Name` access on tuples created with named elements like (Name: "test", Value: 42).
+/// Wraps a <see cref="ValueTuple"/> together with named-element metadata.
+/// Runtime tuple instances do not retain member names, so Alder carries them separately when tuple element names matter.
 /// </summary>
 internal sealed class NamedTupleValue(object tuple, IReadOnlyDictionary<string, int> nameToIndex)
     : System.Runtime.CompilerServices.ITuple
@@ -167,7 +172,7 @@ internal sealed class NamedTupleValue(object tuple, IReadOnlyDictionary<string, 
             nameToIndex);
     }
 
-    // Delegate all other behavior to the underlying tuple
+    // Structural tuple behavior still comes from the underlying ValueTuple instance.
     public override string ToString() => Tuple.ToString()!;
     public override int GetHashCode() => Tuple.GetHashCode();
     public override bool Equals(object? obj) =>
@@ -175,20 +180,17 @@ internal sealed class NamedTupleValue(object tuple, IReadOnlyDictionary<string, 
 }
 
 /// <summary>
-/// Wrapper for a named argument value. Used to pass parameter name information
-/// through the method invocation stack.
+/// Wraps a named argument value so parameter-name information survives through invocation preparation.
 /// </summary>
 internal sealed record NamedArg(string Name, object? Value);
 
 /// <summary>
-/// Marker for out parameter arguments. Flows through the method invocation stack
-/// so MethodInvoker can detect ByRef parameters and set up the args array correctly.
-/// After method invocation, the engine reads modified values from the args array
-/// and defines variables in the current scope.
+/// Marks an <c>out</c> argument as it moves through invocation preparation.
+/// The runtime uses this marker to allocate the reflection argument array and to publish the post-call value back into scope.
 /// </summary>
 internal sealed record OutArgMarker(string VariableName, string? TypeName, bool IsDiscard);
 
 /// <summary>
-/// Immutable metadata for defining out variables after method invocation.
+/// Immutable metadata used when publishing <c>out</c> variables after method invocation completes.
 /// </summary>
 internal readonly record struct OutVariableBinding(int ArgumentIndex, string VariableName, string? TypeName);

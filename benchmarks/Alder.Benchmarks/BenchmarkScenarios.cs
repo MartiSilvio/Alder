@@ -3,7 +3,9 @@ using Alder.Compiled;
 
 namespace Alder.Benchmarks;
 
-// Scenario where ALL competitor engines can participate (fair head-to-head)
+/// <summary>
+/// Head-to-head scenario where Alder, Roslyn, and the external expression libraries can all participate.
+/// </summary>
 public sealed record CompetitorScenario(
     string Name,
     string AlderExpr,
@@ -16,7 +18,9 @@ public sealed record CompetitorScenario(
     public override string ToString() => Name;
 }
 
-// Scenario for Alder vs Roslyn (advanced C# features competitors can't handle)
+/// <summary>
+/// Scenario for Alder and Roslyn when the language surface exceeds the competitor libraries.
+/// </summary>
 public sealed record AlderScenario(
     string Name,
     string AlderExpr,
@@ -26,7 +30,9 @@ public sealed record AlderScenario(
     public override string ToString() => Name;
 }
 
-// Extended syntax vs standard equivalent
+/// <summary>
+/// Paired scenario that compares Alder extended syntax with an equivalent standard expression.
+/// </summary>
 public sealed record ExtendedScenario(
     string Name,
     string ExtendedExpr,
@@ -35,7 +41,9 @@ public sealed record ExtendedScenario(
     public override string ToString() => Name;
 }
 
-// Dynamic LINQ comparison
+/// <summary>
+/// Dynamic string-query scenario over in-memory collections.
+/// </summary>
 public sealed record DynamicLinqScenario(
     string Name,
     Func<BenchmarkData, object?> Native,
@@ -47,8 +55,6 @@ public sealed record DynamicLinqScenario(
 
 public static class BenchmarkScenarios
 {
-    #region Competitor scenarios (all engines)
-
     public static IReadOnlyList<CompetitorScenario> GetCompetitorScenarios() =>
     [
         new("Arithmetic/Constant",
@@ -150,10 +156,6 @@ public static class BenchmarkScenarios
             g => CompetitorExpressionFactory.EvaluateBigBooleanStress(g)),
     ];
 
-    #endregion
-
-    #region Advanced language scenarios (Alder + Roslyn)
-
     public static IReadOnlyList<AlderScenario> GetAdvancedScenarios() =>
     [
         new("Advanced/NestedMath",
@@ -229,10 +231,6 @@ public static class BenchmarkScenarios
             g => g.Numbers.Where(n => n % 2 == 0).Select(n => n * n).Take(10).Sum()),
     ];
 
-    #endregion
-
-    #region LINQ scenarios (Alder + Roslyn + Native)
-
     public static IReadOnlyList<AlderScenario> GetLinqScenarios() =>
     [
         new("LINQ/WhereCount",
@@ -276,10 +274,6 @@ public static class BenchmarkScenarios
             g => g.Employees.Where(e => e.YearsOfService > 5).Select(e => e.Salary).Average()),
     ];
 
-    #endregion
-
-    #region Dynamic LINQ scenarios
-
     public static IReadOnlyList<DynamicLinqScenario> GetDynamicLinqScenarios() =>
     [
         new("DynLINQ/WhereCount",
@@ -318,10 +312,6 @@ public static class BenchmarkScenarios
             g => g.Orders.AsQueryable().OrderBy("UnitPrice descending").First()),
     ];
 
-    #endregion
-
-    #region Extended syntax scenarios
-
     public static IReadOnlyList<ExtendedScenario> GetExtendedScenarios() =>
     [
         new("Extended/BareMath", "sin(x)", "Math.Sin(x)"),
@@ -343,10 +333,6 @@ public static class BenchmarkScenarios
         new("Extended/DateArithmetic", "new DateTime(2026, 1, 1) + 30.days",
             "new DateTime(2026, 1, 1) + TimeSpan.FromDays(30)"),
     ];
-
-    #endregion
-
-    #region Expression complexity generators
 
     public static string GenerateArithmeticExpression(int nodeCount)
     {

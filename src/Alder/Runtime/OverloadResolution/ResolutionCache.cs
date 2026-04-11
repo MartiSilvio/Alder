@@ -5,9 +5,9 @@ namespace Alder.Runtime;
 
 /// <summary>
 /// Caches overload resolution results for instance and static method calls.
-/// Keyed by (declaring type, method name, argument type signature).
-/// Excludes lambda, out, and named-arg calls since their resolution depends
-/// on lambda body identity or argument structure that isn't captured in the key.
+/// The cache key is the declaring type, method name, and argument shape.
+/// Calls with lambdas, named arguments, or out arguments are excluded because their resolution
+/// depends on information that is not stable in the cache key.
 /// </summary>
 internal static class ResolutionCache
 {

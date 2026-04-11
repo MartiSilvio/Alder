@@ -3,9 +3,8 @@ using Alder.Binding.BoundNodes;
 namespace Alder.Binding;
 
 /// <summary>
-/// Collects the postfix spine of a bound tree: the alternating
-/// MemberAccess / Call / Invoke chain that forms left-recursive nesting like
-/// <c>Call(MemberAccess(Call(MemberAccess(...))))</c>.
+/// Collects the postfix spine of a bound tree into an iterative representation.
+/// This avoids deep recursion on member-access and call chains.
 /// Consumers iterate the collected segments bottom-up instead of recursing.
 /// </summary>
 internal static class PostfixChain
@@ -19,9 +18,9 @@ internal static class PostfixChain
         BoundExpr Root);
 
     /// <summary>
-    /// Walks the Callee → Target spine of a bound tree, collecting alternating
-    /// Call/Invoke and MemberAccess nodes into a flat segment list.
-    /// Returns null if the chain is too short to benefit from iterativization.
+    /// Walks the callee-to-target spine of a bound tree and flattens alternating
+    /// call and member-access nodes into a segment list.
+    /// Returns null if the chain is too short to benefit from iterative processing.
     /// Segments are ordered outside-in; process from <c>Count - 1</c> down to <c>0</c>.
     /// </summary>
     internal static Chain? TryCollect(BoundExpr node)

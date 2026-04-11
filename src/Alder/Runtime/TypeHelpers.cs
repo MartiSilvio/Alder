@@ -5,9 +5,8 @@ namespace Alder.Runtime;
 internal static partial class TypeHelpers
 {
     /// <summary>
-    /// ECMA-334 §10.2.3: Implicit numeric conversions.
-    /// "There are no predefined implicit conversions to the char type, so values of the
-    /// other integral types do not automatically convert to the char type." (§10.2.3)
+    /// The predefined implicit numeric conversion graph from ECMA-334 §10.2.3.
+    /// Notably, no numeric type implicitly converts to <see cref="char"/>.
     /// </summary>
     private static readonly FixedDictionary<Type, FixedSet<Type>> ImplicitConversions = FixedDictionary<Type, FixedSet<Type>>.Create(
         new Dictionary<Type, HashSet<Type>>
@@ -27,16 +26,16 @@ internal static partial class TypeHelpers
         kvp => FixedSet<Type>.Create(kvp.Value));
 
     /// <summary>
-    /// ECMA-334 §10.2: Checks if sourceType can be implicitly converted to targetType.
-    /// Handles numeric, nullable, reference, boxing, tuple, and user-defined conversions.
+    /// Determines whether <paramref name="sourceType"/> can be implicitly converted to <paramref name="targetType"/>.
+    /// This includes standard conversions, tuple conversions, and user-defined implicit operators.
     /// </summary>
     public static bool CanImplicitlyConvert(Type sourceType, Type targetType)
     {
-        // §10.4.2: Standard implicit conversions (identity, numeric, nullable, reference, boxing)
+        // Standard implicit conversions are checked first because user-defined conversions build on top of them.
         if (IsStandardImplicitConversion(sourceType, targetType))
             return true;
 
-        // §10.2.13: Implicit tuple conversions (element-wise)
+        // ECMA tuple conversions are element-wise and recurse through the same implicit-conversion rules.
         if (IsTupleType(sourceType) && IsTupleType(targetType))
         {
             var sourceArgs = sourceType.GetGenericArguments();
@@ -51,7 +50,7 @@ internal static partial class TypeHelpers
             return true;
         }
 
-        // §10.5.4: User-defined implicit conversions
+        // User-defined implicit operators are considered only after the standard conversion lattice is exhausted.
         if (HasUserDefinedImplicitConversion(sourceType, targetType))
             return true;
 
@@ -59,17 +58,16 @@ internal static partial class TypeHelpers
     }
 
     /// <summary>
-    /// ECMA-334 §10.4.2: Standard implicit conversions (the pre-defined conversions that can
-    /// occur as part of a user-defined conversion). Does NOT include user-defined conversions,
-    /// preventing recursion when called from TryResolveUserDefinedConversion.
+    /// Determines whether a standard implicit conversion exists.
+    /// User-defined conversions are intentionally excluded so this helper can be used safely while resolving user-defined operators.
     /// </summary>
     internal static bool IsStandardImplicitConversion(Type sourceType, Type targetType)
     {
-        // §10.2.2: Identity
+        // ECMA identity conversion.
         if (sourceType == targetType)
             return true;
 
-        // §10.2.6: Implicit nullable conversions
+        // Nullable lifting reuses the same predefined conversion graph for the underlying types.
         var underlyingTarget = Nullable.GetUnderlyingType(targetType);
         if (underlyingTarget != null)
         {
@@ -89,11 +87,11 @@ internal static partial class TypeHelpers
             }
         }
 
-        // §10.2.8: Implicit reference conversions and §10.2.9: Boxing conversions
+        // Reference and boxing conversions are delegated to the CLR assignability relationship.
         if (targetType.IsAssignableFrom(sourceType))
             return true;
 
-        // §10.2.3: Implicit numeric conversions
+        // Numeric conversions are table-driven from the ECMA graph above.
         if (ImplicitConversions.TryGetValue(sourceType, out var allowedTargets) && allowedTargets.Contains(targetType))
             return true;
 
@@ -101,10 +99,7 @@ internal static partial class TypeHelpers
     }
 
     /// <summary>
-    /// ECMA-334 §12.6.4.7: T1 is a better conversion target than T2 if an implicit conversion
-    /// from T1 to T2 exists and no implicit conversion from T2 to T1 exists, or if T1 is a
-    /// signed integral type and T2 is an unsigned integral type per the spec's preference table.
-    /// Returns positive if T1 is better, negative if T2 is better, zero if neither.
+    /// Compares two candidate conversion targets using the better-conversion rules from ECMA-334 §12.6.4.7.
     /// </summary>
     public static int CompareBetterConversionTarget(Type t1, Type t2)
     {
@@ -117,7 +112,7 @@ internal static partial class TypeHelpers
         if (t1ToT2 && !t2ToT1) return 1;
         if (t2ToT1 && !t1ToT2) return -1;
 
-        // §12.6.4.7 rule 4: signed integral preferred over unsigned
+        // The specification prefers certain signed integral targets over unsigned ones when neither direction converts implicitly.
         var s1 = Nullable.GetUnderlyingType(t1) ?? t1;
         var s2 = Nullable.GetUnderlyingType(t2) ?? t2;
         if (IsSignedPreferredOver(s1, s2)) return 1;
@@ -148,8 +143,8 @@ internal static partial class TypeHelpers
     }
 
     /// <summary>
-    /// Returns the ECMA-334 binary numeric promotion type for arithmetic operands,
-    /// or null when either operand is non-arithmetic.
+    /// Returns the ECMA binary numeric promotion result type for arithmetic operands.
+    /// Returns <c>null</c> when the operands do not participate in arithmetic promotion.
     /// </summary>
     public static Type? TryGetBinaryNumericPromotionType(Type leftType, Type rightType)
     {

@@ -1,14 +1,14 @@
 namespace Alder.Compiled;
 
 /// <summary>
-/// Provides <c>Compile&lt;TDelegate&gt;</c> methods on the global <see cref="AlderEval"/> engine.
-/// Requires <c>AlderEval.Configure(o => o.UseCompiler())</c> before use.
+/// Exposes the compiled backend through the global <see cref="AlderEval"/> engine.
+/// Configure the global engine with <c>UseCompiler()</c> before calling these APIs.
 /// </summary>
 public static class AlderEvalCompileExtensions
 {
     /// <summary>
     /// Compiles a code body with named parameters into a native <typeparamref name="TDelegate"/> delegate
-    /// using the global <see cref="AlderEval"/> engine.
+    /// using the global engine.
     /// </summary>
     /// <typeparam name="TDelegate">A Func or Action delegate type.</typeparam>
     /// <param name="code">The code body to compile.</param>
@@ -27,13 +27,13 @@ public static class AlderEvalCompileExtensions
         => AlderEval.GetEngine().Compile<TDelegate>(code, parameterNames);
 
     /// <summary>
-    /// Compiles an expression and returns an <see cref="AlderCompiledExpression{T}"/> using the global engine.
+    /// Compiles an expression and returns an <see cref="AlderCompiledExpression{T}"/> bound to the global engine.
     /// </summary>
     public static AlderCompiledExpression<T> Compile<T>(string code)
         => AlderEval.GetEngine().Compile<T>(code);
 
     /// <summary>
-    /// Compiles an expression and returns a <see cref="Func{T}"/> for zero-overhead invocation using the global engine.
+    /// Compiles an expression and returns a <see cref="Func{T}"/> backed by the global engine state.
     /// </summary>
     public static Func<T?> CompileToFunc<T>(string code)
         => AlderEval.GetEngine().CompileToFunc<T>(code);

@@ -9,7 +9,8 @@ using BenchmarkDotNet.Order;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Default config for claim-grade steady-state measurements.
+/// Default configuration for steady-state claim benchmarks.
+/// Use this for measurements that are intended to represent warmed, repeatable execution rather than process startup.
 /// </summary>
 public sealed class SteadyStateConfig : ManualConfig
 {
@@ -37,8 +38,8 @@ public sealed class SteadyStateConfig : ManualConfig
 }
 
 /// <summary>
-/// Cold-start config uses a fresh process per measurement to capture process,
-/// JIT, metadata, and first-evaluation costs without in-process warmup.
+/// Configuration for cold-start measurements.
+/// Each measurement runs in a fresh process so process startup, JIT, metadata load, and first evaluation stay inside the sample.
 /// </summary>
 public sealed class ColdStartConfig : ManualConfig
 {
@@ -66,8 +67,8 @@ public sealed class ColdStartConfig : ManualConfig
 }
 
 /// <summary>
-/// Monitoring config is reserved for batch workloads where the benchmark method
-/// intentionally owns the inner loop and represents the production unit of work.
+/// Configuration for batch workloads where the benchmark method intentionally owns the inner loop.
+/// Use this only when one benchmark invocation is itself the unit of work being measured.
 /// </summary>
 public sealed class MonitoringConfig : ManualConfig
 {

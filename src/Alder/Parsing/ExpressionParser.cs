@@ -3,10 +3,8 @@ using Alder.Diagnostics;
 namespace Alder.Parsing;
 
 /// <summary>
-/// Parses expressions using precedence climbing (Roslyn-style).
-/// A single <see cref="ParseSubExpression"/> method with a while-loop replaces the
-/// traditional one-method-per-precedence-level chain, keeping recursion depth
-/// proportional to expression nesting rather than the number of precedence levels.
+/// Parses expressions using a precedence-climbing parser.
+/// This keeps recursion proportional to actual expression nesting instead of the number of operator precedence levels.
 /// </summary>
 internal sealed partial class ExpressionParser : ParserBase
 {
@@ -28,8 +26,7 @@ internal sealed partial class ExpressionParser : ParserBase
     }
 
     /// <summary>
-    /// Creates a fully wired parser graph for a token list. Used by AlderEngine and for
-    /// sub-expression parsing (interpolated strings).
+    /// Creates a fully wired parser graph for a token list.
     /// </summary>
     public static ExpressionParser CreateForSubExpression(List<Token> tokens, LanguageMode languageMode = LanguageMode.Standard)
     {
@@ -152,10 +149,8 @@ internal sealed partial class ExpressionParser : ParserBase
         if ((Check(TokenType.Checked) || Check(TokenType.Unchecked)) && PeekNext().Type == TokenType.LeftBrace)
             return true;
 
-        // ECMA-334 §13.6.2: Typed declarations and local functions.
-        // Covers type keywords (int x), identifiers (Action f), generics (List<int> x),
-        // dotted names (System.DayOfWeek d), tuples ((int, string) t).
-        // Type keywords followed by dot are static member access (double.NaN), skip.
+        // Typed declarations and local functions must be recognized before general expression parsing.
+        // Type keywords followed by dot remain ordinary member access, such as double.NaN.
         if ((IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot)
             || Check(TokenType.Identifier)
             || Check(TokenType.LeftParen))
@@ -164,9 +159,7 @@ internal sealed partial class ExpressionParser : ParserBase
             var parsedType = TryParseTypeName();
             if (parsedType != null && (Check(TokenType.Identifier) || IsContextualKeyword(Peek().Type)))
             {
-                // Verify the token after the variable name is consistent with a declaration
-                // (= for variable, ( for local function, ; for uninitialized).
-                // Without this, "text like pattern" would be misidentified as "text like = ..."
+                // Verify that the token after the identifier is compatible with a declaration shape.
                 var namePos = State.Current + 1;
                 if (namePos < State.Tokens.Count)
                 {

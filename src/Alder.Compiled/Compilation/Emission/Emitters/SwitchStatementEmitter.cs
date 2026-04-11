@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Diagnostics;
 using Alder.Interpretation;
 using Alder.Parsing;
@@ -10,11 +11,12 @@ using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class SwitchStatementEmitter : INodeEmitter<BoundSwitchStatementExpr>
+[EmitsNode(BoundNodeKind.SwitchStatement)]
+internal static class SwitchStatementEmitter
 {
     private static readonly object GotoDefaultSentinel = new();
 
-    public LinqExpression Emit(BoundSwitchStatementExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundSwitchStatementExpr node, EmissionContext ctx)
     {
         var valueVar = LinqExpression.Variable(typeof(object), "switchValue");
         var matchedVar = LinqExpression.Variable(typeof(bool), "switchMatched");

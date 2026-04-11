@@ -12,24 +12,18 @@ internal sealed class Lexer
     private int _line = 1;
     private int _column = 1;
 
-    // All C# keywords - reserved to match C# spec
-    // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/
+    // Reserve the full published C# keyword surface so tokenization stays stable as the supported grammar expands.
     private static readonly FixedDictionary<string, TokenType> Keywords = FixedDictionary<string, TokenType>.Create(new Dictionary<string, TokenType>
     {
-        // Literals
         ["true"] = TokenType.True,
         ["false"] = TokenType.False,
         ["null"] = TokenType.Null,
 
-        // Keywords - Implemented
         ["new"] = TokenType.New,
         ["if"] = TokenType.If,
         ["else"] = TokenType.Else,
         ["return"] = TokenType.Return,
         ["var"] = TokenType.Var,
-
-
-        // Keywords - Control flow (reserved)
         ["switch"] = TokenType.Switch,
         ["case"] = TokenType.Case,
         ["default"] = TokenType.Default,
@@ -41,13 +35,11 @@ internal sealed class Lexer
         ["continue"] = TokenType.Continue,
         ["goto"] = TokenType.Goto,
 
-        // Keywords - Exception handling (reserved)
         ["try"] = TokenType.Try,
         ["catch"] = TokenType.Catch,
         ["finally"] = TokenType.Finally,
         ["throw"] = TokenType.Throw,
 
-        // Keywords - Type declarations (reserved)
         ["class"] = TokenType.Class,
         ["struct"] = TokenType.Struct,
         ["interface"] = TokenType.Interface,
@@ -56,13 +48,11 @@ internal sealed class Lexer
         ["delegate"] = TokenType.Delegate,
         ["namespace"] = TokenType.Namespace,
 
-        // Keywords - Access modifiers (reserved)
         ["public"] = TokenType.Public,
         ["private"] = TokenType.Private,
         ["protected"] = TokenType.Protected,
         ["internal"] = TokenType.Internal,
 
-        // Keywords - Member modifiers (reserved)
         ["static"] = TokenType.Static,
         ["readonly"] = TokenType.Readonly,
         ["const"] = TokenType.Const,
@@ -76,13 +66,11 @@ internal sealed class Lexer
         ["async"] = TokenType.Async,
         ["await"] = TokenType.Await,
 
-        // Keywords - Parameter modifiers (reserved)
         ["ref"] = TokenType.Ref,
         ["out"] = TokenType.Out,
         ["in"] = TokenType.In,
         ["params"] = TokenType.Params,
 
-        // Keywords - Type operations (reserved)
         ["is"] = TokenType.Is,
         ["as"] = TokenType.As,
         ["typeof"] = TokenType.Typeof,
@@ -92,10 +80,9 @@ internal sealed class Lexer
         ["checked"] = TokenType.Checked,
         ["unchecked"] = TokenType.Unchecked,
 
-        // Keywords - Other (reserved)
         ["this"] = TokenType.This,
         ["base"] = TokenType.Base,
-        ["super"] = TokenType.Super,  // JavaScript super
+        ["super"] = TokenType.Super,
         ["using"] = TokenType.Using,
         ["lock"] = TokenType.Lock,
         ["fixed"] = TokenType.Fixed,
@@ -105,7 +92,6 @@ internal sealed class Lexer
         ["operator"] = TokenType.Operator,
         ["event"] = TokenType.Event,
 
-        // Type keywords (some implemented for variable declarations)
         ["int"] = TokenType.Int,
         ["long"] = TokenType.Long,
         ["double"] = TokenType.Double,
@@ -126,13 +112,11 @@ internal sealed class Lexer
         ["nuint"] = TokenType.Nuint,
         ["dynamic"] = TokenType.Dynamic,
 
-        // Extended mode operators (contextual keywords)
         ["like"] = TokenType.Like,
         ["between"] = TokenType.Between,
         ["unless"] = TokenType.Unless,
         ["until"] = TokenType.Until,
 
-        // Contextual keywords (reserved for forward compatibility)
         ["add"] = TokenType.Add,
         ["alias"] = TokenType.Alias,
         ["args"] = TokenType.Args,
@@ -219,10 +203,11 @@ internal sealed class Lexer
                 {
                     if (Match('<')) AddToken(TokenType.DotDotLess);
                     else if (Match('=')) AddToken(TokenType.DotDotEquals);
-                    else AddToken(TokenType.DotDot); // spread operator (..)
+                    else AddToken(TokenType.DotDot);
                 }
                 else if (char.IsDigit(Peek()))
-                    ScanLeadingDecimalNumber(); // ECMA-334 §6.4.5.4: .5 is valid real literal
+                    // ECMA-334 permits a real literal that starts with a decimal point.
+                    ScanLeadingDecimalNumber();
                 else
                     AddToken(TokenType.Dot);
                 break;

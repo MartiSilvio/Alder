@@ -6,7 +6,8 @@ using Alder.Runtime.Extensions;
 namespace Alder.Runtime;
 
 /// <summary>
-/// Property, field, and index access operations.
+/// Implements runtime member and index access.
+/// This layer is shared by interpreted execution and by compiled paths that defer a member access to runtime.
 /// </summary>
 internal static class MemberAccess
 {
@@ -62,13 +63,11 @@ internal static class MemberAccess
 
         switch (obj)
         {
-            // Handle namespace sentinel: accumulate path segments for FQN type resolution.
-            // Example: NamespaceRef("System") + "Linq" -> NamespaceRef("System.Linq") or Type
+            // NamespaceRef carries partially-resolved fully qualified names across chained member access.
             case NamespaceRef nsRef:
             {
                 var accumulated = nsRef.Path + "." + name;
 
-                // Try to resolve as a complete type name
                 var resolvedType = context.TypeResolver.TryResolveType(accumulated);
                 if (resolvedType != null)
                 {
@@ -77,17 +76,15 @@ internal static class MemberAccess
                     return resolvedType;
                 }
 
-                // Check if it's still a valid namespace prefix
                 if (context.TypeResolver.IsNamespaceOrPrefix(accumulated))
                     return new NamespaceRef(accumulated);
 
-                // Neither a type nor a namespace prefix -- this is an error
+                // Once the path is neither a resolvable type nor a namespace prefix, the chain is invalid.
                 throw new AlderException(DiagnosticDescriptors.TypeNotFound, accumulated);
             }
             case Type staticType when TypedDispatchHelper.TryGetStaticMember(context.Config, staticType, name, out var aotStaticValue):
                 return aotStaticValue;
-            // Fall through to instance member access on the Type object itself
-            // (e.g., typeof(int).Name accesses instance property Type.Name)
+            // If typed static dispatch misses, the Type instance itself remains a valid receiver for instance metadata access.
             case Type staticType:
             {
                 var staticTypeCache = context.TypeMetadata;
@@ -108,17 +105,13 @@ internal static class MemberAccess
                     return new StaticMethodRef(staticType, name);
                 break;
             }
-            // Module members are always accessible regardless of sandbox settings.
-            // Check modules before the AllowPropertyRead guard so that module methods,
-            // properties, and fields are never blocked by the sandbox.
+            // Modules are an explicit part of the configured surface, so their members are checked before ordinary sandboxed reflection.
             case ModuleInfo module when module.Members.TryGetValue(name, out var memberInfo):
             {
-                // For methods, defer resolution until invocation
                 if (memberInfo is MethodInfo m)
                     return new ModuleMethodRef(module, context.ServiceProvider, m);
 
-                // For properties/fields, resolve now to get value
-                // Only resolve instance if member is not static
+                // Properties and fields resolve immediately because the value, not the member group, is the expression result.
                 var isStatic = memberInfo switch
                 {
                     PropertyInfo p => p.GetMethod?.IsStatic ?? p.SetMethod?.IsStatic ?? false,
@@ -161,7 +154,7 @@ internal static class MemberAccess
         {
             if (namedTuple.TryGetIndex(name, out var idx))
                 return namedTuple[idx];
-            // Fall through to access fields on the underlying ValueTuple (e.g., Item1, Item2)
+            // Named tuples still expose the underlying Item1, Item2, and Rest fields when name lookup misses.
             obj = namedTuple.Tuple;
         }
 
@@ -191,11 +184,11 @@ internal static class MemberAccess
 
     public static object? GetIndex(object? obj, object? index, AlderContext context)
     {
-        // Unwrap InclusiveRange to raw Range for indexing (inclusive-end only matters for iteration)
+        // InclusiveRange changes iteration semantics, not CLR indexing semantics.
         if (index is InclusiveRange inclusive)
             index = inclusive.Value;
 
-        // §12.8.11: System.Index support, resolve from-end indices
+        // CLR Index and Range support is the runtime endpoint for the corresponding language forms.
         if (index is Index sysIndex && obj != null)
         {
             var length = obj switch
@@ -209,7 +202,6 @@ internal static class MemberAccess
                 return GetIndex(obj, (object)sysIndex.GetOffset(length), context);
         }
 
-        // §12.8.11: System.Range support, slice arrays and strings
         if (index is Range sysRange && obj != null)
         {
             if (obj is string str)

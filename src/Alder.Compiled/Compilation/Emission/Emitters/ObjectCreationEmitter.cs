@@ -1,12 +1,14 @@
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationExpr>
+[EmitsNode(BoundNodeKind.ObjectCreationExpression)]
+internal static class ObjectCreationEmitter
 {
-    public LinqExpression Emit(BoundObjectCreationExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundObjectCreationExpr node, EmissionContext ctx)
     {
         if (node.StaticType.ClrType != typeof(object) && node.StaticType.ClrType is { IsAbstract: false, IsInterface: false } && node.InitializerEntries.IsDefaultOrEmpty)
         {

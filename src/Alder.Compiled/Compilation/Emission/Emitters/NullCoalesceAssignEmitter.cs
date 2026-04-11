@@ -1,4 +1,6 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
@@ -6,9 +8,10 @@ using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class NullCoalesceAssignEmitter : INodeEmitter<BoundNullCoalesceAssignExpr>
+[EmitsNode(BoundNodeKind.NullCoalescingAssignmentOperator)]
+internal static class NullCoalesceAssignEmitter
 {
-    public LinqExpression Emit(BoundNullCoalesceAssignExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundNullCoalesceAssignExpr node, EmissionContext ctx)
     {
         if (ctx.TryGetPromoted(node.LocalId, out var promoted))
         {

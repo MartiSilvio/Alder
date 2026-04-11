@@ -1,12 +1,15 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class ResolvedIndexAccessEmitter : INodeEmitter<BoundResolvedIndexAccessExpr>
+[EmitsNode(BoundNodeKind.ResolvedIndexAccess)]
+internal static class ResolvedIndexAccessEmitter
 {
-    public LinqExpression Emit(BoundResolvedIndexAccessExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundResolvedIndexAccessExpr node, EmissionContext ctx)
     {
         if (node.IsDirectCollectionAccess)
             return EmitDirectCollectionAccess(node, ctx);

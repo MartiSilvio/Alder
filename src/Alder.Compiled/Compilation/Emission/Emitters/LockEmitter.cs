@@ -1,11 +1,14 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class LockEmitter : INodeEmitter<BoundLockStatementExpr>
+[EmitsNode(BoundNodeKind.LockStatement)]
+internal static class LockEmitter
 {
-    public LinqExpression Emit(BoundLockStatementExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundLockStatementExpr node, EmissionContext ctx)
     {
         var lockObjVar = LinqExpression.Variable(typeof(object), "lockObj");
         var resultVar = LinqExpression.Variable(typeof(object), "lockResult");

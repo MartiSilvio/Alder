@@ -5,17 +5,8 @@ using Microsoft.CodeAnalysis.Scripting;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Large-collection query benchmark on realistic product data. These are
-/// production-shaped pipelines, not parser microbenchmarks.
-///
-/// Scale factors:
-///   SF100   =    100 products (micro)
-///   SF1K    =  1,000 products (small)
-///   SF10K   = 10,000 products (medium — default)
-///   SF100K  = 100,000 products (large)
-///
-/// Engines: Native C# (baseline), Alder Interpreted, Alder Compiled,
-///          Alder Compiled+FEC, Roslyn Scripting.
+/// Measures collection-processing workloads over realistic product data.
+/// The scale factor controls dataset size, and setup validates parity before any timings are recorded.
 /// </summary>
 public sealed record PipelineQuery(
     string Name,
@@ -62,6 +53,7 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
         script.Compile();
         _roslynRunner = script.CreateDelegate();
 
+        // Operational pipeline results are only worth publishing if the compared implementations stay semantically aligned.
         var native = Query.Native(_data.Products);
         var interp = InterpretedEngine.Evaluate(_interpExpr);
         var comp = CompiledEngine.Evaluate(_compExpr);
@@ -69,16 +61,16 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
         var roslyn = _roslynRunner(_data).GetAwaiter().GetResult();
         if (!BenchmarkParityVerifier.AreEquivalent(native, interp))
             throw new InvalidOperationException(
-                $"Parity failure: {Query.Name} SF{ScaleFactor} — Native={native}, Interpreted={interp}");
+                $"Parity failure: {Query.Name} SF{ScaleFactor} | Native={native}, Interpreted={interp}");
         if (!BenchmarkParityVerifier.AreEquivalent(native, comp))
             throw new InvalidOperationException(
-                $"Parity failure: {Query.Name} SF{ScaleFactor} — Native={native}, Compiled={comp}");
+                $"Parity failure: {Query.Name} SF{ScaleFactor} | Native={native}, Compiled={comp}");
         if (!BenchmarkParityVerifier.AreEquivalent(native, fec))
             throw new InvalidOperationException(
-                $"Parity failure: {Query.Name} SF{ScaleFactor} — Native={native}, CompiledFec={fec}");
+                $"Parity failure: {Query.Name} SF{ScaleFactor} | Native={native}, CompiledFec={fec}");
         if (!BenchmarkParityVerifier.AreEquivalent(native, roslyn))
             throw new InvalidOperationException(
-                $"Parity failure: {Query.Name} SF{ScaleFactor} — Native={native}, Roslyn={roslyn}");
+                $"Parity failure: {Query.Name} SF{ScaleFactor} | Native={native}, Roslyn={roslyn}");
     }
 
     [GlobalCleanup]
@@ -111,37 +103,31 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
 
     public static IReadOnlyList<PipelineQuery> GetPipelineQueries() =>
     [
-        // Q1: Selective filter + count (like TPC-H Q6 — selective scan)
         new("Filter+Count",
             "products.Where(p => p.Price > 100m && p.IsActive).Count()",
             "Products.Where(p => p.Price > 100m && p.IsActive).Count()",
             ps => ps.Where(p => p.Price > 100m && p.IsActive).Count()),
 
-        // Q2: Filter + project + sum (like TPC-H Q1 — pricing summary)
         new("Filter+Project+Sum",
             """products.Where(p => p.Category == "Electronics").Select(p => p.Price).Sum()""",
             """Products.Where(p => p.Category == "Electronics").Select(p => p.Price).Sum()""",
             ps => ps.Where(p => p.Category == "Electronics").Select(p => p.Price).Sum()),
 
-        // Q3: Complex multi-condition predicate (like TPC-H Q19 — discounted revenue)
         new("ComplexPredicate",
             "products.Where(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive).Count()",
             "Products.Where(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive).Count()",
             ps => ps.Where(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive).Count()),
 
-        // Q4: Sort + Take (top-N pattern, like TPC-H Q18 — large volume customer)
         new("Sort+Take",
             "products.OrderByDescending(p => p.Price).Take(10).Select(p => p.Price).Sum()",
             "Products.OrderByDescending(p => p.Price).Take(10).Select(p => p.Price).Sum()",
             ps => ps.OrderByDescending(p => p.Price).Take(10).Select(p => p.Price).Sum()),
 
-        // Q5: Distinct aggregation (like TPC-H Q16 — parts/supplier count)
         new("Distinct+Count",
             "products.Where(p => p.IsActive).Select(p => p.Category).Distinct().Count()",
             "Products.Where(p => p.IsActive).Select(p => p.Category).Distinct().Count()",
             ps => ps.Where(p => p.IsActive).Select(p => p.Category).Distinct().Count()),
 
-        // Q6: Existential quantifier (short-circuit scan)
         new("Any+Complex",
             "products.Any(p => p.Price > 900m && p.Stock > 500)",
             "Products.Any(p => p.Price > 900m && p.Stock > 500)",

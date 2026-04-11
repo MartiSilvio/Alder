@@ -1,13 +1,16 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Parsing;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class SwitchExpressionEmitter : INodeEmitter<BoundSwitchExpressionExpr>
+[EmitsNode(BoundNodeKind.SwitchExpression)]
+internal static class SwitchExpressionEmitter
 {
-    public LinqExpression Emit(BoundSwitchExpressionExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundSwitchExpressionExpr node, EmissionContext ctx)
     {
         var valueVar = LinqExpression.Variable(typeof(object), "switchValue");
         var resultVar = LinqExpression.Variable(typeof(object), "switchExprResult");

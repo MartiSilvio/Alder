@@ -1,15 +1,14 @@
 namespace Alder;
 
 /// <summary>
-/// String extension methods for evaluating C# expressions.
-/// Uses the global <see cref="AlderEval"/> engine.
+/// Convenience extension methods that route string-based evaluation through <see cref="AlderEval"/>.
 /// </summary>
 public static class AlderStringExtensions
 {
     /// <summary>
-    /// Evaluates this string as a C# expression and returns the result.
+    /// Evaluates this string and returns the result.
     /// </summary>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
     /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
@@ -20,9 +19,9 @@ public static class AlderStringExtensions
         => AlderEval.Evaluate(expression, variables, cancellationToken);
 
     /// <summary>
-    /// Evaluates this string as a C# expression with variables supplied as an anonymous object.
+    /// Evaluates this string using public properties from <paramref name="variables"/> as locals.
     /// </summary>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">An object whose public properties become expression variables.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
     /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
@@ -33,10 +32,10 @@ public static class AlderStringExtensions
         => AlderEval.Evaluate(expression, variables, cancellationToken);
 
     /// <summary>
-    /// Evaluates this string as a C# expression and converts the result to <typeparamref name="T"/>.
+    /// Evaluates this string and converts the result to <typeparamref name="T"/>.
     /// </summary>
     /// <typeparam name="T">The expected return type.</typeparam>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
     /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
@@ -47,10 +46,10 @@ public static class AlderStringExtensions
         => AlderEval.Evaluate<T>(expression, variables, cancellationToken);
 
     /// <summary>
-    /// Evaluates this string as a C# expression with anonymous object variables and converts the result to <typeparamref name="T"/>.
+    /// Evaluates this string with object-backed locals and converts the result to <typeparamref name="T"/>.
     /// </summary>
     /// <typeparam name="T">The expected return type.</typeparam>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">An object whose public properties become expression variables.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
     /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
@@ -61,9 +60,9 @@ public static class AlderStringExtensions
         => AlderEval.Evaluate<T>(expression, variables, cancellationToken);
 
     /// <summary>
-    /// Evaluates this string as a C# expression with inline variables.
-    /// Variables are accessible as <c>@0</c>, <c>@1</c>, etc. by position.
-    /// Dictionaries and objects are also destructured into named variables.
+    /// Evaluates this string with positional variables.
+    /// Positional variables are available as <c>@0</c>, <c>@1</c>, and so on.
+    /// Dictionaries and complex objects are also projected into named variables.
     /// </summary>
     public static object? Evaluate(
         this string expression,
@@ -71,7 +70,7 @@ public static class AlderStringExtensions
         => AlderEval.Evaluate(expression, variables);
 
     /// <summary>
-    /// Evaluates this string as a C# expression with inline variables and converts the result to <typeparamref name="T"/>.
+    /// Evaluates this string with positional variables and converts the result to <typeparamref name="T"/>.
     /// </summary>
     public static T? Evaluate<T>(
         this string expression,
@@ -79,9 +78,9 @@ public static class AlderStringExtensions
         => AlderEval.Evaluate<T>(expression, variables);
 
     /// <summary>
-    /// Attempts to evaluate this string as a C# expression without throwing on failure.
+    /// Attempts to evaluate this string without throwing for ordinary failures.
     /// </summary>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="result">When successful, the evaluation result; otherwise, <c>null</c>.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
@@ -94,10 +93,10 @@ public static class AlderStringExtensions
         => AlderEval.TryEvaluate(expression, out result, variables, cancellationToken);
 
     /// <summary>
-    /// Attempts to evaluate this string as a C# expression and convert the result to <typeparamref name="T"/> without throwing on failure.
+    /// Attempts to evaluate this string and convert the result to <typeparamref name="T"/> without throwing for ordinary failures.
     /// </summary>
     /// <typeparam name="T">The expected return type.</typeparam>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="result">When successful, the result converted to <typeparamref name="T"/>; otherwise, <c>default</c>.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>

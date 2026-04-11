@@ -7,8 +7,8 @@ using Alder.Parsing;
 namespace Alder.Runtime;
 
 /// <summary>
-/// Arithmetic, comparison, and bitwise operators.
-/// Delegates to NumericDispatch for type-safe numeric operations.
+/// Implements operator semantics that are shared by the interpreter and compiled backend.
+/// Numeric operations delegate to <see cref="NumericDispatch"/> so both backends use the same promotion and conversion rules.
 /// </summary>
 internal static class Operators
 {
@@ -25,7 +25,7 @@ internal static class Operators
 
     public static object? Negate(object? value, bool isChecked = false)
     {
-        // ECMA-334 §12.4.8: Lifted unary operators return null when operand is null
+        // ECMA-334 §12.4.8: a lifted unary operator returns null when its nullable operand is null.
         if (value == null)
             return null;
 
@@ -40,7 +40,7 @@ internal static class Operators
 
     public static object? UnaryPlus(object? value)
     {
-        // ECMA-334 §12.4.8: Lifted unary operators return null when operand is null
+        // ECMA-334 §12.4.8: a lifted unary operator returns null when its nullable operand is null.
         if (value == null)
             return null;
 
@@ -55,7 +55,7 @@ internal static class Operators
 
     public static object? LogicalNot(object? value)
     {
-        // ECMA-334 §12.4.8: Lifted unary operators return null when operand is null
+        // ECMA-334 §12.4.8: a lifted unary operator returns null when its nullable operand is null.
         if (value == null)
             return null;
 
@@ -90,16 +90,16 @@ internal static class Operators
         {
             if (TypeHelpers.IsArithmetic(left) || TypeHelpers.IsArithmetic(right))
                 return null; // Nullable arithmetic: num + null = null
-            // §12.10.5: null + null in string context → empty string
+            // ECMA-334 §12.10.5: string concatenation treats null operands as empty strings.
             if (left == null && right == null)
                 return isStringContext ? "" : null;
         }
 
-        // §12.10.5: delegate combination (D + D -> Delegate.Combine)
+        // ECMA-334 §12.10.5: delegate addition maps to Delegate.Combine.
         if (left is Delegate leftDel && right is Delegate rightDel)
             return Delegate.Combine(leftDel, rightDel);
 
-        // ECMA-334 §12.10.5: E + int → E, int + E → E
+        // ECMA-334 §12.10.5: enum addition is defined in terms of the underlying integral representation.
         if (left != null && right != null && (left.GetType().IsEnum || right.GetType().IsEnum))
             return EnumArithmetic.Add(left, right);
 
@@ -110,7 +110,7 @@ internal static class Operators
             TryInvokeUserDefinedBinaryOperator(left, right, "op_Addition", out var userResult, isChecked))
             return userResult;
 
-        // Object merge via + operator (Extended mode only)
+        // Extended mode repurposes + for object merge when no standard arithmetic or concatenation rule applies.
         if (config.LanguageMode == LanguageMode.Standard)
             throw new AlderException(
                 DiagnosticDescriptors.BadBinaryOps,
@@ -131,11 +131,11 @@ internal static class Operators
         if (left is TimeSpan leftSpan && right is TimeSpan rightSpan)
             return leftSpan - rightSpan;
 
-        // §12.10.6: delegate removal (D - D -> Delegate.Remove)
+        // ECMA-334 §12.10.6: delegate subtraction maps to Delegate.Remove.
         if (left is Delegate leftDel && right is Delegate rightDel)
             return Delegate.Remove(leftDel, rightDel);
 
-        // ECMA-334 §12.10.6: E - int → E, E - E → underlying
+        // ECMA-334 §12.10.6: enum subtraction is defined in terms of the underlying integral representation.
         if (left != null && right != null && (left.GetType().IsEnum || right.GetType().IsEnum))
             return EnumArithmetic.Subtract(left, right);
 
@@ -221,12 +221,11 @@ internal static class Operators
         if (left == null && right == null) return BoxedConstants.True;
         if (left == null || right == null) return BoxedConstants.False;
 
-        // IEEE 754: NaN is not equal to anything, including itself
+        // IEEE 754 requires NaN to compare unequal to every value, including itself.
         if (IsNaN(left) || IsNaN(right)) return BoxedConstants.False;
 
-        // ECMA-334 §12.12.11: Tuple equality operators - element-wise comparison with type promotion.
-        // Must be checked BEFORE Object.Equals because ValueTuple<int,long>.Equals(ValueTuple<long,int>)
-        // returns false even when elements are semantically equal.
+        // ECMA-334 §12.12.11: tuple equality is element-wise and follows Alder's numeric promotion rules.
+        // This must run before ValueTuple.Equals because runtime structural equality is stricter than C# operator semantics.
         if (left is System.Runtime.CompilerServices.ITuple leftTuple &&
             right is System.Runtime.CompilerServices.ITuple rightTuple)
         {

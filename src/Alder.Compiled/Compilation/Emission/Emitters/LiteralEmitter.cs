@@ -1,10 +1,13 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class LiteralEmitter : INodeEmitter<BoundLiteralExpr>
+[EmitsNode(BoundNodeKind.Literal)]
+internal static class LiteralEmitter
 {
-    public LinqExpression Emit(BoundLiteralExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundLiteralExpr node, EmissionContext ctx)
     {
         if (node.Value == null)
             return LinqExpression.Constant(null, typeof(object));

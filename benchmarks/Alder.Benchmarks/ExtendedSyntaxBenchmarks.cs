@@ -5,15 +5,9 @@ using Alder.Compiled;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Alder-specific feature benchmark measuring the overhead of extended syntax
-/// relative to equivalent standard Alder expressions.
-///
-/// Each scenario has an Extended-mode expression and its Standard-mode
-/// equivalent. Both are compiled with Alder Compiled+FEC. The difference
-/// reveals the overhead of extended syntax desugaring.
-///
-/// This benchmark is only valid when every execution backend produces the same
-/// result for both the standard and extended forms.
+/// Measures the cost of Alder extended syntax against equivalent standard expressions.
+/// Each scenario pairs an extended form with a standard form that should produce the same result.
+/// The benchmark is only meaningful because setup verifies parity across the exercised backends.
 /// </summary>
 [Config(typeof(SteadyStateConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
@@ -76,8 +70,6 @@ public class ExtendedSyntaxBenchmarks
         _stdFec?.Dispose();
     }
 
-    #region Standard baseline (what it costs without sugar)
-
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Capability/ExtendedSyntax")]
     public object Standard_Interpreted() => _stdInterp.Evaluate(_stdInterpExpr)!;
@@ -90,10 +82,6 @@ public class ExtendedSyntaxBenchmarks
     [BenchmarkCategory("Capability/ExtendedSyntax")]
     public object Standard_CompiledFec() => _stdFec.Evaluate(_stdFecExpr)!;
 
-    #endregion
-
-    #region Extended mode (sugar cost)
-
     [Benchmark]
     [BenchmarkCategory("Capability/ExtendedSyntax")]
     public object Extended_Interpreted() => _extInterp.Evaluate(_extInterpExpr)!;
@@ -105,8 +93,6 @@ public class ExtendedSyntaxBenchmarks
     [Benchmark]
     [BenchmarkCategory("Capability/ExtendedSyntax")]
     public object Extended_CompiledFec() => _extFec.Evaluate(_extFecExpr)!;
-
-    #endregion
 
     private static void ConfigureExtended(AlderOptions opts)
     {

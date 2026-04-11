@@ -1,10 +1,13 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class NullCoalesceEmitter : INodeEmitter<BoundNullCoalesceExpr>
+[EmitsNode(BoundNodeKind.NullCoalescingOperator)]
+internal static class NullCoalesceEmitter
 {
-    public LinqExpression Emit(BoundNullCoalesceExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundNullCoalesceExpr node, EmissionContext ctx)
     {
         var leftType = node.Left.StaticType.ClrType;
         var rightType = node.Right.StaticType.ClrType;

@@ -1,11 +1,14 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class IndexIncrementEmitter : INodeEmitter<BoundIndexIncrementExpr>
+[EmitsNode(BoundNodeKind.IndexIncrement)]
+internal static class IndexIncrementEmitter
 {
-    public LinqExpression Emit(BoundIndexIncrementExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundIndexIncrementExpr node, EmissionContext ctx)
     {
         return LinqExpression.Call(
             ApplyIndexIncrementMethod,

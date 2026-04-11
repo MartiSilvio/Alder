@@ -6,8 +6,8 @@ using Alder.Generators.Model;
 namespace Alder.Generators.Emitters;
 
 /// <summary>
-/// Generates AOT delegate factories derived from the actual delegate types
-/// that appear as parameters in expanded method models. No hardcoded shapes.
+/// Emits AOT delegate factories for the delegate shapes discovered during generation.
+/// These factories let Alder materialize strongly typed delegates without depending on runtime generic closure.
 /// </summary>
 internal static class DelegateFactoryEmitter
 {
@@ -27,7 +27,7 @@ internal static class DelegateFactoryEmitter
         w.AppendLine();
 
         var invoke = "global::Alder.Aot.GeneratedCodeHelpers.InvokeLambda";
-        var lv = "object"; // Lambda is passed as object; the facade handles the cast
+        var lv = "object";
 
         using (w.Block("file static class AotDelegateFactories"))
         {
@@ -46,9 +46,9 @@ internal static class DelegateFactoryEmitter
     }
 
     /// <summary>
-    /// Scans all expanded methods across all registrations for Func/Action parameter types
-    /// where the first generic argument is a registered value type. These are the delegate
-    /// types that need AOT factories for NativeAOT lambda conversion.
+    /// Collects the delegate shapes that need generated factories.
+    /// This includes shapes discovered from registered methods, extension-dispatch metadata, and a small
+    /// set of additional runtime delegate shapes that NativeAOT cannot materialize on demand.
     /// </summary>
     private static List<DelegateTypeInfo> CollectDelegateTypes(
         ImmutableArray<TypeRegistrationModel> registrations,
@@ -59,7 +59,7 @@ internal static class DelegateFactoryEmitter
         var seen = new HashSet<string>();
         var result = new List<DelegateTypeInfo>();
 
-        // Collect delegate types from expanded methods using Roslyn-extracted signatures.
+        // Registered method metadata is the primary source of delegate shapes that must survive trimming and AOT.
         foreach (var reg in registrations)
         {
             foreach (var method in reg.Methods)
@@ -72,7 +72,7 @@ internal static class DelegateFactoryEmitter
             }
         }
 
-        // Merge delegate shapes from extension method dispatch emitter
+        // Extension dispatch adds delegate shapes that may not appear in ordinary parameter lists.
         if (!extensionDelegates.IsDefaultOrEmpty)
         {
             foreach (var sig in extensionDelegates)
@@ -85,7 +85,7 @@ internal static class DelegateFactoryEmitter
             }
         }
 
-        // Comparison<T> for value types (used by Sort, not always in method params)
+        // Comparison<T> is used by common collection APIs such as Sort even when it does not appear in a registered signature.
         foreach (var vt in valueTypeNames)
         {
             var compType = $"global::System.Comparison<{vt}>";
@@ -93,9 +93,7 @@ internal static class DelegateFactoryEmitter
                 result.Add(new DelegateTypeInfo(compType, new[] { vt, vt }, "int", false));
         }
 
-        // Func<T> (zero-arg) for value types, needed for Func<int> f = () => 42 and similar
-        // variable assignments that don't appear as method parameters.
-        // Reference-type Func<T> (Func<string>, Func<Customer>) use MakeGenericMethod at runtime.
+        // Zero-argument Func<T> over value types must also be rooted because they commonly arise from lambda assignment.
         foreach (var vt in valueTypeNames)
         {
             var funcType = $"global::System.Func<{vt}>";

@@ -2,7 +2,6 @@ namespace Alder.Parsing;
 
 internal enum TokenType
 {
-    // Literals
     Number,
     String,
     Character,
@@ -11,10 +10,8 @@ internal enum TokenType
     False,
     Null,
 
-    // Identifiers
     Identifier,
 
-    // Operators - Arithmetic
     Plus,
     Minus,
     Star,
@@ -23,7 +20,6 @@ internal enum TokenType
     StarStar,          // ** power operator (Extended mode)
 
 
-    // Operators - Comparison
     EqualEqual,
     BangEqual,
     Less,
@@ -31,16 +27,13 @@ internal enum TokenType
     Greater,
     GreaterEqual,
 
-    // JavaScript strict equality (===, !==)
     EqualEqualEqual,   // ===
     BangEqualEqual,    // !==
 
-    // Operators - Logical
     AmpAmp,
     PipePipe,
     Bang,
 
-    // Operators - Bitwise
     Amp,           // &
     Pipe,          // |
     Caret,         // ^
@@ -48,19 +41,16 @@ internal enum TokenType
     LessLess,      // <<
     GreaterGreater,// >>
 
-    // Operators - Null/Ternary
     Question,              // ?
     QuestionQuestion,      // ??
     QuestionQuestionEqual, // ??=
     QuestionDot,           // ?.
     QuestionLeftBracket,   // ?[
 
-    // Assignment & Access
     Equal,
     Dot,
     DotDot,                // range / spread operator (..)
 
-    // Compound Assignment
     PlusEqual,             // +=
     MinusEqual,            // -=
     StarEqual,             // *=
@@ -75,11 +65,9 @@ internal enum TokenType
     GreaterGreaterGreaterEqual, // >>>=
     StarStarEqual,             // **= (Extended mode)
 
-    // Increment/Decrement
     PlusPlus,              // ++
     MinusMinus,            // --
 
-    // Delimiters
     LeftParen,
     RightParen,
     LeftBracket,
@@ -90,17 +78,14 @@ internal enum TokenType
     Colon,
     Semicolon,
 
-    // Lambda
     Arrow,  // =>
 
-    // C# reserved keywords
     New,
     If,
     Else,
     Return,
     Var,
 
-    // JavaScript function keyword (reserved)
     Function,
 
     Switch,
@@ -226,13 +211,11 @@ internal enum TokenType
     With,
     Yield,
 
-    // Extended mode operators (contextual keywords)
     Like,              // like (SQL pattern matching, Extended mode)
     Between,           // between (SQL range check, Extended mode)
     Unless,            // unless (negated if, Extended mode)
     Until,             // until (negated while, Extended mode)
 
-    // Extended mode operators (symbol tokens)
     PipeGreater,           // |> (pipeline operator, Extended mode)
     EqualTilde,            // =~ (regex match, Extended mode)
     BangTilde,             // !~ (negated regex match, Extended mode)
@@ -240,11 +223,10 @@ internal enum TokenType
     DotDotLess,            // ..< (exclusive range, Extended mode)
     DotDotEquals,          // ..= (inclusive range, Extended mode)
 
-    // Synthetic tokens (created by parser, not lexer)
+    // Synthetic tokens created by the parser rather than the lexer.
     NotIn,             // not in (Extended mode compound keyword operator)
     NotLike,           // not like (Extended mode compound keyword operator)
 
-    // Special
     Eof
 }
 

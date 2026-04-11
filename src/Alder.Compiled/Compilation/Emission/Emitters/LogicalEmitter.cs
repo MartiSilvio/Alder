@@ -1,13 +1,15 @@
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Parsing;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class LogicalEmitter : INodeEmitter<BoundLogicalExpr>
+[EmitsNode(BoundNodeKind.LogicalOperator)]
+internal static class LogicalEmitter
 {
-    public LinqExpression Emit(BoundLogicalExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundLogicalExpr node, EmissionContext ctx)
     {
         var leftCandidate = ctx.Emit(node.Left);
         var rightCandidate = ctx.Emit(node.Right);

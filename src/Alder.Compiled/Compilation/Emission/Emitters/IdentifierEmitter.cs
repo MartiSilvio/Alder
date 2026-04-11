@@ -1,12 +1,15 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class IdentifierEmitter : INodeEmitter<BoundIdentifierExpr>
+[EmitsNode(BoundNodeKind.Identifier)]
+internal static class IdentifierEmitter
 {
-    public LinqExpression Emit(BoundIdentifierExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundIdentifierExpr node, EmissionContext ctx)
     {
         if (ctx.TryGetLambdaParameter(node.Name, out var lambdaParam))
             return lambdaParam;

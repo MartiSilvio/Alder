@@ -1,12 +1,15 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class CollectionCreationEmitter : INodeEmitter<BoundCollectionCreationExpr>
+[EmitsNode(BoundNodeKind.CollectionCreation)]
+internal static class CollectionCreationEmitter
 {
-    public LinqExpression Emit(BoundCollectionCreationExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundCollectionCreationExpr node, EmissionContext ctx)
     {
         var hasSpread = node.Elements.Any(static e => e is BoundSpreadExpr);
         if (node.CollectionKind == CollectionKind.Array && !hasSpread)

@@ -5,20 +5,10 @@ using Alder.Compiled;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Compilation break-even analysis for reusable expressions. This class answers
-/// when the upfront compile cost is worth paying for repeated execution.
-///
-/// Each benchmark invocation creates a FRESH engine, parses the expression,
-/// optionally compiles it, then evaluates it N times. This measures the
-/// total cost of ownership (setup + N evaluations) — not just warm-path speed.
-///
-/// If Compiled total &lt; Interpreted total at N=K, the break-even point is K.
-/// Results tell users: "if you'll evaluate this expression fewer than K times,
-/// skip compilation."
-///
-/// Two expression categories:
-///   Scalar — lightweight, dispatch-overhead-dominant
-///   LINQ   — work-dominant, compilation wins earlier
+/// Measures when paying the upfront compilation cost becomes cheaper than repeated interpreted evaluation.
+/// Each benchmark invocation creates a fresh engine, parses the expression, optionally compiles it,
+/// and then evaluates it <see cref="ReuseCount"/> times. The reported cost is therefore total ownership cost
+/// for a reusable expression, not isolated warm-path execution.
 /// </summary>
 [Config(typeof(MonitoringConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
@@ -38,8 +28,6 @@ public class CompilationAmortizationBenchmarks
     {
         _data = BenchmarkData.CreateStandard();
     }
-
-    #region Scalar break-even
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Operational/CompilationAmortization/Scalar")]
@@ -80,10 +68,6 @@ public class CompilationAmortizationBenchmarks
         return result!;
     }
 
-    #endregion
-
-    #region LINQ break-even
-
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Operational/CompilationAmortization/Linq")]
     public object Interpreted_LINQ()
@@ -123,5 +107,4 @@ public class CompilationAmortizationBenchmarks
         return result!;
     }
 
-    #endregion
 }

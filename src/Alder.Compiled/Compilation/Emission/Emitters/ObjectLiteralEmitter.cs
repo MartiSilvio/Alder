@@ -1,11 +1,14 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class ObjectLiteralEmitter : INodeEmitter<BoundObjectLiteralExpr>
+[EmitsNode(BoundNodeKind.ObjectLiteral)]
+internal static class ObjectLiteralEmitter
 {
-    public LinqExpression Emit(BoundObjectLiteralExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundObjectLiteralExpr node, EmissionContext ctx)
     {
         var dictVar = LinqExpression.Variable(typeof(IDictionary<string, object?>), "dict");
         var statements = new List<LinqExpression>

@@ -4,8 +4,8 @@ using FastExpressionCompiler;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// No-fallback FEC adapter: throws if FEC cannot compile via its fast IL path.
-/// ifFastFailedReturnNull: false prevents silent fallback to standard Expression.Compile().
+/// Forces FastExpressionCompiler to fail instead of silently falling back to <c>Expression.Compile()</c>.
+/// Benchmark results should reflect the FEC backend only.
 /// </summary>
 public sealed class FastExpressionCompilerAdapter : IExpressionCompiler
 {

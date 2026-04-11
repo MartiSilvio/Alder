@@ -6,12 +6,12 @@ using Alder.Runtime;
 namespace Alder.Compiled.Compilation;
 
 /// <summary>
-/// Orchestrates bound-node IL compilation.
+/// Orchestrates compilation from parsed or bound Alder expressions into compiled delegates.
 /// </summary>
 internal static class ILExpressionCompiler
 {
     /// <summary>
-    /// Get or create compiled delegate for an expression string.
+    /// Returns a cached compiled delegate for an expression string, compiling it if needed.
     /// </summary>
     public static CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache, AlderConfig config)
     {
@@ -19,7 +19,7 @@ internal static class ILExpressionCompiler
     }
 
     /// <summary>
-    /// Attempt to compile an AST to a native IL delegate.
+    /// Attempts to compile a parsed expression into a native delegate.
     /// </summary>
     public static CompiledExpressionInfo TryCompile(Expr ast, AlderConfig config)
     {
@@ -49,7 +49,7 @@ internal static class ILExpressionCompiler
     }
 
     /// <summary>
-    /// Attempt to compile a pre-bound expression to a native IL delegate.
+    /// Attempts to compile a pre-bound expression into a native delegate.
     /// </summary>
     public static CompiledExpressionInfo TryCompile(BoundExpr bound, AlderConfig? config = null)
     {

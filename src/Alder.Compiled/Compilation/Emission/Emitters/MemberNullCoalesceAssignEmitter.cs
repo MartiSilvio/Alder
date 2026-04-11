@@ -1,11 +1,14 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class MemberNullCoalesceAssignEmitter : INodeEmitter<BoundMemberNullCoalesceAssignExpr>
+[EmitsNode(BoundNodeKind.MemberNullCoalesceAssignment)]
+internal static class MemberNullCoalesceAssignEmitter
 {
-    public LinqExpression Emit(BoundMemberNullCoalesceAssignExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundMemberNullCoalesceAssignExpr node, EmissionContext ctx)
     {
         var targetVar = LinqExpression.Variable(typeof(object), "nca_target");
         var currentVar = LinqExpression.Variable(typeof(object), "nca_current");

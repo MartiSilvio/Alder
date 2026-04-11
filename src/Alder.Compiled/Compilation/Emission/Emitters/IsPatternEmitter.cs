@@ -1,13 +1,16 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Parsing;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class IsPatternEmitter : INodeEmitter<BoundIsPatternExpr>
+[EmitsNode(BoundNodeKind.IsPatternExpression)]
+internal static class IsPatternEmitter
 {
-    public LinqExpression Emit(BoundIsPatternExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundIsPatternExpr node, EmissionContext ctx)
     {
         if (node.Pattern is TypePattern { VariableName: null } typePattern
             && TypeResolver.TryResolveKeywordType(typePattern.TypeToken.Lexeme, out var resolvedType))

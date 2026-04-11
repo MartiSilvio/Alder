@@ -4,20 +4,21 @@ public sealed partial class AlderEngine
 {
     /// <summary>
     /// Sets a variable that can be referenced by name in evaluated expressions.
-    /// The variable's type is inferred as <see cref="object"/>.
+    /// The value is tracked as <see cref="object"/> for binding purposes.
     /// </summary>
     /// <param name="name">The variable name.</param>
     /// <param name="value">The variable value.</param>
     /// <returns>This engine instance, for method chaining.</returns>
     public AlderEngine SetVariable(string name, object? value)
     {
+        ThrowIfDisposed();
         DefineOrStageVariable(name, value, typeof(object));
         return this;
     }
 
     /// <summary>
-    /// Sets a strongly-typed variable that can be referenced by name in evaluated expressions.
-    /// The variable's type is inferred from <typeparamref name="T"/>, enabling type-aware binding.
+    /// Sets a strongly typed variable that can be referenced by name in evaluated expressions.
+    /// The static type is preserved from <typeparamref name="T"/>, which allows more precise binding.
     /// </summary>
     /// <typeparam name="T">The type of the variable.</typeparam>
     /// <param name="name">The variable name.</param>
@@ -25,27 +26,30 @@ public sealed partial class AlderEngine
     /// <returns>This engine instance, for method chaining.</returns>
     public AlderEngine SetVariable<T>(string name, T value)
     {
+        ThrowIfDisposed();
         DefineOrStageVariable(name, value, typeof(T));
         return this;
     }
 
     /// <summary>
-    /// Sets multiple variables from a dictionary. Each key-value pair becomes a variable accessible in expressions.
+    /// Sets multiple variables from a dictionary.
     /// </summary>
     /// <param name="variables">A dictionary of variable names and values.</param>
     /// <returns>This engine instance, for method chaining.</returns>
     public AlderEngine SetVariables(IDictionary<string, object?> variables)
     {
+        ThrowIfDisposed();
         DefineOrStageVariables(variables, typeof(object));
         return this;
     }
 
     /// <summary>
-    /// Returns a snapshot of all registered modules and their metadata.
+    /// Returns a snapshot of the modules registered on this engine.
     /// </summary>
     /// <returns>A dictionary mapping module names to their registration information.</returns>
     public IReadOnlyDictionary<string, RegisteredModule> GetRegisteredModules()
     {
+        ThrowIfDisposed();
         var result = new Dictionary<string, RegisteredModule>(_config.Comparer);
 
         foreach (var (name, info) in _config.Modules)
@@ -57,7 +61,7 @@ public sealed partial class AlderEngine
     }
 
     /// <summary>
-    /// Describes a module registered with the engine, including its backing type, optional singleton instance, and exposed members.
+    /// Describes a module registered with the engine.
     /// </summary>
     /// <param name="Type">The .NET type that provides the module's methods and properties.</param>
     /// <param name="Instance">An optional pre-created instance for instance methods; <c>null</c> if the engine creates one on demand.</param>

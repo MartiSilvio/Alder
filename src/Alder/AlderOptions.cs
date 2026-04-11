@@ -8,56 +8,58 @@ using Alder.Security;
 namespace Alder;
 
 /// <summary>
-/// Specifies the C# language mode for expression evaluation.
+/// Selects the language surface accepted by <see cref="AlderEngine"/>.
 /// </summary>
 public enum LanguageMode
 {
     /// <summary>
-    /// Standard C# expression semantics only.
+    /// Accepts the standard C#-aligned Alder surface.
+    /// Choose this mode when you want Alder to stay within its non-extended language set.
     /// </summary>
     Standard,
 
     /// <summary>
-    /// A superset of standard C# with additional operators, comparison chaining, ranges, slicing,
-    /// collection comprehensions, <c>let..in</c> expressions, bare math functions, aggregate builtins,
-    /// date/time sugar, pipeline operator, and more.
+    /// Accepts the standard surface plus Alder-specific extensions.
+    /// This mode enables features such as chained comparisons, pipelines, and other extended syntax forms.
     /// </summary>
     Extended
 }
 
 /// <summary>
-/// Configuration options for an <see cref="AlderEngine"/> instance.
-/// Pass to <see cref="AlderEngine(AlderOptions)"/> or the <see cref="AlderEngine(Action{AlderOptions})"/> overload.
+/// Configures an <see cref="AlderEngine"/> before it is created.
 /// </summary>
 public sealed class AlderOptions
 {
     /// <summary>
-    /// Gets or sets whether identifier resolution is case-sensitive. Default is <c>true</c>.
+    /// Controls identifier matching.
+    /// The default is <c>true</c>, which matches normal C# case sensitivity.
     /// </summary>
     public bool IsCaseSensitive { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets the language mode. Default is <see cref="Alder.LanguageMode.Standard"/>.
+    /// Selects the accepted language surface.
+    /// The default is <see cref="Alder.LanguageMode.Standard"/>.
     /// </summary>
     public LanguageMode LanguageMode { get; set; } = LanguageMode.Standard;
 
     /// <summary>
-    /// Gets or sets the sandbox security policy controlling which runtime operations are allowed. Default is <see cref="SandboxOptions.Trusted"/>.
+    /// Controls which runtime operations evaluation may perform.
+    /// The default is <see cref="SandboxOptions.Trusted"/>.
     /// </summary>
     public SandboxOptions Sandbox { get; set; } = SandboxOptions.Trusted();
 
     /// <summary>
-    /// Gets or sets execution constraints such as statement limits, timeouts, and maximum expression depth.
+    /// Sets runtime guardrails such as statement, loop, and timeout limits.
     /// </summary>
     public ExecutionConstraints Constraints { get; set; } = new();
 
     /// <summary>
-    /// Gets or sets the compiler used to compile LINQ expression trees to delegates.
+    /// Selects the delegate compiler used by the compiled backend.
     /// </summary>
     public IExpressionCompiler ExpressionCompiler { get; set; } = DefaultExpressionCompiler.Instance;
 
     /// <summary>
-    /// Gets or sets an optional <see cref="IServiceProvider"/> for dependency injection within expressions.
+    /// Optional service provider used when runtime resolution needs application services.
     /// </summary>
     public IServiceProvider? ServiceProvider { get; set; }
 
@@ -67,27 +69,27 @@ public sealed class AlderOptions
     internal StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
     /// <summary>
-    /// Gets the builder for registering modules (classes whose methods and properties are exposed to expressions).
+    /// Configures module-style registrations whose members are surfaced to expressions.
     /// </summary>
     public ModuleBuilder Modules { get; }
 
     /// <summary>
-    /// Gets the builder for registering standalone functions callable from expressions.
+    /// Configures standalone function registrations.
     /// </summary>
     public FunctionBuilder Functions { get; }
 
     /// <summary>
-    /// Gets the builder for configuring type resolution, assemblies, namespaces, and extension methods.
+    /// Configures type resolution, imported namespaces, and extension methods.
     /// </summary>
     public TypeBuilder Types { get; }
 
     /// <summary>
-    /// Gets the builder for configuring AOT (ahead-of-time) compiled type metadata.
+    /// Configures AOT-generated type metadata and dispatch contexts.
     /// </summary>
     public AotBuilder Aot { get; }
 
     /// <summary>
-    /// Creates a new <see cref="AlderOptions"/> instance with default settings.
+    /// Creates a new options instance with the default runtime, security, and AOT settings.
     /// </summary>
     public AlderOptions()
     {
@@ -98,7 +100,7 @@ public sealed class AlderOptions
     }
 
     /// <summary>
-    /// Builder for registering module types whose public methods and properties are exposed to expressions.
+    /// Registers module types whose members can be reached from expressions.
     /// </summary>
     public sealed class ModuleBuilder
     {
@@ -108,13 +110,12 @@ public sealed class AlderOptions
         internal ModuleBuilder(AlderOptions options) => _options = options;
 
         /// <summary>
-        /// Registers a module type under the specified name.
+        /// Registers a module under <paramref name="moduleName"/>.
         /// </summary>
         /// <typeparam name="T">The module type to register.</typeparam>
-        /// <param name="moduleName">The name used to access this module in expressions (e.g., <c>"Math"</c>).</param>
-        /// <param name="explicitOnly">When <c>true</c>, only methods marked with <see cref="AlderFunctionAttribute"/> are exposed.</param>
-        /// <param name="instance">An optional pre-created instance; if <c>null</c>, the engine creates one on demand.</param>
-        /// <returns>This builder, for method chaining.</returns>
+        /// <param name="moduleName">Name used inside expressions, for example <c>Math</c>.</param>
+        /// <param name="explicitOnly">When <c>true</c>, only members marked with <see cref="AlderFunctionAttribute"/> are exposed.</param>
+        /// <param name="instance">Optional pre-created instance. When <c>null</c>, Alder creates one on demand.</param>
         public ModuleBuilder Register<
             [DynamicallyAccessedMembers(
                 DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
@@ -127,13 +128,12 @@ public sealed class AlderOptions
         }
 
         /// <summary>
-        /// Registers a module type under the specified name.
+        /// Registers a module under <paramref name="moduleName"/>.
         /// </summary>
-        /// <param name="moduleName">The name used to access this module in expressions.</param>
+        /// <param name="moduleName">Name used inside expressions.</param>
         /// <param name="type">The module type to register.</param>
-        /// <param name="explicitOnly">When <c>true</c>, only methods marked with <see cref="AlderFunctionAttribute"/> are exposed.</param>
-        /// <param name="instance">An optional pre-created instance; if <c>null</c>, the engine creates one on demand.</param>
-        /// <returns>This builder, for method chaining.</returns>
+        /// <param name="explicitOnly">When <c>true</c>, only members marked with <see cref="AlderFunctionAttribute"/> are exposed.</param>
+        /// <param name="instance">Optional pre-created instance. When <c>null</c>, Alder creates one on demand.</param>
         public ModuleBuilder Register(
             string moduleName,
             [DynamicallyAccessedMembers(
@@ -155,12 +155,12 @@ public sealed class AlderOptions
         }
 
         /// <summary>
-        /// Registers a module type with a pre-built member dictionary.
+        /// Registers a module using a precomputed member map.
+        /// Use this overload when member discovery already happened elsewhere.
         /// </summary>
-        /// <param name="moduleName">The name used to access this module in expressions.</param>
+        /// <param name="moduleName">Name used inside expressions.</param>
         /// <param name="type">The module type to register.</param>
         /// <param name="members">The members to expose, keyed by name.</param>
-        /// <returns>This builder, for method chaining.</returns>
         public ModuleBuilder Register(
             string moduleName,
             [DynamicallyAccessedMembers(
@@ -175,12 +175,12 @@ public sealed class AlderOptions
         }
 
         /// <summary>
-        /// Registers a type using its <see cref="AlderModuleAttribute"/> for the module name.
-        /// If no attribute is present, the type's methods are registered as global functions.
+        /// Registers a type using Alder attributes.
+        /// Types marked with <see cref="AlderModuleAttribute"/> become modules.
+        /// Other attributed members are registered as global functions.
         /// </summary>
         /// <param name="type">The type to register.</param>
-        /// <param name="instance">An optional pre-created instance.</param>
-        /// <returns>This builder, for method chaining.</returns>
+        /// <param name="instance">Optional pre-created instance.</param>
         public ModuleBuilder RegisterFromType(
             [DynamicallyAccessedMembers(
                 DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
@@ -196,12 +196,12 @@ public sealed class AlderOptions
         }
 
         /// <summary>
-        /// Registers a type using its <see cref="AlderModuleAttribute"/> for the module name.
-        /// If no attribute is present, the type's methods are registered as global functions.
+        /// Registers a type using Alder attributes.
+        /// Types marked with <see cref="AlderModuleAttribute"/> become modules.
+        /// Other attributed members are registered as global functions.
         /// </summary>
         /// <typeparam name="T">The type to register.</typeparam>
-        /// <param name="instance">An optional pre-created instance.</param>
-        /// <returns>This builder, for method chaining.</returns>
+        /// <param name="instance">Optional pre-created instance.</param>
         public ModuleBuilder RegisterFromType<
             [DynamicallyAccessedMembers(
                 DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
@@ -213,11 +213,10 @@ public sealed class AlderOptions
         }
 
         /// <summary>
-        /// Scans an assembly for types decorated with <see cref="AlderModuleAttribute"/> or containing
-        /// methods decorated with <see cref="AlderFunctionAttribute"/>, and registers them.
+        /// Scans an assembly for Alder module and function attributes.
+        /// This is convenient at startup, but it is reflection-heavy and trim-sensitive.
         /// </summary>
         /// <param name="assembly">The assembly to scan.</param>
-        /// <returns>This builder, for method chaining.</returns>
         [RequiresUnreferencedCode("Registering from assembly scans all types and members via reflection.")]
         public ModuleBuilder RegisterFromAssembly(Assembly assembly)
         {
@@ -248,7 +247,7 @@ public sealed class AlderOptions
     }
 
     /// <summary>
-    /// Builder for registering standalone delegate-based functions callable from expressions.
+    /// Registers standalone delegate-based functions callable from expressions.
     /// </summary>
     public sealed class FunctionBuilder
     {
@@ -260,11 +259,10 @@ public sealed class AlderOptions
         }
 
         /// <summary>
-        /// Registers a function that can be called by name from expressions.
+        /// Registers a function callable by <paramref name="name"/>.
         /// </summary>
-        /// <param name="name">The function name as it appears in expressions.</param>
-        /// <param name="function">The delegate to invoke. Receives arguments as an <c>object?[]</c>.</param>
-        /// <returns>This builder, for method chaining.</returns>
+        /// <param name="name">Name used inside expressions.</param>
+        /// <param name="function">Delegate implementation. Alder passes arguments as <c>object?[]</c>.</param>
         public FunctionBuilder Register(string name, Func<object?[], object?> function)
         {
             RegisteredFunctions[name] = function;
@@ -273,7 +271,7 @@ public sealed class AlderOptions
     }
 
     /// <summary>
-    /// Builder for configuring type resolution: assemblies, namespaces, and extension methods available to expressions.
+    /// Configures type resolution, namespace imports, and extension methods.
     /// </summary>
     public sealed class TypeBuilder
     {
@@ -284,10 +282,10 @@ public sealed class AlderOptions
         internal TypeBuilder() { }
 
         /// <summary>
-        /// Adds an assembly for type resolution. Types from this assembly become constructible and accessible in expressions.
+        /// Adds an assembly to the type-resolution search set.
+        /// Types from this assembly can then participate in resolution and construction.
         /// </summary>
         /// <param name="assembly">The assembly to add.</param>
-        /// <returns>This builder, for method chaining.</returns>
         public TypeBuilder AddAssembly(Assembly assembly)
         {
             Assemblies.Add(assembly);
@@ -295,10 +293,9 @@ public sealed class AlderOptions
         }
 
         /// <summary>
-        /// Adds a namespace for unqualified type resolution. Types in this namespace can be referenced without their full name.
+        /// Adds a namespace for unqualified type resolution.
         /// </summary>
-        /// <param name="namespaceName">The namespace to add (e.g., <c>"System.Collections.Generic"</c>).</param>
-        /// <returns>This builder, for method chaining.</returns>
+        /// <param name="namespaceName">Namespace to import, for example <c>System.Collections.Generic</c>.</param>
         public TypeBuilder AddNamespace(string namespaceName)
         {
             Namespaces.Add(namespaceName);
@@ -306,11 +303,10 @@ public sealed class AlderOptions
         }
 
         /// <summary>
-        /// Adds a static type whose extension methods become available on matching types in expressions.
-        /// <see cref="Enumerable"/> is included by default.
+        /// Adds a static type whose extension methods participate in binding.
+        /// <see cref="Enumerable"/> is already included by default.
         /// </summary>
         /// <param name="type">A static type containing extension methods.</param>
-        /// <returns>This builder, for method chaining.</returns>
         public TypeBuilder AddExtensionMethods(Type type)
         {
             if (!ExtensionTypes.Contains(type))
@@ -324,7 +320,7 @@ public sealed class AlderOptions
     }
 
     /// <summary>
-    /// Builder for configuring AOT (ahead-of-time) type metadata generated by the Alder source generator.
+    /// Configures AOT-generated type metadata and dispatch contexts.
     /// </summary>
     public sealed class AotBuilder
     {
@@ -334,10 +330,9 @@ public sealed class AlderOptions
         internal AotBuilder() { }
 
         /// <summary>
-        /// Registers an AOT-generated type context containing pre-compiled metadata for member access and method dispatch.
+        /// Registers an additional AOT-generated type context.
         /// </summary>
         /// <param name="context">The generated type context to register.</param>
-        /// <returns>This builder, for method chaining.</returns>
         public AotBuilder UseGeneratedContext(AlderTypeContext context)
         {
             AdditionalContexts.Add(context);
@@ -345,9 +340,9 @@ public sealed class AlderOptions
         }
 
         /// <summary>
-        /// Clears the built-in AOT context and all additional contexts, falling back to reflection-only dispatch.
+        /// Clears the built-in generated context and any additional contexts.
+        /// Reflection-based dispatch remains available where the runtime permits it.
         /// </summary>
-        /// <returns>This builder, for method chaining.</returns>
         public AotBuilder ClearBuiltInContext()
         {
             BuiltInContext = null;
@@ -374,85 +369,85 @@ public sealed class AlderOptions
 }
 
 /// <summary>
-/// Controls which runtime operations are permitted during expression evaluation.
-/// Use the factory methods <see cref="Trusted"/>, <see cref="Safe"/>, or <see cref="Strict"/> for common presets.
+/// Controls which runtime operations evaluation may perform.
+/// Start from <see cref="Trusted"/>, <see cref="Safe"/>, or <see cref="Strict"/>,
+/// then refine the individual flags when needed.
 /// </summary>
 public sealed record SandboxOptions
 {
     /// <summary>
-    /// Gets whether method calls on objects are allowed.
+    /// Allows method calls.
     /// </summary>
     public bool AllowMethodCalls { get; init; }
 
     /// <summary>
-    /// Gets whether instance property reads are allowed.
+    /// Allows instance property reads.
     /// </summary>
     public bool AllowPropertyRead { get; init; }
 
     /// <summary>
-    /// Gets whether static property reads are allowed.
+    /// Allows static property reads.
     /// </summary>
     public bool AllowStaticPropertyRead { get; init; }
 
     /// <summary>
-    /// Gets whether static field reads are allowed.
+    /// Allows static field reads.
     /// </summary>
     public bool AllowStaticFieldRead { get; init; }
 
     /// <summary>
-    /// Gets whether variable assignment is allowed.
+    /// Allows variable assignment.
     /// </summary>
     public bool AllowAssignment { get; init; }
 
     /// <summary>
-    /// Gets whether property setters can be invoked.
+    /// Allows property writes.
     /// </summary>
     public bool AllowPropertySet { get; init; }
 
     /// <summary>
-    /// Gets whether index setters (e.g., <c>list[0] = x</c>) can be invoked.
+    /// Allows index writes such as <c>list[0] = x</c>.
     /// </summary>
     public bool AllowIndexSet { get; init; }
 
     /// <summary>
-    /// Gets whether object construction via <c>new</c> is allowed.
+    /// Allows object construction through <c>new</c>.
     /// </summary>
     public bool AllowConstruction { get; init; }
 
     /// <summary>
-    /// Gets an optional set of types that are always allowed regardless of other restrictions.
+    /// Types that remain allowed regardless of the broader flag set.
     /// </summary>
     public HashSet<Type>? TrustedTypes { get; init; }
 
     /// <summary>
-    /// Gets an optional set of namespaces whose types are always allowed regardless of other restrictions.
+    /// Namespaces that remain allowed regardless of the broader flag set.
     /// </summary>
     public HashSet<string>? TrustedNamespaces { get; init; }
 
     /// <summary>
-    /// Gets an optional set of types that are always denied regardless of other permissions.
+    /// Types that remain denied regardless of the broader flag set.
     /// </summary>
     public HashSet<Type>? DeniedTypes { get; init; }
 
     /// <summary>
-    /// Gets an optional set of namespaces whose types are always denied regardless of other permissions.
+    /// Namespaces that remain denied regardless of the broader flag set.
     /// </summary>
     public HashSet<string>? DeniedNamespaces { get; init; }
 
     /// <summary>
-    /// Gets the maximum allowed array length when creating arrays via <c>new T[size]</c>. Default is 10,000,000.
+    /// Maximum collection size allowed during evaluation.
     /// </summary>
     public int MaxCollectionSize { get; init; } = 10_000_000;
 
     /// <summary>
-    /// Gets the maximum duration for regex operations. Default is 1 second.
+    /// Timeout applied to regex operations.
     /// </summary>
     public TimeSpan RegexTimeout { get; init; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
-    /// Creates a fully permissive sandbox that allows all operations. Suitable for trusted code.
+    /// Creates a fully permissive sandbox for trusted code.
     /// </summary>
-    /// <returns>A <see cref="SandboxOptions"/> with all permissions enabled.</returns>
     public static SandboxOptions Trusted() => new()
     {
         AllowMethodCalls = true,
@@ -466,10 +461,9 @@ public sealed record SandboxOptions
     };
 
     /// <summary>
-    /// Creates a sandbox that allows property access (instance and static), assignment, and index writes,
+    /// Creates a sandbox that allows reads, assignment, and index writes,
     /// but disallows method calls and object construction.
     /// </summary>
-    /// <returns>A <see cref="SandboxOptions"/> with safe defaults.</returns>
     public static SandboxOptions Safe() => new()
     {
         AllowPropertyRead = true,
@@ -481,10 +475,8 @@ public sealed record SandboxOptions
     };
 
     /// <summary>
-    /// Creates a minimal read-only sandbox that allows reading properties and static members.
-    /// No method calls, assignment, or construction.
+    /// Creates a minimal read-oriented sandbox.
     /// </summary>
-    /// <returns>A <see cref="SandboxOptions"/> with the most restrictive settings.</returns>
     public static SandboxOptions Strict() => new()
     {
         AllowPropertyRead = true,
@@ -512,24 +504,24 @@ public sealed record SandboxOptions
 }
 
 /// <summary>
-/// Configures runtime execution limits to prevent runaway expressions.
+/// Configures execution limits used to stop runaway evaluation.
 /// </summary>
 public sealed record ExecutionConstraints
 {
     /// <summary>
-    /// Gets the maximum number of statements that can be executed before the engine throws <see cref="AlderExecutionLimitException"/>.
+    /// Maximum statement count before evaluation throws <see cref="AlderExecutionLimitException"/>.
     /// <c>null</c> means unlimited.
     /// </summary>
     public long? MaxStatements { get; init; }
 
     /// <summary>
-    /// Gets the maximum number of iterations a single loop can execute before the engine throws <see cref="AlderExecutionLimitException"/>.
+    /// Maximum iterations allowed for a single loop before evaluation throws <see cref="AlderExecutionLimitException"/>.
     /// <c>null</c> means unlimited.
     /// </summary>
     public long? MaxLoopIterations { get; init; }
 
     /// <summary>
-    /// Gets the maximum wall-clock time an evaluation can run before the engine throws <see cref="AlderExecutionLimitException"/>.
+    /// Maximum wall-clock evaluation time before <see cref="AlderExecutionLimitException"/> is thrown.
     /// <c>null</c> means unlimited.
     /// </summary>
     public TimeSpan? MaxTimeout { get; init; }

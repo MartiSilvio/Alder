@@ -5,6 +5,10 @@ using Alder.Generators.Model;
 
 namespace Alder.Generators.Emitters;
 
+/// <summary>
+/// Emits AOT member-dispatch implementations for a registered CLR type.
+/// The generated type roots keep closed generic shapes reachable in trimming and NativeAOT builds.
+/// </summary>
 internal static class TypeMetadataEmitter
 {
     public static string Emit(TypeRegistrationModel reg)
@@ -31,8 +35,7 @@ internal static class TypeMetadataEmitter
         return w.ToString();
     }
 
-    // Single-type-parameter generics rooted for AOT with each value type + object.
-    // Nullable excluded (it has where T : struct, handled separately).
+    // Nullable<T> is emitted separately because it only accepts value-type arguments.
     private static readonly string[] RootedSingleParam =
     {
         "global::System.Collections.Generic.List",
@@ -45,14 +48,12 @@ internal static class TypeMetadataEmitter
         "global::System.Threading.Tasks.Task",
     };
 
-    // Multi-type-parameter generics rooted with cartesian product of pool.
     private static readonly (string Name, int Arity)[] RootedMultiParam =
     {
         ("global::System.Collections.Generic.Dictionary", 2),
     };
 
-    // Arity 8 is ValueTuple<T1,...,T7,TRest> where TRest : struct (nested form).
-    // Direct expansion stops at 7. Arity 8+ uses recursive nesting at runtime.
+    // ValueTuple switches to the nested TRest form at arity 8.
     private const int MaxRootedTupleArity = 7;
 
     public static string? EmitTypeRoots(ImmutableArray<TypeRegistrationModel> registrations)
@@ -63,7 +64,7 @@ internal static class TypeMetadataEmitter
         if (closedGenerics.Length == 0 && valueTypes.Count == 0)
             return null;
 
-        // Root pool: all value types + object (canonical reference type for shared generics)
+        // Include object so the runtime keeps shared-generic canonical forms reachable.
         var pool = new List<string>(valueTypes) { "object" };
 
         var w = new SourceWriter();
@@ -139,22 +140,16 @@ internal static class TypeMetadataEmitter
         }
     }
 
-    /// <summary>
-    /// Arity 2: full cartesian of pool.
-    /// Arity 3-7: uniform (all same type from pool).
-    /// </summary>
     private static void EmitTupleRoots(
         SourceWriter w, HashSet<string> seen,
         List<string> pool, List<string> valueTypes)
     {
-        // Arity 2: full product
         foreach (var t1 in pool)
             foreach (var t2 in pool)
                 EmitTypeRoot(w, seen,
                     $"VT2_{TypeParser.SanitizeIdentifier(t1)}_{TypeParser.SanitizeIdentifier(t2)}",
                     $"global::System.ValueTuple<{t1}, {t2}>");
 
-        // Arity 3-7: uniform
         for (var arity = 3; arity <= MaxRootedTupleArity; arity++)
         {
             foreach (var t in pool)
@@ -166,12 +161,6 @@ internal static class TypeMetadataEmitter
             }
         }
     }
-
-    /// <summary>
-    /// Collects canonical-root method instantiations (generic methods where at least one type arg
-    /// is object). These force NativeAOT to compile the shared-generic canonical forms
-    /// so MakeGenericMethod works at runtime for reference-type arguments.
-    /// </summary>
 
     private static void EmitTryGetIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
@@ -198,8 +187,7 @@ internal static class TypeMetadataEmitter
 
     private static void EmitTrySetIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
-        // Value types: skip. Unboxing creates a copy, so mutations through TrySet would be lost.
-        // The reflection fallback handles value-type member setting correctly.
+        // Unboxing a value type here would mutate a copy, so writable value types stay on the reflection path.
         if (reg.IsValueType) return;
 
         var properties = reg.Properties.Where(p => p is { IsStatic: false, CanWrite: true })
@@ -263,7 +251,7 @@ internal static class TypeMetadataEmitter
 
     private static void EmitTrySetIndexIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
-        // Value types: skip. Unboxing creates a copy, so index mutations would be lost.
+        // Writable value-type indexers stay on the reflection path because unboxing would mutate a copy.
         if (reg.IsValueType) return;
 
         var writable = reg.Indexers.Where(i => i.CanWrite).ToArray();
@@ -343,8 +331,8 @@ internal static class TypeMetadataEmitter
     }
 
     /// <summary>
-    /// Emits method dispatch with nested switch: name, args.Length, then type-checked overloads.
-    /// Params methods are emitted after the args.Length switch as variable-arity fallbacks.
+    /// Emits method dispatch keyed first by member name and then by argument shape.
+    /// Params methods are emitted as variable-arity fallbacks after the fixed-arity cases.
     /// </summary>
     private static void EmitMethodDispatch(
         SourceWriter w,
@@ -402,9 +390,8 @@ internal static class TypeMetadataEmitter
     }
 
     /// <summary>
-    /// Emits dispatch for a params method in two forms:
-    /// 1. Normal form: caller passed the array directly (args.Length == paramCount, last arg is the array type)
-    /// 2. Expanded form: caller passed individual elements (args.Length >= fixedCount), collected into an array at dispatch time
+    /// Emits dispatch for both params-call forms:
+    /// direct array passing and expanded argument collection.
     /// </summary>
     private static void EmitParamsDispatch(SourceWriter w, MethodModel method, string target)
     {
@@ -416,7 +403,7 @@ internal static class TypeMetadataEmitter
             ? arrayType.Substring(0, arrayType.Length - 2)
             : arrayType;
 
-        // Normal form: caller passed the array directly
+        // Direct array form.
         {
             var normalCheck = FormatTypeChecks(method.Parameters);
             var normalArgs = FormatCastArgs(method.Parameters);
@@ -429,7 +416,7 @@ internal static class TypeMetadataEmitter
                 w.AppendLine($"if ({arityCheck} && {normalCheck}) {{ result = {normalCall}; return true; }}");
         }
 
-        // Expanded form: collect individual elements into an array
+        // Expanded form.
         {
             var fixedChecks = new List<string>();
             fixedChecks.Add($"args.Length >= {fixedCount}");
@@ -505,9 +492,8 @@ internal static class TypeMetadataEmitter
     }
 
     /// <summary>
-    /// Emits dispatch that converts delegate parameters via LambdaDelegateConverter.
-    /// The dispatch knows the exact delegate type needed, so it can convert
-    /// LambdaValue/MethodRef args without external type inference.
+    /// Emits dispatch that converts delegate parameters using the exact target delegate type.
+    /// This keeps generated dispatch independent from later runtime type inference.
     /// </summary>
     private static void EmitLambdaAwareDispatch(SourceWriter w, MethodModel method, string target)
     {

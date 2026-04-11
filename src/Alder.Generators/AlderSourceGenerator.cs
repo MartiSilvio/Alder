@@ -56,7 +56,7 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
         var typeEntries = new List<(INamedTypeSymbol Symbol, string FullName)>();
         var seenTypes = new HashSet<string>();
 
-        // ctx.Attributes is pre-filtered to AlderRegisteredAttribute by ForAttributeWithMetadataName
+        // ForAttributeWithMetadataName has already filtered to AlderRegisteredAttribute.
         CollectRegisteredTypes(ctx.Attributes, typeEntries, seenTypes);
 
         return BuildRegistrations(contextClass, typeEntries, ctx.SemanticModel.Compilation);
@@ -157,9 +157,7 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
                 result.Add(symbol);
         }
 
-        // Reference types (string, object) are excluded. MakeGenericMethod handles them
-        // at runtime via shared generics. Object-rooting for canonical forms (__Canon)
-        // is handled separately by TypeRoots, not by method expansion.
+        // Reference-type generic closure is handled through shared generics and canonical roots.
 
         return result.ToImmutableArray();
     }

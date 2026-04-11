@@ -5,12 +5,8 @@ using Alder.Compiled;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Typed-delegate amortization: when does delegate compilation pay for itself
-/// relative to repeated engine evaluation?
-///
-/// Uses MonitoringConfig because each benchmark method creates a fresh engine
-/// and loops ReuseCount times — the inner loop IS the measurement unit.
-/// Monitoring mode ensures BDN does not add its own invocation loop on top.
+/// Measures when typed-delegate compilation pays for itself relative to repeated engine evaluation.
+/// <see cref="MonitoringConfig"/> is used because each benchmark method owns the reuse loop and therefore represents the unit of work directly.
 /// </summary>
 [Config(typeof(MonitoringConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]

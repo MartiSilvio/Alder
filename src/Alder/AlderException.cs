@@ -4,27 +4,39 @@ using Alder.Text;
 namespace Alder;
 
 /// <summary>
-/// Thrown when expression parsing, binding, or evaluation fails.
-/// Contains structured <see cref="Diagnostics"/> with error codes, source positions, and messages.
+/// Represents an Alder diagnostic failure.
+/// Parsing, binding, validation, and evaluation all converge on this exception type so callers can inspect structured diagnostics.
 /// </summary>
 public class AlderException : Exception
 {
-    /// <summary>Structured diagnostics associated with this error.</summary>
+    /// <summary>
+    /// Gets the structured diagnostics associated with this failure.
+    /// </summary>
     public IReadOnlyList<AlderDiagnostic> Diagnostics { get; private set; }
 
-    /// <summary>Error code of the first diagnostic, or <c>null</c> if none are present.</summary>
+    /// <summary>
+    /// Gets the code of the first diagnostic, if one exists.
+    /// </summary>
     public DiagnosticCode? ErrorCode => Diagnostics.Count > 0 ? Diagnostics[0].Code : null;
 
-    /// <summary>Formatted error code string (e.g., <c>"CS0103"</c>) of the first diagnostic, or <c>null</c>.</summary>
+    /// <summary>
+    /// Gets the formatted identifier of the first diagnostic, for example <c>CS0103</c>.
+    /// </summary>
     public string? FormattedCode => ErrorCode?.ToDiagnosticId();
 
-    /// <summary>Source text span where the error occurred.</summary>
+    /// <summary>
+    /// Gets the source span of the first diagnostic.
+    /// </summary>
     public TextSpan Span => Diagnostics.Count > 0 ? Diagnostics[0].Span : default;
 
-    /// <summary>One-based line number where the error occurred, or <c>null</c> if unavailable.</summary>
+    /// <summary>
+    /// Gets the one-based line number of the first diagnostic, if one is available.
+    /// </summary>
     public int? Line => Diagnostics.Count > 0 ? Diagnostics[0].Line : null;
 
-    /// <summary>One-based column number where the error occurred, or <c>null</c> if unavailable.</summary>
+    /// <summary>
+    /// Gets the one-based column number of the first diagnostic, if one is available.
+    /// </summary>
     public int? Column => Diagnostics.Count > 0 ? Diagnostics[0].Column : null;
 
     /// <param name="descriptor">The diagnostic descriptor providing the error code and message template.</param>
@@ -84,19 +96,29 @@ public enum ExecutionLimitType
 /// </summary>
 public class AlderExecutionLimitException : AlderException
 {
-    /// <summary>The type of limit that was exceeded.</summary>
+    /// <summary>
+    /// Gets the type of limit that was exceeded.
+    /// </summary>
     public ExecutionLimitType LimitType { get; }
 
-    /// <summary>The configured limit value.</summary>
+    /// <summary>
+    /// Gets the configured limit value.
+    /// </summary>
     public long LimitValue { get; }
 
-    /// <summary>The actual value that exceeded the limit.</summary>
+    /// <summary>
+    /// Gets the observed value that exceeded the configured limit.
+    /// </summary>
     public long ActualValue { get; }
 
-    /// <summary>Total statements executed before the limit was hit.</summary>
+    /// <summary>
+    /// Gets the total statements executed before the limit was hit.
+    /// </summary>
     public long StatementsExecuted { get; }
 
-    /// <summary>Elapsed wall-clock time when the limit was hit.</summary>
+    /// <summary>
+    /// Gets the elapsed wall-clock time when the limit was hit.
+    /// </summary>
     public TimeSpan ElapsedTime { get; }
 
     /// <param name="limitType">The type of limit that was exceeded.</param>

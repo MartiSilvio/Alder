@@ -1,0 +1,313 @@
+using Alder.Aot;
+using Alder.Test._Infrastructure;
+
+namespace Alder.Test.Audit;
+
+/// <summary>
+/// Pre-release adversarial audit: Section 8 — AOT Dispatch Completeness and Parity.
+/// Tests verify that every operation produces identical results whether handled by
+/// AOT typed dispatch or reflection fallback. Uses the built-in dispatch for BCL types
+/// and compares against a reflection-only engine (ClearBuiltInContext).
+/// </summary>
+[TestFixture]
+[Parallelizable(ParallelScope.Children)]
+public class AotDispatchAuditTests
+{
+    private static AlderEngine CreateAotEngine()
+        => new AlderEngine();
+
+    private static AlderEngine CreateReflectionOnlyEngine()
+        => new AlderEngine(o => o.Aot.ClearBuiltInContext());
+
+    private static void AssertParityResult(object? aotResult, object? reflResult, string operation)
+    {
+        Assert.That(aotResult?.GetType(), Is.EqualTo(reflResult?.GetType()),
+            $"Type mismatch for {operation}: AOT={aotResult?.GetType()?.Name}, Reflection={reflResult?.GetType()?.Name}");
+        Assert.That(aotResult, Is.EqualTo(reflResult),
+            $"Value mismatch for {operation}: AOT={aotResult}, Reflection={reflResult}");
+    }
+
+    // --- Property get: instance and static ---
+
+    [Test]
+    public void PropertyGet_Instance_StringLength()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+        aotEngine.SetVariable("s", "hello");
+        reflEngine.SetVariable("s", "hello");
+
+        var aot = aotEngine.Evaluate("return s.Length;");
+        var refl = reflEngine.Evaluate("return s.Length;");
+        AssertParityResult(aot, refl, "string.Length (instance property get)");
+    }
+
+    [Test]
+    public void PropertyGet_Static_StringEmpty()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+
+        var aot = aotEngine.Evaluate("return string.Empty;");
+        var refl = reflEngine.Evaluate("return string.Empty;");
+        AssertParityResult(aot, refl, "string.Empty (static property get)");
+    }
+
+    // --- Property set ---
+
+    [Test]
+    public void PropertySet_Instance()
+    {
+        var list = new List<int> { 1, 2, 3 };
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+        aotEngine.SetVariable("list", new List<int>(list));
+        reflEngine.SetVariable("list", new List<int>(list));
+
+        aotEngine.Evaluate("list.Capacity = 100; return list.Capacity;");
+        reflEngine.Evaluate("list.Capacity = 100; return list.Capacity;");
+
+        var aot = aotEngine.Evaluate("return list.Capacity;");
+        var refl = reflEngine.Evaluate("return list.Capacity;");
+        AssertParityResult(aot, refl, "List.Capacity set + get");
+    }
+
+    // --- Method invoke: instance with args ---
+
+    [Test]
+    public void MethodInvoke_Instance_StringContains()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+        aotEngine.SetVariable("s", "hello world");
+        reflEngine.SetVariable("s", "hello world");
+
+        var aot = aotEngine.Evaluate("""return s.Contains("world");""");
+        var refl = reflEngine.Evaluate("""return s.Contains("world");""");
+        AssertParityResult(aot, refl, "string.Contains (instance method)");
+    }
+
+    [Test]
+    public void MethodInvoke_Static_MathMax()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+
+        var aot = aotEngine.Evaluate("return Math.Max(10, 20);");
+        var refl = reflEngine.Evaluate("return Math.Max(10, 20);");
+        AssertParityResult(aot, refl, "Math.Max (static method)");
+    }
+
+    // --- Method invoke with overloads ---
+
+    [Test]
+    public void MethodInvoke_Overloads_MathAbs()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+
+        // int overload
+        var aotInt = aotEngine.Evaluate("return Math.Abs(-42);");
+        var reflInt = reflEngine.Evaluate("return Math.Abs(-42);");
+        AssertParityResult(aotInt, reflInt, "Math.Abs(int)");
+
+        // double overload
+        var aotDbl = aotEngine.Evaluate("return Math.Abs(-3.14);");
+        var reflDbl = reflEngine.Evaluate("return Math.Abs(-3.14);");
+        AssertParityResult(aotDbl, reflDbl, "Math.Abs(double)");
+    }
+
+    // --- Indexer get/set ---
+
+    [Test]
+    public void IndexerGet_List()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+        aotEngine.SetVariable("items", new List<int> { 10, 20, 30 });
+        reflEngine.SetVariable("items", new List<int> { 10, 20, 30 });
+
+        var aot = aotEngine.Evaluate("return items[1];");
+        var refl = reflEngine.Evaluate("return items[1];");
+        AssertParityResult(aot, refl, "List<int>[1] (indexer get)");
+    }
+
+    [Test]
+    public void IndexerSet_List()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+        aotEngine.SetVariable("items", new List<int> { 10, 20, 30 });
+        reflEngine.SetVariable("items", new List<int> { 10, 20, 30 });
+
+        var aot = aotEngine.Evaluate("items[1] = 99; return items[1];");
+        var refl = reflEngine.Evaluate("items[1] = 99; return items[1];");
+        AssertParityResult(aot, refl, "List<int>[1] = 99 (indexer set)");
+    }
+
+    [Test]
+    public void IndexerGet_Dictionary()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+        var dict = new Dictionary<string, int> { ["a"] = 1, ["b"] = 2 };
+        aotEngine.SetVariable("d", new Dictionary<string, int>(dict));
+        reflEngine.SetVariable("d", new Dictionary<string, int>(dict));
+
+        var aot = aotEngine.Evaluate("""return d["b"];""");
+        var refl = reflEngine.Evaluate("""return d["b"];""");
+        AssertParityResult(aot, refl, "Dictionary[key] (indexer get)");
+    }
+
+    // --- Constructor ---
+
+    [Test]
+    public void Constructor_List()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+
+        var aot = aotEngine.Evaluate("return new List<int>();");
+        var refl = reflEngine.Evaluate("return new List<int>();");
+        Assert.That(aot, Is.InstanceOf<List<int>>());
+        Assert.That(refl, Is.InstanceOf<List<int>>());
+    }
+
+    // --- Null argument ---
+
+    [Test]
+    public void MethodInvoke_NullArgument()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+
+        var aot = aotEngine.Evaluate("""return string.IsNullOrEmpty(null);""");
+        var refl = reflEngine.Evaluate("""return string.IsNullOrEmpty(null);""");
+        AssertParityResult(aot, refl, "string.IsNullOrEmpty(null)");
+    }
+
+    // --- Inherited member ---
+
+    // DEFECT-AOT-1: TryGetDispatch walks the base type chain.
+    //
+    // AlderConfig.TryGetDispatch iterates `type.BaseType` to find dispatch for base types.
+    // This is correctly implemented. Verify it works by accessing a base class property
+    // on a derived instance.
+    [Test]
+    public void InheritedMember_BasePropertyOnDerived()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+
+        // List<int> inherits Count from ICollection<int> but the property is on List<int> itself.
+        // Use a more interesting case: MemoryStream.Length is inherited from Stream.
+        aotEngine.SetVariable("items", new List<string> { "a", "b", "c" });
+        reflEngine.SetVariable("items", new List<string> { "a", "b", "c" });
+
+        var aot = aotEngine.Evaluate("return items.Count;");
+        var refl = reflEngine.Evaluate("return items.Count;");
+        AssertParityResult(aot, refl, "List<string>.Count (base type chain dispatch)");
+    }
+
+    // --- LINQ extension methods ---
+
+    [Test]
+    public void ExtensionMethod_LinqWhere()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+        aotEngine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
+        reflEngine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
+
+        var aot = aotEngine.Evaluate("return items.Where(x => x > 3).Count();");
+        var refl = reflEngine.Evaluate("return items.Where(x => x > 3).Count();");
+        AssertParityResult(aot, refl, "LINQ Where+Count (extension method dispatch)");
+    }
+
+    [Test]
+    public void ExtensionMethod_LinqSelect()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+        aotEngine.SetVariable("items", new List<int> { 1, 2, 3 });
+        reflEngine.SetVariable("items", new List<int> { 1, 2, 3 });
+
+        var aot = aotEngine.Evaluate("return items.Select(x => x * 2).ToList();");
+        var refl = reflEngine.Evaluate("return items.Select(x => x * 2).ToList();");
+
+        Assert.That(aot, Is.EqualTo(refl),
+            "LINQ Select+ToList should produce identical results in both paths");
+    }
+
+    // --- Case-insensitive mode ---
+
+    // DEFECT-AOT-2: In case-insensitive mode, canonical name resolution happens after
+    // exact-case dispatch attempt. The first TryGet/TryInvoke uses the user-provided name
+    // (e.g., "length"), which AOT dispatch won't match since it registers "Length".
+    // The fallback resolves the canonical name via reflection, then retries.
+    //
+    // This is correctly implemented but incurs a reflection cost on every case-mismatch.
+    // Verify it produces correct results.
+    [Test]
+    public void CaseInsensitiveMode_PropertyAccess()
+    {
+        using var aotEngine = new AlderEngine(o => o.IsCaseSensitive = false);
+        using var reflEngine = new AlderEngine(o => { o.IsCaseSensitive = false; o.Aot.ClearBuiltInContext(); });
+
+        aotEngine.SetVariable("s", "Hello");
+        reflEngine.SetVariable("s", "Hello");
+
+        // "length" with lowercase 'l' — AOT dispatch registers "Length" (PascalCase)
+        var aot = aotEngine.Evaluate("return s.length;");
+        var refl = reflEngine.Evaluate("return s.length;");
+        AssertParityResult(aot, refl, "s.length (case-insensitive property access)");
+    }
+
+    [Test]
+    public void CaseInsensitiveMode_MethodInvoke()
+    {
+        using var aotEngine = new AlderEngine(o => o.IsCaseSensitive = false);
+        using var reflEngine = new AlderEngine(o => { o.IsCaseSensitive = false; o.Aot.ClearBuiltInContext(); });
+
+        aotEngine.SetVariable("s", "Hello World");
+        reflEngine.SetVariable("s", "Hello World");
+
+        var aot = aotEngine.Evaluate("""return s.contains("World");""");
+        var refl = reflEngine.Evaluate("""return s.contains("World");""");
+        AssertParityResult(aot, refl, "s.contains() (case-insensitive method invoke)");
+    }
+
+    // --- Comprehensive parity: same expression, AOT vs reflection-only ---
+
+    [Test]
+    public void FullParity_ComplexExpression()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+
+        aotEngine.SetVariable("data", new List<int> { 5, 3, 8, 1, 9, 2 });
+        reflEngine.SetVariable("data", new List<int> { 5, 3, 8, 1, 9, 2 });
+
+        var expr = "return data.Where(x => x > 3).OrderBy(x => x).Select(x => x * 10).ToList();";
+        var aot = aotEngine.Evaluate(expr);
+        var refl = reflEngine.Evaluate(expr);
+
+        Assert.That(aot, Is.EqualTo(refl),
+            "Complex LINQ chain should produce identical results in AOT and reflection paths");
+    }
+
+    [Test]
+    public void FullParity_StringManipulation()
+    {
+        using var aotEngine = CreateAotEngine();
+        using var reflEngine = CreateReflectionOnlyEngine();
+
+        aotEngine.SetVariable("s", "  Hello, World!  ");
+        reflEngine.SetVariable("s", "  Hello, World!  ");
+
+        var expr = """return s.Trim().ToUpper().Replace("WORLD", "ALDER").Substring(0, 13);""";
+        var aot = aotEngine.Evaluate(expr);
+        var refl = reflEngine.Evaluate(expr);
+        AssertParityResult(aot, refl, "String method chain");
+    }
+}

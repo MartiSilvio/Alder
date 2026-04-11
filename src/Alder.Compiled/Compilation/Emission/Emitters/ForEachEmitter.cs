@@ -1,12 +1,15 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class ForEachEmitter : INodeEmitter<BoundForEachExpr>
+[EmitsNode(BoundNodeKind.ForEachStatement)]
+internal static class ForEachEmitter
 {
-    public LinqExpression Emit(BoundForEachExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundForEachExpr node, EmissionContext ctx)
     {
         var enumerableVar = LinqExpression.Variable(typeof(object), "foreachCollection");
         var enumeratorVar = LinqExpression.Variable(typeof(IEnumerator), "foreachEnumerator");

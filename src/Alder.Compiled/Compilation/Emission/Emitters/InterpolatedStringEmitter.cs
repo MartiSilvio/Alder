@@ -1,12 +1,15 @@
 using System.Linq.Expressions;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class InterpolatedStringEmitter : INodeEmitter<BoundInterpolatedStringExpr>
+[EmitsNode(BoundNodeKind.InterpolatedString)]
+internal static class InterpolatedStringEmitter
 {
-    public LinqExpression Emit(BoundInterpolatedStringExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundInterpolatedStringExpr node, EmissionContext ctx)
     {
         var sbVar = LinqExpression.Variable(typeof(StringBuilder), "sb");
         var variables = new List<ParameterExpression> { sbVar };

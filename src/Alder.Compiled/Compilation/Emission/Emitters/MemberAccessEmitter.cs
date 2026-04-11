@@ -1,17 +1,19 @@
 using System.Reflection;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class MemberAccessEmitter :
-    INodeEmitter<BoundPropertyAccessExpr>,
-    INodeEmitter<BoundFieldAccessExpr>,
-    INodeEmitter<BoundMethodGroupExpr>,
-    INodeEmitter<BoundDynamicMemberAccessExpr>
+[EmitsNode(BoundNodeKind.PropertyAccess, typeof(BoundPropertyAccessExpr))]
+[EmitsNode(BoundNodeKind.FieldAccess, typeof(BoundFieldAccessExpr))]
+[EmitsNode(BoundNodeKind.MethodGroup, typeof(BoundMethodGroupExpr))]
+[EmitsNode(BoundNodeKind.DynamicMemberAccess, typeof(BoundDynamicMemberAccessExpr))]
+internal static class MemberAccessEmitter
 {
-    public LinqExpression Emit(BoundPropertyAccessExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundPropertyAccessExpr node, EmissionContext ctx)
     {
         if (ctx.TryEmitPostfixChain?.Invoke(node) is { } chainResult) return chainResult;
 
@@ -33,7 +35,7 @@ internal sealed class MemberAccessEmitter :
             node.Property.PropertyType, ctx);
     }
 
-    public LinqExpression Emit(BoundFieldAccessExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundFieldAccessExpr node, EmissionContext ctx)
     {
         if (ctx.TryEmitPostfixChain?.Invoke(node) is { } chainResult) return chainResult;
 
@@ -48,10 +50,10 @@ internal sealed class MemberAccessEmitter :
             node.Field.FieldType, ctx);
     }
 
-    public LinqExpression Emit(BoundMethodGroupExpr node, EmissionContext ctx) =>
+    public static LinqExpression Emit(BoundMethodGroupExpr node, EmissionContext ctx) =>
         ctx.TryEmitPostfixChain?.Invoke(node) ?? EmitDynamic(node.MemberName, node.NullSafe, ctx.Emit(node.Target), ctx);
 
-    public LinqExpression Emit(BoundDynamicMemberAccessExpr node, EmissionContext ctx) =>
+    public static LinqExpression Emit(BoundDynamicMemberAccessExpr node, EmissionContext ctx) =>
         ctx.TryEmitPostfixChain?.Invoke(node) ?? EmitDynamic(node.MemberName, node.NullSafe, ctx.Emit(node.Target), ctx);
 
     internal static LinqExpression EmitWithTarget(BoundMemberAccessBase ma, LinqExpression emittedTarget, EmissionContext ctx)

@@ -5,10 +5,9 @@ using Microsoft.CodeAnalysis;
 namespace Alder.Generators;
 
 /// <summary>
-/// Defines the types that get full TypeMetadata dispatch (TryInvoke, TryGet, TrySet).
-/// Intentionally small: only types every C# program touches.
-/// AOT rooting for broader generic instantiations is handled separately by TypeRoots.
-/// Users add domain types via [AlderRegistered].
+/// Defines the built-in types that receive generated <c>TypeMetadata</c> dispatch.
+/// The catalog stays intentionally small. Broader rooting is handled elsewhere, and application types are expected to come
+/// from explicit registration rather than from an ever-growing built-in list.
 /// </summary>
 internal static class BuiltInTypeCatalog
 {
@@ -31,33 +30,29 @@ internal static class BuiltInTypeCatalog
         "System.Array", "System.Linq.Enumerable", "System.Threading.Tasks.Task",
     };
 
-    // Closed generics that warrant full dispatch. These are the types that appear
-    // in nearly every C# program. Format: [openType, arg1, arg2, ...]
+    // Closed generic shapes that are common enough to justify built-in dispatch support.
+    // Each entry is expressed as [openType, arg1, arg2, ...].
     private static readonly string[][] DispatchGenerics =
     {
-        // Lists
         new[] { "System.Collections.Generic.List`1", "System.Int32" },
         new[] { "System.Collections.Generic.List`1", "System.Int64" },
         new[] { "System.Collections.Generic.List`1", "System.Double" },
         new[] { "System.Collections.Generic.List`1", "System.String" },
         new[] { "System.Collections.Generic.List`1", "System.Object" },
-        // Dictionaries
         new[] { "System.Collections.Generic.Dictionary`2", "System.String", "System.Object" },
         new[] { "System.Collections.Generic.Dictionary`2", "System.String", "System.String" },
         new[] { "System.Collections.Generic.Dictionary`2", "System.String", "System.Int32" },
-        // Sets, queues, stacks
         new[] { "System.Collections.Generic.HashSet`1", "System.Int32" },
         new[] { "System.Collections.Generic.HashSet`1", "System.String" },
         new[] { "System.Collections.Generic.Queue`1", "System.Int32" },
         new[] { "System.Collections.Generic.Queue`1", "System.String" },
         new[] { "System.Collections.Generic.Stack`1", "System.Int32" },
         new[] { "System.Collections.Generic.Stack`1", "System.String" },
-        // Tasks
         new[] { "System.Threading.Tasks.Task`1", "System.Int32" },
         new[] { "System.Threading.Tasks.Task`1", "System.String" },
         new[] { "System.Threading.Tasks.Task`1", "System.Object" },
         new[] { "System.Threading.Tasks.Task`1", "System.Boolean" },
-        // Tuples: constructor dispatch avoids Activator.CreateInstance under AOT
+        // Tuple constructor dispatch avoids reflection-based construction under AOT.
         new[] { "System.ValueTuple`2", "System.Int32", "System.Int32" },
         new[] { "System.ValueTuple`2", "System.Int32", "System.String" },
         new[] { "System.ValueTuple`2", "System.Int32", "System.Double" },
@@ -98,8 +93,8 @@ internal static class BuiltInTypeCatalog
     }
 
     /// <summary>
-    /// Returns value types used for AOT rooting, specifically the element pool for TypeRoots
-    /// and generic method expansion. Separate from dispatch registration.
+    /// Returns the value-type pool used for AOT rooting and generic expansion.
+    /// This pool is broader than the dispatch catalog and serves a different purpose.
     /// </summary>
     internal static ImmutableArray<INamedTypeSymbol> ResolveValueTypePool(Compilation compilation)
     {

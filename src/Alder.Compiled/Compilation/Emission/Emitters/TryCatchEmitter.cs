@@ -1,14 +1,16 @@
 using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class TryCatchEmitter : INodeEmitter<BoundTryCatchFinallyExpr>
+[EmitsNode(BoundNodeKind.TryStatement)]
+internal static class TryCatchEmitter
 {
-    public LinqExpression Emit(BoundTryCatchFinallyExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundTryCatchFinallyExpr node, EmissionContext ctx)
     {
         var tryBody = BlockEmitter.EmitStatementSequence(ctx, node.TryBody);
         var catchBlocks = new List<CatchBlock>(node.CatchClauses.Length);

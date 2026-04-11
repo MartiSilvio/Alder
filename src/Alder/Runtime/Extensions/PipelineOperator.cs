@@ -4,15 +4,13 @@ using Alder.Parsing;
 namespace Alder.Runtime.Extensions;
 
 /// <summary>
-/// Pipeline operator (F#/Elixir): x |> f invokes f(x).
-/// Dispatches through MethodInvoker.InvokeCall to support all callable types:
-/// LambdaValue, CompiledLambdaValue, FunctionRef, Delegate, etc.
+/// Implements the pipeline operator by invoking the right-hand callable with the left-hand value.
+/// Dispatch goes through <see cref="MethodInvoker.InvokeCall"/> so all Alder callable forms share one runtime path.
 /// </summary>
 internal static class PipelineOperator
 {
     /// <summary>
-    /// Invokes the pipeline: evaluates <paramref name="rightCallable"/> with
-    /// <paramref name="leftValue"/> as its single argument.
+    /// Invokes <paramref name="rightCallable"/> with <paramref name="leftValue"/> as its single argument.
     /// </summary>
     public static object? InvokePipeline(
         object? leftValue,
@@ -27,9 +25,7 @@ internal static class PipelineOperator
                 TypeNameFormatter.Of(leftValue),
                 TypeNameFormatter.Null);
 
-        // Check if the right side is a known callable type before invoking.
-        // MethodInvoker.InvokeCall handles: LambdaValue, CompiledLambdaValue, FunctionRef,
-        // Delegate, ModuleMethodRef, StaticMethodRef, MethodRef.
+        // Guard this explicitly so non-callable values fail with the pipeline operator diagnostic.
         if (!IsCallable(rightCallable))
             throw new AlderException(
                 DiagnosticDescriptors.BadBinaryOps,

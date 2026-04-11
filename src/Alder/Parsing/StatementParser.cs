@@ -3,8 +3,8 @@ using Alder.Diagnostics;
 namespace Alder.Parsing;
 
 /// <summary>
-/// Parses statements: if, while, for, do-while, foreach, switch, try/catch/finally,
-/// variable declarations, return, break, continue, and block expressions.
+/// Parses statement forms.
+/// This stage owns control flow, local declarations, block structure, and statement-only syntactic forms.
 /// </summary>
 internal sealed class StatementParser : ParserBase
 {
@@ -51,7 +51,7 @@ internal sealed class StatementParser : ParserBase
         var stmt = ParseStatement();
         if (stmt != null)
             statements.Add(stmt);
-        // ECMA-334 §13.6.2: Multi-var declarations produce extra decls via _pendingDecls
+        // ECMA-334 local declaration parsing can expand one source statement into multiple bound declaration nodes.
         if (_pendingDecls.Count > 0)
         {
             statements.AddRange(_pendingDecls);
@@ -87,7 +87,7 @@ internal sealed class StatementParser : ParserBase
             return new ContinueExpr() { Span = SpanFrom(mark) };
         }
 
-        // ECMA-334 §13.10.4
+        // ECMA-334 §13.10.4: goto statements cover labels, case labels, and default labels.
         if (Match(TokenType.Goto))
         {
             if (Match(TokenType.Case))
@@ -106,11 +106,11 @@ internal sealed class StatementParser : ParserBase
             return new GotoExpr(label) { Span = SpanFrom(mark) };
         }
 
-        // ECMA-334 §13.3: Bare block statement
+        // ECMA-334 §13.3: a block is itself a statement form.
         if (Match(TokenType.LeftBrace))
             return ParseBlock();
 
-        // Label: identifier followed by ':' (not part of ternary or case)
+        // Labels are recognized here before expression parsing can reinterpret the identifier.
         if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
         {
             var label = Advance();
@@ -121,14 +121,14 @@ internal sealed class StatementParser : ParserBase
         if (Match(TokenType.If))
             return ParseIfStatement(mark);
 
-        // unless (cond) { body } desugars to if (!cond) { body } (Extended mode, Ruby/Perl)
+        // Extended syntax lowers unless to an inverted if-statement.
         if (LanguageMode == LanguageMode.Extended && Match(TokenType.Unless))
             return ParseUnlessStatement(mark);
 
         if (Match(TokenType.While))
             return ParseWhileStatement(mark);
 
-        // until (cond) { body } desugars to while (!cond) { body } (Extended mode, Ruby/Perl)
+        // Extended syntax lowers until to an inverted while-statement.
         if (LanguageMode == LanguageMode.Extended && Match(TokenType.Until))
             return ParseUntilStatement(mark);
 
@@ -153,7 +153,7 @@ internal sealed class StatementParser : ParserBase
         if (Match(TokenType.Try))
             return ParseTryCatchFinally(mark);
 
-        // Parameterless throw; (rethrow), must check before expression fallback
+        // A bare throw statement must be recognized before expression parsing can consume the token stream.
         if (Check(TokenType.Throw) && PeekNext().Type == TokenType.Semicolon)
         {
             Advance(); // consume 'throw'
@@ -164,7 +164,7 @@ internal sealed class StatementParser : ParserBase
         if (Match(TokenType.Const))
             return ParseConstDeclaration(mark);
 
-        // §13.15
+        // ECMA-334 §13.15: yield return and yield break are statement forms.
         if (Match(TokenType.Yield))
         {
             if (Match(TokenType.Return))
@@ -209,11 +209,9 @@ internal sealed class StatementParser : ParserBase
             return new VariableDeclExpr(null, name, initializer) { Span = SpanFrom(mark) };
         }
 
-        // ECMA-334 §13.6.2: Typed local variable declarations and local functions.
-        // Covers all type shapes: keywords (int, string), identifiers (Action, Exception),
-        // generics (List<int>), dotted names (System.DayOfWeek), tuples ((int, string)),
-        // arrays (int[], int[,]), and nullable (int?).
-        // Type keywords followed by dot are static member access (double.NaN), skip those.
+        // Typed declarations and local functions must be recognized before general expression parsing.
+        // The probe covers keyword types, identifier types, generics, dotted names, tuples, arrays, and nullable forms.
+        // Type keywords followed by dot remain ordinary member access, such as double.NaN.
         {
             var declResult = TryParseTypedDeclaration(mark);
             if (declResult != null)
@@ -227,7 +225,7 @@ internal sealed class StatementParser : ParserBase
             return new BlockExpr(statements, null) { Span = SpanFrom(mark) };
         }
 
-        // checked/unchecked block statements, no semicolon needed after block form
+        // checked and unchecked support both expression and block forms.
         if (Check(TokenType.Checked) || Check(TokenType.Unchecked))
         {
             var checkedExpr = _expression.ParseExpression();

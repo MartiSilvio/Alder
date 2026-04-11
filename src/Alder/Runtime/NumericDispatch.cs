@@ -6,8 +6,8 @@ using Alder.Runtime.Collections;
 namespace Alder.Runtime;
 
 /// <summary>
-/// Fast numeric operator dispatch without dynamic.
-/// Implements ECMA-334 §12.4.7.3 binary numeric promotion rules.
+/// Performs numeric operator dispatch without relying on <c>dynamic</c> or late-bound reflection.
+/// ECMA-334 §12.4.7.2 and §12.4.7.3 define the promotion rules that decide which precomputed operator table entry applies.
 /// </summary>
 internal static class NumericDispatch
 {
@@ -127,12 +127,12 @@ internal static class NumericDispatch
         [typeof(float)] = v => -(float)v,
         [typeof(double)] = v => -(double)v,
         [typeof(decimal)] = v => -(decimal)v,
-        // ECMA-334 §12.4.7.2: small types are promoted to int for unary negation
+        // ECMA-334 §12.4.7.2: unary numeric promotion lifts the small integral types to int.
         [typeof(short)] = v => -(int)(short)v,
         [typeof(sbyte)] = v => -(int)(sbyte)v,
         [typeof(byte)] = v => -(int)(byte)v,
         [typeof(ushort)] = v => -(int)(ushort)v,
-        // ECMA-334 §12.9.3: uint is converted to long, result type is long
+        // ECMA-334 §12.9.3: applying unary minus to uint produces a long result.
         [typeof(uint)] = v => -(long)(uint)v,
     });
 
@@ -147,7 +147,7 @@ internal static class NumericDispatch
         [typeof(sbyte)] = v => checked(-(int)(sbyte)v),
         [typeof(byte)] = v => -(int)(byte)v,
         [typeof(ushort)] = v => -(int)(ushort)v,
-        // ECMA-334 §12.9.3: uint is converted to long, result type is long
+        // ECMA-334 §12.9.3: applying unary minus to uint produces a long result.
         [typeof(uint)] = v => checked(-(long)(uint)v),
     });
 
@@ -157,7 +157,7 @@ internal static class NumericDispatch
         [typeof(long)] = v => ~(long)v,
         [typeof(uint)] = v => ~(uint)v,
         [typeof(ulong)] = v => ~(ulong)v,
-        // ECMA-334 §12.4.7.2: small types are promoted to int for bitwise NOT
+        // ECMA-334 §12.4.7.2: unary numeric promotion lifts the small integral types to int.
         [typeof(short)] = v => ~(int)(short)v,
         [typeof(ushort)] = v => ~(int)(ushort)v,
         [typeof(byte)] = v => ~(int)(byte)v,
@@ -192,7 +192,7 @@ internal static class NumericDispatch
     {
         var type = value.GetType();
 
-        // Per ECMA-334 §12.4.7.2, char is promoted to int
+        // ECMA-334 §12.4.7.2: char participates through unary numeric promotion to int.
         if (type == typeof(char))
         {
             value = (int)(char)value;

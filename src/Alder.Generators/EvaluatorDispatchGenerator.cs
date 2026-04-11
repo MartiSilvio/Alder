@@ -195,7 +195,6 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
         {
             using (w.Block("internal sealed partial class EvaluationContext"))
             {
-                // Sync dispatch
                 w.AppendLine("[MethodImpl(MethodImplOptions.AggressiveInlining)]");
                 w.AppendLine("private object? Dispatch(BoundExpr expr, System.Threading.CancellationToken ct) => expr.Kind switch");
                 w.AppendLine("{");
@@ -212,7 +211,6 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
 
                 w.AppendLine();
 
-                // Async dispatch
                 w.AppendLine("[MethodImpl(MethodImplOptions.AggressiveInlining)]");
                 w.AppendLine("private ValueTask<object?> DispatchAsync(BoundExpr expr, System.Threading.CancellationToken ct) => expr.Kind switch");
                 w.AppendLine("{");

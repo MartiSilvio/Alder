@@ -1,11 +1,14 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class MemberCompoundAssignEmitter : INodeEmitter<BoundMemberCompoundAssignExpr>
+[EmitsNode(BoundNodeKind.MemberCompoundAssignment)]
+internal static class MemberCompoundAssignEmitter
 {
-    public LinqExpression Emit(BoundMemberCompoundAssignExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundMemberCompoundAssignExpr node, EmissionContext ctx)
     {
         return LinqExpression.Call(
             ApplyMemberCompoundAssignMethod,

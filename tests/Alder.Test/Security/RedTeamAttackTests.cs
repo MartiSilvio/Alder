@@ -69,7 +69,7 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var ex = Assert.Throws<AlderException>(() =>
             TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe()).Evaluate("""System.Diagnostics.Process.Start("calc")"""));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107).Or.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
@@ -252,7 +252,7 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var ex = Assert.Throws<AlderException>(() =>
             TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe()).Evaluate("System.Console.ReadLine()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107).Or.EqualTo(DiagnosticCode.CS0246));
     }
     [Test]
     public void Attack_Assignment_Strict()

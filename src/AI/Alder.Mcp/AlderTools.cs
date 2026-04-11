@@ -82,7 +82,7 @@ internal sealed class AlderTools
         "Use this to verify an expression before calling 'evaluate', or to diagnose syntax errors. " +
         "Returns 'Valid' if the expression would evaluate successfully, or a list of diagnostics with " +
         "C#-compatible error codes and messages (e.g. 'CS0103: The name 'foo' does not exist in the current context'). " +
-        "Note: cannot validate expressions that reference injected variables — those variables are unknown at validate time.")]
+        "Note: cannot validate expressions that reference injected variables because those variables are unknown at validation time.")]
     public static CallToolResult Validate(
         AlderEngine engine,
         [Description(

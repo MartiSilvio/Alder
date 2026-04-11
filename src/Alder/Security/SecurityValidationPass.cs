@@ -32,6 +32,55 @@ internal sealed class SecurityValidationPass : IBoundTreePass
     private static bool IsExtensionMethod(MethodInfo method) =>
         method.IsDefined(typeof(ExtensionAttribute), false);
 
+    /// <summary>
+    /// Walks a dynamic member access chain to reconstruct the qualified name.
+    /// For <c>System.IO.File.ReadAllText(...)</c>, the callee is a chain ending at
+    /// an identifier root. This extracts <c>System.IO.File</c> (the target path,
+    /// excluding the final method-name segment which is the callee itself).
+    /// </summary>
+    private static bool TryExtractQualifiedName(BoundExpr callee, out string qualifiedName)
+    {
+        if (callee is not BoundDynamicMemberAccessExpr methodAccess)
+        {
+            qualifiedName = "";
+            return false;
+        }
+
+        var parts = new List<string>();
+        BoundExpr current = methodAccess.Target;
+        while (current is BoundDynamicMemberAccessExpr dma)
+        {
+            parts.Add(dma.MemberName);
+            current = dma.Target;
+        }
+
+        if (current is BoundIdentifierExpr id)
+            parts.Add(id.Name);
+        else
+        {
+            qualifiedName = "";
+            return false;
+        }
+
+        parts.Reverse();
+        qualifiedName = string.Join(".", parts);
+        return parts.Count >= 2;
+    }
+
+    /// <summary>
+    /// Returns true only when the target chain root is a resolved variable (identifier
+    /// with known type). Unresolved identifiers (modules, namespaces) and non-identifier
+    /// roots (constructions, nested calls) return false because those are handled by other
+    /// security checks or at runtime where full type info is available.
+    /// </summary>
+    private static bool IsResolvedTargetChain(BoundExpr target)
+    {
+        var current = target;
+        while (current is BoundDynamicMemberAccessExpr chain)
+            current = chain.Target;
+        return current is BoundIdentifierExpr { StaticType: not BoundUnknownType };
+    }
+
     private static void ValidateMemberRead(Type memberType, bool isStatic, string memberName, SecurityPolicy policy)
     {
         if (!policy.IsTypeAllowed(memberType))
@@ -70,6 +119,33 @@ internal sealed class SecurityValidationPass : IBoundTreePass
             case BoundDynamicMemberAccessExpr dyn:
                 if (!policy.AllowPropertyRead)
                     throw new AlderException(DiagnosticDescriptors.SandboxPropertyAccessBlocked, dyn.MemberName);
+                break;
+
+            case BoundDynamicCallExpr dynamicCall:
+                if (dynamicCall.Callee is BoundMethodGroupExpr mg && !policy.IsTypeAllowed(mg.DeclaringType))
+                    throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, mg.DeclaringType.Name);
+                if (TryExtractQualifiedName(dynamicCall.Callee, out var qualifiedName) &&
+                    policy.IsQualifiedNameBlocked(qualifiedName))
+                    throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, qualifiedName);
+                if (!policy.AllowMethodCalls &&
+                    dynamicCall.Callee is BoundDynamicMemberAccessExpr dma &&
+                    IsResolvedTargetChain(dma.Target))
+                    throw new AlderException(DiagnosticDescriptors.SandboxMethodCallBlocked, dma.MemberName);
+                break;
+
+            case BoundCastExpr cast:
+                if (!policy.IsTypeAllowed(cast.TargetType))
+                    throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, cast.TargetType.Name);
+                break;
+
+            case BoundAsExpr asExpr:
+                if (!policy.IsTypeAllowed(asExpr.TargetType))
+                    throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, asExpr.TargetType.Name);
+                break;
+
+            case BoundLiteralExpr { Value: Type typeValue }:
+                if (!policy.IsTypeAllowed(typeValue))
+                    throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, typeValue.Name);
                 break;
 
             case BoundAssignExpr or BoundCompoundAssignExpr or BoundNullCoalesceAssignExpr

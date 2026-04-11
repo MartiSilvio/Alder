@@ -3,8 +3,9 @@ using Alder.Diagnostics;
 namespace Alder.Parsing;
 
 /// <summary>
-/// Parses pattern grammar (ECMA-334 §11.2).
-/// Handles type, relational, logical (and/or/not), property, var, discard, and constant patterns.
+/// Parses pattern syntax.
+/// ECMA-334 §11.2 defines the broad shape, and this parser handles the logical, relational, property,
+/// positional, list, type, var, discard, and constant pattern forms Alder supports.
 /// </summary>
 internal sealed class PatternParser : ParserBase
 {
@@ -16,8 +17,7 @@ internal sealed class PatternParser : ParserBase
 
     internal void SetExpressionParser(ExpressionParser expression) => _expression = expression;
 
-    // ECMA-334 §11.2 - Pattern grammar
-    // Precedence: or < and < not < relational < primary
+    // Pattern combinators are structured by precedence: or < and < not < relational < primary.
     internal Pattern ParsePattern() => ParseOrPattern();
 
     private Pattern ParseOrPattern()
@@ -53,7 +53,7 @@ internal sealed class PatternParser : ParserBase
         if (IsPatternKeyword(TokenType.Not))
         {
             Advance();
-            var operand = ParseNotPattern(); // right-recursive
+            var operand = ParseNotPattern();
             return new NotPattern(operand);
         }
 
@@ -89,7 +89,7 @@ internal sealed class PatternParser : ParserBase
 
         if (Match(TokenType.Var))
         {
-            // §11.4: var (x, y), var positional pattern capturing all elements as var declarations
+            // Alder models positional var capture as a positional pattern containing nested var patterns.
             if (Check(TokenType.LeftParen))
             {
                 Advance(); // consume '('
@@ -152,11 +152,10 @@ internal sealed class PatternParser : ParserBase
         {
             var typeToken = Advance();
 
-            // Nullable type: only consume '?' if NOT followed by something that looks like a ternary branch.
+            // Nullable type suffix must not consume the question mark from an outer conditional expression.
             if (Check(TokenType.Question) && State.Current + 1 < State.Tokens.Count)
             {
                 var afterQuestion = State.Tokens[State.Current + 1];
-                // '?' is nullable suffix if followed by pattern-ending tokens or combinators
                 if (afterQuestion.Type is TokenType.RightParen or TokenType.Comma
                     or TokenType.RightBrace or TokenType.Arrow
                     || IsPatternKeywordToken(afterQuestion)
@@ -194,7 +193,7 @@ internal sealed class PatternParser : ParserBase
             return new TypePattern(typeToken, null);
         }
 
-        // Non-keyword type pattern: Exception, ArgumentException, System.IO.IOException, etc.
+        // Non-keyword type patterns cover cases such as Exception, ArgumentException, or System.IO.IOException.
         if (Check(TokenType.Identifier) && IsNonKeywordTypePattern())
         {
             var typeToken = ParseDottedTypeName();
@@ -213,18 +212,13 @@ internal sealed class PatternParser : ParserBase
             return new TypePattern(typeToken, null);
         }
 
-        // Constant expressions. Uses ParseBitwiseOr (not ParseExpression) to avoid consuming
-        // pattern combinators (and/or/not) which live at the ParseAnd/ParseOr levels.
+        // Constant expressions stop at bitwise-or so pattern combinators remain under the pattern parser's precedence rules.
         var expr = _expression.ParseBitwiseOr();
         return new ConstantPattern(expr);
     }
 
     /// <summary>
-    /// Determines if the current Identifier token starts a non-keyword type pattern.
-    /// Uses lookahead: Identifier followed by another Identifier (binding variable),
-    /// Identifier followed by '{' (property pattern), Identifier.Identifier (dotted type name),
-    /// or Identifier&lt; (generic type like List&lt;int&gt;).
-    /// Single Identifier alone is NOT treated as a type pattern to avoid ambiguity with constants.
+    /// Determines whether the current identifier starts a non-keyword type pattern rather than a constant expression.
     /// </summary>
     private bool IsNonKeywordTypePattern()
     {

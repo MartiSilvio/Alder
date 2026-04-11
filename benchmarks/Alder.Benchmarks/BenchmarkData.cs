@@ -1,5 +1,8 @@
 namespace Alder.Benchmarks;
 
+/// <summary>
+/// Benchmark domain model for collection and object-graph workloads.
+/// </summary>
 public sealed record Product(
     int Id,
     string Name,
@@ -10,6 +13,9 @@ public sealed record Product(
     bool IsActive,
     DateTime CreatedDate);
 
+/// <summary>
+/// Benchmark domain model for grouped order-line workloads.
+/// </summary>
 public sealed record OrderLine(
     int OrderId,
     string ProductName,
@@ -18,6 +24,9 @@ public sealed record OrderLine(
     decimal UnitPrice,
     decimal Discount);
 
+/// <summary>
+/// Benchmark domain model for personnel and compensation workloads.
+/// </summary>
 public sealed record Employee(
     int Id,
     string Name,
@@ -26,8 +35,14 @@ public sealed record Employee(
     int YearsOfService,
     bool IsManager);
 
+/// <summary>
+/// Minimal order shape used by arithmetic and collection scenarios.
+/// </summary>
 public sealed record Order(string Category, int Quantity, decimal UnitPrice);
 
+/// <summary>
+/// Method surface used by invocation and overload-resolution scenarios.
+/// </summary>
 public sealed class InvocationTarget
 {
     public int Overload(int value) => value + 1;
@@ -49,18 +64,18 @@ public sealed class InvocationTarget
 
 /// <summary>
 /// Deterministic benchmark data with realistic domain models.
-/// All data is generated from a fixed seed (42) for reproducibility.
+/// All generated data uses a fixed seed for reproducibility.
 /// </summary>
 public sealed class BenchmarkData
 {
-    // Scalar variables (competitor-compatible)
+    // Scalar values shared by the head-to-head arithmetic scenarios.
     public int X { get; init; }
     public int Y { get; init; }
     public int Z { get; init; }
     public int Value { get; init; }
     public string Text { get; init; } = string.Empty;
 
-    // Collections
+    // Collection-backed datasets used by operational and object-graph scenarios.
     public List<int> Numbers { get; init; } = [];
     public List<Order> Orders { get; init; } = [];
     public List<Product> Products { get; init; } = [];

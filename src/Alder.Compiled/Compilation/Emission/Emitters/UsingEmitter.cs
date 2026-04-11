@@ -1,11 +1,14 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class UsingEmitter : INodeEmitter<BoundUsingStatementExpr>
+[EmitsNode(BoundNodeKind.UsingStatement)]
+internal static class UsingEmitter
 {
-    public LinqExpression Emit(BoundUsingStatementExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundUsingStatementExpr node, EmissionContext ctx)
     {
         var resourceVar = LinqExpression.Variable(typeof(object), "usingResource");
         var resultVar = LinqExpression.Variable(typeof(object), "usingResult");

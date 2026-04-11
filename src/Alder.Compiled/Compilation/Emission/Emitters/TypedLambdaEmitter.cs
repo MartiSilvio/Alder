@@ -1,11 +1,17 @@
 using System.Linq.Expressions;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class TypedLambdaEmitter : INodeEmitter<BoundTypedLambdaExpr>
+[EmitsNode(BoundNodeKind.TypedLambda)]
+internal static class TypedLambdaEmitter
 {
-    public LinqExpression Emit(BoundTypedLambdaExpr node, EmissionContext ctx)
+    private static readonly System.Reflection.MethodInfo ThrowIfCancellationRequestedMethod =
+        typeof(CancellationToken).GetMethod(nameof(CancellationToken.ThrowIfCancellationRequested))!;
+
+    public static LinqExpression Emit(BoundTypedLambdaExpr node, EmissionContext ctx)
     {
         var lambdaParams = new ParameterExpression[node.Parameters.Length];
         for (var i = 0; i < node.Parameters.Length; i++)
@@ -28,6 +34,11 @@ internal sealed class TypedLambdaEmitter : INodeEmitter<BoundTypedLambdaExpr>
             {
                 body = EmitHelpers.EnsureTypedExpression(body, returnType);
             }
+
+            // Inject cancellation check so LINQ predicates/selectors respect CancellationToken
+            var cancellationCheck = LinqExpression.Call(
+                ctx.CancellationTokenParam, ThrowIfCancellationRequestedMethod);
+            body = LinqExpression.Block(body.Type, cancellationCheck, body);
 
             return LinqExpression.Lambda(node.DelegateType, body, lambdaParams);
         }

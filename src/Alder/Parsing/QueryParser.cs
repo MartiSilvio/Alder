@@ -3,10 +3,10 @@ using Alder.Diagnostics;
 namespace Alder.Parsing;
 
 /// <summary>
-/// Parses query expressions (ECMA-334 §12.20) and desugars them at parse time
-/// into equivalent LINQ method call AST nodes (CallExpr, LambdaExpr, MemberAccessExpr).
-/// No new AST nodes are introduced. The desugared result is indistinguishable from
-/// hand-written .Where(x => ...).Select(x => ...) method chains.
+/// Parses query expressions and lowers them immediately to the existing method-call AST.
+/// ECMA-334 §12.20 defines the source syntax. Alder keeps the rest of the pipeline free of query-specific nodes
+/// by translating queries to the same <c>Where</c>, <c>Select</c>, <c>SelectMany</c>, <c>Join</c>, and <c>GroupBy</c>
+/// shapes that explicit method-call code already uses.
 /// </summary>
 internal sealed class QueryParser : ParserBase
 {
@@ -20,9 +20,8 @@ internal sealed class QueryParser : ParserBase
     internal void SetExpressionParser(ExpressionParser expression) => _expression = expression;
 
     /// <summary>
-    /// Determines whether the current token sequence starting with 'from' is a query expression.
-    /// Uses lookahead to disambiguate from 'from' used as an identifier.
-    /// ECMA-334 §12.20: from identifier in expression ...
+    /// Determines whether the current token sequence starts a query expression.
+    /// The lookahead exists to distinguish query syntax from ordinary identifier usage.
     /// </summary>
     internal bool IsQueryExpressionStart()
     {
@@ -32,24 +31,22 @@ internal sealed class QueryParser : ParserBase
         var saved = State.Current;
         try
         {
-            Advance(); // skip 'from'
+            Advance();
 
-            // from TYPE IDENT in -> typed query (e.g., from int x in list)
             if (IsTypeKeyword(Peek().Type))
             {
-                Advance(); // skip type keyword
+                Advance();
                 if (IsIdentifierOrContextualKeyword(Peek().Type))
                 {
-                    Advance(); // skip identifier
+                    Advance();
                     return Check(TokenType.In);
                 }
                 return false;
             }
 
-            // from IDENT in -> untyped query (e.g., from x in list)
             if (IsIdentifierOrContextualKeyword(Peek().Type))
             {
-                Advance(); // skip identifier
+                Advance();
                 return Check(TokenType.In);
             }
 
@@ -62,8 +59,7 @@ internal sealed class QueryParser : ParserBase
     }
 
     /// <summary>
-    /// Parses a complete query expression starting from the 'from' keyword.
-    /// Returns the desugared LINQ method call chain as existing AST nodes.
+    /// Parses a complete query expression rooted at <c>from</c>.
     /// </summary>
     internal Expr ParseQueryExpression()
     {
@@ -71,7 +67,7 @@ internal sealed class QueryParser : ParserBase
 
         Consume(TokenType.From, "Expected 'from' at start of query expression");
 
-        // Skip explicit type annotation (Alder is dynamic, no Cast<T>() needed)
+        // Query range-variable annotations influence parse validity, but they do not survive lowering.
         if (IsTypeKeyword(Peek().Type) && !CheckInAfterNext())
         {
             Advance();
@@ -90,8 +86,7 @@ internal sealed class QueryParser : ParserBase
     }
 
     /// <summary>
-    /// Parses the body of a query expression: zero or more body clauses followed by
-    /// a terminal clause (select or group...by).
+    /// Parses query body clauses until a terminal <c>select</c> or <c>group ... by</c> clause is reached.
     /// </summary>
     private Expr ParseQueryBody(Expr source, QueryScope scope)
     {
@@ -103,10 +98,8 @@ internal sealed class QueryParser : ParserBase
             }
             else if (Check(TokenType.From))
             {
-                // Second from clause -> SelectMany.
-                // ParseSecondFromClause handles continuation: returns the complete
-                // expression for the optimized case (select follows directly), or
-                // calls ParseQueryBody recursively for the general case.
+                // A secondary from clause lowers to SelectMany. The helper either finishes the direct-select case
+                // or returns a lowered intermediate query so clause parsing can continue.
                 return ParseSecondFromClause(source, scope);
             }
             else if (Check(TokenType.Let))
@@ -137,13 +130,12 @@ internal sealed class QueryParser : ParserBase
     }
 
     /// <summary>
-    /// Parses: where predicate
-    /// Desugars to: source.Where(rangeVar => predicate)
+    /// Lowers a <c>where</c> clause to a <c>Where</c> call.
     /// </summary>
     private Expr ParseWhereClause(Expr source, QueryScope scope)
     {
         var mark = Mark();
-        Advance(); // consume 'where'
+        Advance();
 
         var predicate = ParseQueryBodyExpression();
 
@@ -156,16 +148,13 @@ internal sealed class QueryParser : ParserBase
     }
 
     /// <summary>
-    /// Parses: from rangeVar2 in source2
-    /// Desugars to: source.SelectMany(rangeVar => source2, (rangeVar, rangeVar2) => new { rangeVar, rangeVar2 })
-    /// or optimized form when followed directly by select.
+    /// Lowers a secondary <c>from</c> clause to <c>SelectMany</c>.
     /// </summary>
     private Expr ParseSecondFromClause(Expr source, QueryScope scope)
     {
         var mark = Mark();
-        Advance(); // consume 'from'
+        Advance();
 
-        // Skip explicit type annotation
         if (IsTypeKeyword(Peek().Type) && !CheckInAfterNext())
         {
             Advance();
@@ -182,10 +171,10 @@ internal sealed class QueryParser : ParserBase
 
         var outerParam = scope.CurrentParameterName;
 
-        // Optimization: no transparent identifier needed when followed directly by 'select'
+        // The direct-select case can bind the final projection immediately and skip a transparent identifier.
         if (Check(TokenType.Select))
         {
-            Advance(); // consume 'select'
+            Advance();
             var projection = ParseQueryBodyExpression();
 
             var tempScope = scope.Clone();
@@ -199,7 +188,7 @@ internal sealed class QueryParser : ParserBase
             return MakeMethodCall(source, "SelectMany", collectionLambda, resultLambda) with { Span = SpanFrom(mark) };
         }
 
-        // General case: create transparent identifier
+        // Subsequent clauses need a transparent identifier so both ranges remain visible.
         var transparentId = GenerateTransparentId();
 
         var collectionSelector = MakeLambda(outerParam, source2Expr);
@@ -215,15 +204,12 @@ internal sealed class QueryParser : ParserBase
     }
 
     /// <summary>
-    /// Parses: let varName = expression
-    /// Desugars to: source.Select(param => new { param, varName = expression })
-    /// Uses transparent identifier nesting (same as SelectMany).
-    /// ECMA-334 §12.20.3.5
+    /// Lowers a <c>let</c> clause to <c>Select</c> with a transparent-identifier payload.
     /// </summary>
     private Expr ParseLetClause(Expr source, QueryScope scope)
     {
         var mark = Mark();
-        Advance(); // consume 'let'
+        Advance();
 
         var varNameToken = ConsumeIdentifierOrContextualKeyword("Expected variable name after 'let'");
         var varName = varNameToken.Lexeme;
@@ -251,14 +237,12 @@ internal sealed class QueryParser : ParserBase
     }
 
     /// <summary>
-    /// Parses: orderby key1 [ascending|descending], key2 [ascending|descending], ...
-    /// Desugars to: source.OrderBy(param => key1).ThenBy(param => key2)...
-    /// ECMA-334 §12.20.3.6
+    /// Lowers an <c>orderby</c> clause to <c>OrderBy</c> and chained <c>ThenBy</c> calls.
     /// </summary>
     private Expr ParseOrderByClause(Expr source, QueryScope scope)
     {
         var mark = Mark();
-        Advance(); // consume 'orderby'
+        Advance();
 
         var lambdaParam = scope.CurrentParameterName;
         var isFirst = true;

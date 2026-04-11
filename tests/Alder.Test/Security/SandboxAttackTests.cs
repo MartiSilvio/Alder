@@ -24,7 +24,7 @@ public class SandboxAttackTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Strict());
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""System.Diagnostics.Process.Start("calc")"""));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107).Or.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]

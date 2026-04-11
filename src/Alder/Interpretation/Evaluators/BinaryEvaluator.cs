@@ -51,7 +51,9 @@ internal static class BinaryEvaluator
             if (promoted == typeof(double) && left is double ld && right is double rd)
                 return EvaluateDoubleFast(binary.Operator, ld, rd);
 
-            if (IsNaN(left) || IsNaN(right))
+            if ((IsNaN(left) || IsNaN(right)) &&
+                binary.Operator is TokenType.EqualEqual or TokenType.BangEqual or
+                TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual)
                 return binary.Operator == TokenType.BangEqual ? BoxedConstants.True : BoxedConstants.False;
 
             return binary.Operator switch
@@ -207,7 +209,9 @@ internal static class BinaryEvaluator
             if (promoted == typeof(double) && left is double ld && right is double rd)
                 return EvaluateDoubleFast(binary.Operator, ld, rd);
 
-            if (IsNaN(left) || IsNaN(right))
+            if ((IsNaN(left) || IsNaN(right)) &&
+                binary.Operator is TokenType.EqualEqual or TokenType.BangEqual or
+                TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual)
                 return binary.Operator == TokenType.BangEqual ? BoxedConstants.True : BoxedConstants.False;
 
             return binary.Operator switch

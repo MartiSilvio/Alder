@@ -5,14 +5,12 @@ using Alder.Parsing;
 namespace Alder.Runtime.Extensions;
 
 /// <summary>
-/// Regex match operators: =~ (match) and !~ (negated match).
-/// Inspired by Ruby/Perl regex match syntax.
+/// Implements the extended regex match operators <c>=~</c> and <c>!~</c>.
 /// </summary>
 internal static class RegexMatchOperator
 {
     /// <summary>
-    /// Returns true if the string representation of <paramref name="left"/> matches the regex
-    /// <paramref name="right"/>. Right operand must be a string pattern.
+    /// Returns whether the string representation of <paramref name="left"/> matches the regex pattern in <paramref name="right"/>.
     /// </summary>
     public static bool IsMatch(object? left, object? right)
     {
@@ -32,8 +30,7 @@ internal static class RegexMatchOperator
     }
 
     /// <summary>
-    /// Returns the negation of <see cref="IsMatch"/>: true if <paramref name="left"/> does NOT
-    /// match the regex <paramref name="right"/>.
+    /// Returns the logical negation of <see cref="IsMatch"/>.
     /// </summary>
     public static bool IsNotMatch(object? left, object? right)
     {

@@ -6,17 +6,10 @@ using Alder.Compiled;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Alder-specific expression-tree capability benchmark. This class is not a
-/// cross-library head-to-head comparison; it measures the cost and execution
-/// profile of Alder's typed expression-tree APIs against native compiled delegates.
-///
-/// Two benchmark categories:
-///
-///   Generation — cost of producing the expression tree from a string.
-///     ParseAsExpression (tree only) vs CompileExpression (tree + Compile()).
-///
-///   CompiledExecution — warm-path cost of invoking a delegate compiled from
-///     an expression tree vs engine.Evaluate.
+/// Measures Alder's typed expression-tree APIs.
+/// This is a capability benchmark rather than a cross-library comparison, because the surface under test is Alder-specific.
+/// The generation benchmarks measure tree production cost, and the execution benchmarks compare the compiled delegate path
+/// with ordinary engine evaluation over equivalent logic.
 /// </summary>
 [Config(typeof(SteadyStateConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
@@ -26,12 +19,12 @@ public class ExpressionTreeBenchmarks : BenchmarkBase
     private BenchmarkData _data = null!;
     private AlderEngine _engine = null!;
 
-    // Pre-compiled expression tree delegates
+    // These delegates isolate warm execution cost after tree generation and delegate compilation are complete.
     private Func<int, bool> _compiledSimplePredicate = null!;
     private Func<int, int, bool> _compiledComplexPredicate = null!;
     private Func<string, bool> _compiledStringPredicate = null!;
 
-    // Pre-compiled engine.Evaluate paths
+    // These parsed expressions provide the engine-evaluation comparison point for the same logical predicates.
     private AlderExpression _evalSimple = null!;
     private AlderExpression _evalComplex = null!;
     private AlderExpression _evalString = null!;
@@ -47,12 +40,12 @@ public class ExpressionTreeBenchmarks : BenchmarkBase
         _engine = new AlderEngine(new AlderOptions().UseCompiler());
         BenchmarkBase.ApplyVariables(_engine, _data);
 
-        // Compile expression tree delegates
+        // Compile the tree-based delegates once so the execution benchmarks measure invocation rather than setup.
         _compiledSimplePredicate = _engine.CompileExpression<Func<int, bool>>(SimplePredicate);
         _compiledComplexPredicate = _engine.CompileExpression<Func<int, int, bool>>(ComplexPredicate);
         _compiledStringPredicate = _engine.CompileExpression<Func<string, bool>>(StringPredicate);
 
-        // Parse for engine.Evaluate comparison (equivalent inline expressions)
+        // Parse equivalent inline expressions for the engine path.
         _evalSimple = _engine.Parse("x > 5");
         _evalComplex = _engine.Parse("x * x + y * y > 100 && x > 0");
         _evalString = _engine.Parse("""text.Length > 3 && text.StartsWith("a")""");
@@ -82,8 +75,6 @@ public class ExpressionTreeBenchmarks : BenchmarkBase
         _engine?.Dispose();
     }
 
-    #region Generation — how fast can we produce expression trees?
-
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Capability/ExpressionTrees/Generation")]
     public Expression<Func<int, bool>> ParseAsExpression_Simple()
@@ -109,10 +100,6 @@ public class ExpressionTreeBenchmarks : BenchmarkBase
     public Func<int, int, bool> CompileExpression_Complex()
         => _engine.CompileExpression<Func<int, int, bool>>(ComplexPredicate);
 
-    #endregion
-
-    #region Compiled execution — expression tree delegate vs engine.Evaluate
-
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Capability/ExpressionTrees/Execution")]
     public bool ExprTree_Simple() => _compiledSimplePredicate(_data.X);
@@ -137,5 +124,4 @@ public class ExpressionTreeBenchmarks : BenchmarkBase
     [BenchmarkCategory("Capability/ExpressionTrees/Execution")]
     public object Engine_String() => _engine.Evaluate(_evalString)!;
 
-    #endregion
 }

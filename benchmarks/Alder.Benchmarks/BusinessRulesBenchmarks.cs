@@ -5,18 +5,9 @@ using Alder.Compiled;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Production-style rules-engine workload: evaluate a reusable rule set against
-/// a large in-memory entity batch and count matches.
-///
-/// Scale dimensions:
-///   RuleCount:   [5, 10, 25] rules per entity
-///   EntityCount: [100, 1000] entities per batch
-///
-/// Each rule is a realistic business condition (discount eligibility, stock alert,
-/// compliance flag, etc.) drawn from a pool of 25 distinct rules.
-///
-/// Engines: Native C# delegates (baseline), Alder Interpreted, Alder Compiled,
-///          Alder Compiled+FEC.
+/// Measures a reusable rules-engine workload over an in-memory product batch.
+/// Each benchmark evaluates the same selected rules against the same entities and counts matches.
+/// The workload is intended to represent operational rules evaluation rather than isolated expression dispatch.
 /// </summary>
 [Config(typeof(MonitoringConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
@@ -99,7 +90,7 @@ public class BusinessRulesBenchmarks : BenchmarkBase
                 selectedRules[i].Expr, "product");
         }
 
-        // Warm up compiled paths and verify parity
+        // Setup verifies parity before timing begins so benchmark results are not detached from correctness.
         var entity = _entities[0];
         _interpreted.SetVariable<Product>("product", entity);
         _compiled.SetVariable<Product>("product", entity);

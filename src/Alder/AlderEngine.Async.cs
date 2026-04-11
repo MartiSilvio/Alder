@@ -10,10 +10,10 @@ namespace Alder;
 public sealed partial class AlderEngine
 {
     /// <summary>
-    /// Asynchronously evaluates a C# expression string and returns the result.
-    /// Required for expressions containing <c>await</c>. Also works for non-async expressions.
+    /// Asynchronously evaluates an expression string.
+    /// Use this API for expressions that may contain <c>await</c>.
     /// </summary>
-    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="expression">Expression source to evaluate.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
     /// <param name="cancellationToken">Token to cancel evaluation.</param>
     /// <returns>A task that represents the evaluation result.</returns>
@@ -28,8 +28,8 @@ public sealed partial class AlderEngine
     }
 
     /// <summary>
-    /// Asynchronously evaluates a pre-parsed expression and returns the result.
-    /// Required for expressions containing <c>await</c>. Also works for non-async expressions.
+    /// Asynchronously evaluates a pre-parsed expression.
+    /// Use this API for expressions that may contain <c>await</c>.
     /// </summary>
     /// <param name="expression">The pre-parsed expression to evaluate.</param>
     /// <param name="variables">Optional variables accessible within the expression.</param>
@@ -50,6 +50,7 @@ public sealed partial class AlderEngine
         }
 
         var context = target.GetOrCreateContext();
+        context.ActiveCancellationToken = cancellationToken;
         var constraintState = new ExecutionConstraintState();
         constraintState.Reset(_config.Constraints);
 
@@ -58,8 +59,8 @@ public sealed partial class AlderEngine
     }
 
     /// <summary>
-    /// Asynchronously evaluates a C# expression with variables supplied as an anonymous object.
-    /// Property types are preserved for type-aware binding.
+    /// Asynchronously evaluates an expression with variables supplied as an anonymous object.
+    /// Property types are preserved for binding.
     /// </summary>
     public ValueTask<object?> EvaluateAsync(
         string expression,
@@ -73,7 +74,7 @@ public sealed partial class AlderEngine
     }
 
     /// <summary>
-    /// Asynchronously evaluates a C# expression and converts the result to <typeparamref name="T"/>.
+    /// Asynchronously evaluates an expression and converts the result to <typeparamref name="T"/>.
     /// </summary>
     public async ValueTask<T?> EvaluateAsync<T>(
         string expression,
@@ -85,7 +86,7 @@ public sealed partial class AlderEngine
     }
 
     /// <summary>
-    /// Asynchronously evaluates a C# expression with anonymous object variables and converts to <typeparamref name="T"/>.
+    /// Asynchronously evaluates an expression with anonymous object variables and converts the result to <typeparamref name="T"/>.
     /// </summary>
     public async ValueTask<T?> EvaluateAsync<T>(
         string expression,

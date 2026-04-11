@@ -2,12 +2,20 @@ using Alder.Text;
 
 namespace Alder.Parsing;
 
+/// <summary>
+/// Base type for parsed syntax nodes used by the Alder front-end.
+/// The parser produces these records before binding lowers them to the typed bound tree.
+/// </summary>
 internal abstract record Expr
 {
     public TextSpan Span { get; init; }
     public abstract T Accept<T>(IExprVisitor<T> visitor);
 }
 
+/// <summary>
+/// Visitor contract for parsed syntax nodes.
+/// Parsing, binding, rewriting, and diagnostics all share this surface instead of pattern matching every node by hand.
+/// </summary>
 internal interface IExprVisitor<out T>
 {
     T VisitLiteral(LiteralExpr expr);
@@ -119,8 +127,8 @@ internal interface IExprVisitor<out T>
     T VisitChainedComparison(ChainedComparisonExpr expr);
 }
 
-// IsConstant: true for parsed literal tokens, enabling ECMA-334 §10.2.11
-// implicit constant expression conversions in binary numeric promotion.
+// IsConstant distinguishes source literals from runtime values so later stages can apply
+// ECMA-334 §10.2.11 implicit constant-expression conversions.
 internal sealed record LiteralExpr(object? Value, bool IsConstant = false) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLiteral(this);
@@ -141,7 +149,7 @@ internal sealed record IndexAccessExpr(Expr Object, Expr Index, bool NullSafe = 
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexAccess(this);
 }
 
-// Extended mode only
+// Slice syntax belongs to the extended language surface and binds onto Alder's runtime slice helpers.
 internal sealed record SliceExpr(Expr Target, Expr? Start, Expr? End, Expr? Step = null) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSlice(this);
@@ -172,7 +180,7 @@ internal sealed record CastExpr(Token TargetType, Expr Expression) : Expr
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitCast(this);
 }
 
-// ECMA-334 §11.2: all 'is' expressions use patterns
+// ECMA-334 §11.2 models every is-expression in terms of pattern matching.
 internal sealed record IsPatternExpr(Expr Expression, Pattern Pattern) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIsPattern(this);
@@ -198,13 +206,13 @@ internal sealed record CompoundAssignExpr(Token Name, Token Op, Expr Value) : Ex
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitCompoundAssign(this);
 }
 
-// ECMA-334 §12.21.4
+// ECMA-334 §12.21.4 defines compound assignment as a read-modify-write on the selected member.
 internal sealed record MemberCompoundAssignExpr(Expr Object, string MemberName, TokenType Operator, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberCompoundAssign(this);
 }
 
-// ECMA-334 §12.21.4
+// ECMA-334 §12.21.4 defines compound assignment as a read-modify-write on the selected element.
 internal sealed record IndexCompoundAssignExpr(Expr Object, Expr Index, TokenType Operator, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexCompoundAssign(this);
@@ -215,25 +223,25 @@ internal sealed record IncrementDecrementExpr(Token Name, Token Op, bool IsPrefi
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIncrementDecrement(this);
 }
 
-// ECMA-334 §12.8.15/§12.9.6
+// ECMA-334 §12.8.15 and §12.9.6 govern member increment and decrement semantics.
 internal sealed record MemberIncrementExpr(Expr Object, string MemberName, bool IsPrefix, bool IsIncrement) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberIncrement(this);
 }
 
-// ECMA-334 §12.8.15/§12.9.6
+// ECMA-334 §12.8.15 and §12.9.6 govern indexer increment and decrement semantics.
 internal sealed record IndexIncrementExpr(Expr Object, Expr Index, bool IsPrefix, bool IsIncrement) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexIncrement(this);
 }
 
-// ECMA-334 §12.21.5
+// ECMA-334 §12.21.5 defines null-coalescing assignment on members.
 internal sealed record MemberNullCoalesceAssignExpr(Expr Object, string MemberName, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberNullCoalesceAssign(this);
 }
 
-// ECMA-334 §12.21.5
+// ECMA-334 §12.21.5 defines null-coalescing assignment on element access.
 internal sealed record IndexNullCoalesceAssignExpr(Expr Object, Expr Index, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexNullCoalesceAssign(this);

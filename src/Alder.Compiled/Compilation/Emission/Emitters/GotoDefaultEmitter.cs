@@ -1,11 +1,14 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class GotoDefaultEmitter : INodeEmitter<BoundGotoDefaultExpr>
+[EmitsNode(BoundNodeKind.GotoDefaultStatement)]
+internal static class GotoDefaultEmitter
 {
-    public LinqExpression Emit(BoundGotoDefaultExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundGotoDefaultExpr node, EmissionContext ctx)
     {
         return LinqExpression.Assign(ctx.SignalParam, LinqExpression.Field(null, ControlFlowGotoDefaultField));
     }

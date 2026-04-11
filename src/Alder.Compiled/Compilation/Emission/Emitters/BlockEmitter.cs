@@ -2,15 +2,17 @@ using System.Collections.Immutable;
 using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Interpretation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class BlockEmitter : INodeEmitter<BoundBlockExpr>
+[EmitsNode(BoundNodeKind.Block)]
+internal static class BlockEmitter
 {
-    public LinqExpression Emit(BoundBlockExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundBlockExpr node, EmissionContext ctx)
     {
         var statements = node.Statements;
         var hasLabels = statements.Any(s => s is BoundLabelExpr);

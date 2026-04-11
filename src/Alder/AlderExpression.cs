@@ -9,14 +9,15 @@ using Binder = Alder.Binding.Binder;
 namespace Alder;
 
 /// <summary>
-/// A pre-parsed expression that can be evaluated multiple times
-/// with different variable values without re-parsing.
+/// Represents parsed source that can be evaluated multiple times without re-parsing.
 /// </summary>
 public sealed class AlderExpression
 {
     internal Expr Ast { get; }
 
-    /// <summary>The original expression string.</summary>
+    /// <summary>
+    /// Gets the original source text.
+    /// </summary>
     public string Source { get; }
 
     private volatile bool _bindingUnavailable;
@@ -38,22 +39,26 @@ public sealed class AlderExpression
         _expressionCache = expressionCache;
     }
 
-    /// <summary>Whether this expression has been successfully compiled.</summary>
+    /// <summary>
+    /// Gets whether a compiled delegate has been produced for this expression.
+    /// </summary>
     public bool IsCompiled => CompiledInfo?.Delegate != null;
 
     /// <summary>
-    /// Whether this expression can be compiled.
-    /// Returns <c>null</c> if compilation has not been attempted.
+    /// Gets whether this expression can be compiled.
+    /// Returns <c>null</c> if compilation has not yet been attempted.
     /// </summary>
     public bool? IsCompilable => CompiledInfo?.IsCompilable;
 
-    /// <summary>The reason compilation failed, or <c>null</c> if it succeeded or hasn't been attempted.</summary>
+    /// <summary>
+    /// Gets the last recorded compilation failure reason, if any.
+    /// </summary>
     public string? CompilationFailureReason => CompiledInfo?.FailureReason;
 
     internal volatile CompiledExpressionInfo? CompiledInfo;
 
     /// <summary>
-    /// Returns the distinct names of unbound identifiers in the expression AST.
+    /// Returns the distinct unbound identifier names present in the parsed tree.
     /// </summary>
     public IReadOnlyList<string> GetVariables()
     {
@@ -164,7 +169,7 @@ public sealed class AlderExpression
 }
 
 /// <summary>
-/// Delegate type for compiled expressions.
+/// Delegate shape used by the compiled execution pipeline.
 /// </summary>
 internal delegate object? CompiledExpressionDelegate(
     AlderContext context,
@@ -179,7 +184,7 @@ internal enum CompiledPipeline
 }
 
 /// <summary>
-/// Compiled expression metadata and delegate.
+/// Captures the compiled delegate and the outcome of the latest compilation attempt.
 /// </summary>
 internal record CompiledExpressionInfo(
     CompiledExpressionDelegate? Delegate,

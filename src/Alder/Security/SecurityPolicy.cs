@@ -54,6 +54,37 @@ public sealed class SecurityPolicy
         return true;
     }
 
+    internal bool IsQualifiedNameBlocked(string qualifiedName)
+    {
+        foreach (var trusted in _trustedTypes)
+        {
+            if (trusted.FullName != null &&
+                qualifiedName.Equals(trusted.FullName, StringComparison.Ordinal))
+                return false;
+        }
+
+        foreach (var trusted in _trustedNamespaces)
+        {
+            if (qualifiedName.StartsWith(trusted, StringComparison.Ordinal) &&
+                (qualifiedName.Length == trusted.Length || qualifiedName[trusted.Length] == '.'))
+                return false;
+        }
+
+        return IsQualifiedNameInDeniedNamespace(qualifiedName);
+    }
+
+    private bool IsQualifiedNameInDeniedNamespace(string qualifiedName)
+    {
+        foreach (var denied in _deniedNamespaces)
+        {
+            if (qualifiedName.Length > denied.Length &&
+                qualifiedName.StartsWith(denied, StringComparison.Ordinal) &&
+                qualifiedName[denied.Length] == '.')
+                return true;
+        }
+        return false;
+    }
+
     private static bool InNamespace(Type type, FixedSet<string> set)
     {
         if (set.Count == 0) return false;

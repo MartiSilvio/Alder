@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using Alder.Binding;
+using Alder.Binding.BoundNodes;
 using Alder.Compiled.Compilation;
 using Alder.Diagnostics;
 using Alder.Parsing;
@@ -8,6 +9,11 @@ using Alder.Runtime;
 
 namespace Alder.Compiled;
 
+/// <summary>
+/// Extension methods that expose the compiled backend from <see cref="AlderEngine"/>.
+/// These APIs sit above the shared compilation pipeline and package the result either as an
+/// <see cref="AlderCompiledExpression{T}"/>, a plain delegate, or a LINQ expression tree.
+/// </summary>
 public static class AlderCompiledEngineExtensions
 {
     private static readonly MethodInfo InvokeTypedCompiledMethod =
@@ -15,7 +21,7 @@ public static class AlderCompiledEngineExtensions
             nameof(InvokeTypedCompiled),
             BindingFlags.NonPublic | BindingFlags.Static)!;
     /// <summary>
-    /// Parses and attempts to compile an expression in one step.
+    /// Parses source and immediately attempts compilation.
     /// </summary>
     /// <param name="engine">The engine instance.</param>
     /// <param name="expression">The expression string to parse and compile.</param>
@@ -30,8 +36,7 @@ public static class AlderCompiledEngineExtensions
     }
 
     /// <summary>
-    /// Compiles an expression and returns a <see cref="AlderCompiledExpression{T}"/> that can be invoked
-    /// repeatedly without engine dispatch overhead. Throws if the expression cannot be compiled.
+    /// Compiles source and returns an <see cref="AlderCompiledExpression{T}"/> wrapper for repeated invocation.
     /// </summary>
     /// <typeparam name="T">The expected return type of the expression.</typeparam>
     /// <param name="engine">The engine instance.</param>
@@ -58,8 +63,7 @@ public static class AlderCompiledEngineExtensions
     }
 
     /// <summary>
-    /// Compiles an expression and returns a <see cref="AlderCompiledExpression{T}"/> with object? result type.
-    /// Throws if the expression cannot be compiled.
+    /// Compiles source and returns an <see cref="AlderCompiledExpression{T}"/> whose result type is <see cref="object"/>.
     /// </summary>
     /// <param name="engine">The engine instance.</param>
     /// <param name="expression">The expression string to compile.</param>
@@ -69,9 +73,8 @@ public static class AlderCompiledEngineExtensions
         => Compile<object?>(engine, expression);
 
     /// <summary>
-    /// Compiles an expression and returns a <see cref="Func{T}"/> for zero-overhead hot-path invocation.
-    /// The returned delegate captures the engine context by reference. Variables set via
-    /// <see cref="AlderEngine.SetVariable"/> after compilation are visible to subsequent invocations.
+    /// Compiles source and returns a <see cref="Func{TResult}"/> that closes over the engine state.
+    /// Variables assigned on the engine after compilation remain visible to later delegate invocations.
     /// </summary>
     /// <typeparam name="T">The expected return type of the expression.</typeparam>
     /// <param name="engine">The engine instance.</param>
@@ -87,8 +90,7 @@ public static class AlderCompiledEngineExtensions
 
     /// <summary>
     /// Compiles a code body with named parameters into a native <typeparamref name="TDelegate"/> delegate.
-    /// Parameter types are inferred from the delegate's generic arguments.
-    /// Supports multi-statement code including if/else, loops, variable declarations, and return statements.
+    /// Parameter types come from the delegate signature rather than from binder inference inside the code body.
     /// </summary>
     /// <typeparam name="TDelegate">A Func or Action delegate type whose generic arguments define parameter types
     /// (and return type for Func). For example, <c>Func&lt;int, string, bool&gt;</c> expects two parameters
@@ -110,7 +112,7 @@ public static class AlderCompiledEngineExtensions
 
     /// <summary>
     /// Compiles a code body with named parameters into a native <typeparamref name="TDelegate"/> delegate.
-    /// Overload accepting <see cref="IEnumerable{T}"/> for parameter names.
+    /// This overload accepts an enumerable parameter-name source.
     /// </summary>
     public static TDelegate Compile<TDelegate>(
         this AlderEngine engine,
@@ -221,7 +223,7 @@ public static class AlderCompiledEngineExtensions
         }
         else if (returnType.IsValueType)
         {
-            // Unbox: (TReturn)(object)result — handles null → default for nullable
+            // Unbox from the object-returning compiled delegate. The expression tree preserves nullable value semantics.
             resultExpr = LinqExpression.Unbox(invokeCall, returnType);
         }
         else
@@ -294,24 +296,41 @@ public static class AlderCompiledEngineExtensions
             var parser = ExpressionParser.CreateForSubExpression(tokens, LanguageMode.Standard);
             var ast = parser.Parse();
 
-            if (ast is not LambdaExpr lambdaExpr)
+            Expr bodyAst;
+            var parameterScope = new Dictionary<string, ParameterExpression>();
+            ParameterExpression[] parameterExpressions;
+
+            var isNonLambdaBody = false;
+
+            if (ast is LambdaExpr lambdaExpr)
+            {
+                if (lambdaExpr.Parameters.Count != paramTypes.Length)
+                    throw new AlderException(
+                        DiagnosticDescriptors.CantConvAnonMethParams,
+                        delegateType.Name);
+
+                parameterExpressions = new ParameterExpression[paramTypes.Length];
+                for (var i = 0; i < paramTypes.Length; i++)
+                {
+                    var paramName = lambdaExpr.Parameters[i].Name.Lexeme;
+                    var paramExpr = LinqExpression.Parameter(paramTypes[i], paramName);
+                    parameterScope[paramName] = paramExpr;
+                    parameterExpressions[i] = paramExpr;
+                }
+
+                bodyAst = lambdaExpr.Body;
+            }
+            else if (paramTypes.Length == 0)
+            {
+                parameterExpressions = [];
+                bodyAst = ast;
+                isNonLambdaBody = true;
+            }
+            else
+            {
                 throw new AlderException(
                     DiagnosticDescriptors.ParseAsExpressionRequiresLambda,
                     "x => x > 5");
-
-            if (lambdaExpr.Parameters.Count != paramTypes.Length)
-                throw new AlderException(
-                    DiagnosticDescriptors.CantConvAnonMethParams,
-                    delegateType.Name);
-
-            var parameterScope = new Dictionary<string, ParameterExpression>();
-            var parameterExpressions = new ParameterExpression[paramTypes.Length];
-            for (var i = 0; i < paramTypes.Length; i++)
-            {
-                var paramName = lambdaExpr.Parameters[i].Name.Lexeme;
-                var paramExpr = LinqExpression.Parameter(paramTypes[i], paramName);
-                parameterScope[paramName] = paramExpr;
-                parameterExpressions[i] = paramExpr;
             }
 
             var engineVariables = access.CollectEngineVariables();
@@ -326,14 +345,17 @@ public static class AlderCompiledEngineExtensions
             foreach (var pair in engineVariables)
                 bindingRuntimeContext.Define(pair.Key, pair.Value, pair.Value?.GetType() ?? typeof(object));
 
-            for (var i = 0; i < paramTypes.Length; i++)
+            for (var i = 0; i < parameterExpressions.Length; i++)
             {
-                var parameterName = lambdaExpr.Parameters[i].Name.Lexeme;
+                var parameterName = parameterExpressions[i].Name!;
                 bindingRuntimeContext.Define(parameterName, null, paramTypes[i]);
             }
 
             var binder = new Binding.Binder();
-            var boundBody = binder.Bind(lambdaExpr.Body, new BindingContext(bindingRuntimeContext));
+            var boundBody = binder.Bind(bodyAst, new BindingContext(bindingRuntimeContext));
+
+            if (isNonLambdaBody)
+                boundBody = UnwrapReturnValue(boundBody);
 
             var emitter = new ExpressionTreeEmitter(parameterScope, engineVariables, config.TypeResolver);
             var body = emitter.Emit(boundBody);
@@ -406,5 +428,19 @@ public static class AlderCompiledEngineExtensions
     {
         engine.GetCompiledFeatureAccess().ThrowIfDisposed();
         return ParseAsExpression<TDelegate>(engine, expression, additionalVariables).Compile();
+    }
+
+    private static BoundExpr UnwrapReturnValue(BoundExpr expr)
+    {
+        if (expr is BoundReturnExpr { Value: not null } ret)
+            return ret.Value;
+        if (expr is BoundBlockExpr block)
+        {
+            if (block.Statements.Length == 1 && block.Statements[0] is BoundReturnExpr { Value: not null } blockRet)
+                return blockRet.Value;
+            if (block.ReturnExpr != null)
+                return block.ReturnExpr;
+        }
+        return expr;
     }
 }

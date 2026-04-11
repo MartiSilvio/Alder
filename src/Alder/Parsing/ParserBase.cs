@@ -4,8 +4,8 @@ using Alder.Text;
 namespace Alder.Parsing;
 
 /// <summary>
-/// Shared mutable token stream state. All sub-parsers share a single instance
-/// so that advancing the position in one parser is visible to all others.
+/// Shared mutable token-stream state for the parser family.
+/// All parser components observe the same cursor so sub-parser transitions remain cheap and explicit.
 /// </summary>
 internal sealed class ParserState
 {
@@ -61,8 +61,7 @@ internal sealed class ParserState
 }
 
 /// <summary>
-/// Abstract base for all parser classes. Provides shared token stream utilities
-/// (Match, Check, Advance, Peek, Consume, etc.) backed by a shared ParserState.
+/// Base class for parser components that operate over a shared <see cref="ParserState"/>.
 /// </summary>
 internal abstract class ParserBase
 {
@@ -78,14 +77,12 @@ internal abstract class ParserBase
     }
 
     /// <summary>
-    /// Records the start offset of the current token for span computation.
-    /// Call at the beginning of a parse method, then pass to <see cref="SpanFrom"/> when done.
+    /// Records the current token start offset so the caller can later build a span with <see cref="SpanFrom"/>.
     /// </summary>
     internal int Mark() => Peek().Start;
 
     /// <summary>
-    /// Computes a <see cref="TextSpan"/> from a previously recorded start offset
-    /// to the end of the most recently consumed token.
+    /// Computes a <see cref="TextSpan"/> from a recorded start offset to the end of the most recently consumed token.
     /// </summary>
     internal TextSpan SpanFrom(int start)
     {
@@ -94,13 +91,13 @@ internal abstract class ParserBase
     }
 
     /// <summary>
-    /// Checks if the current token is 'var' or (in Extended mode) 'let'.
+    /// Checks whether the current token can start an implicitly typed variable declaration.
     /// </summary>
     internal bool CheckVar() =>
         Check(TokenType.Var) || (State.LanguageMode == LanguageMode.Extended && Check(TokenType.Let));
 
     /// <summary>
-    /// Matches 'var' or (in Extended mode) 'let', advancing past the token.
+    /// Matches an implicitly typed variable-declaration keyword and advances past it.
     /// </summary>
     internal bool MatchVar() =>
         Match(TokenType.Var) || (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Let));
@@ -129,7 +126,8 @@ internal abstract class ParserBase
             return true;
         }
 
-        // **= is an Extended-only compound assignment (matches ** gating in ExpressionParser)
+        // **= remains gated by language mode so the parser can share tokenization with the extended surface
+        // without making the standard surface accept the operator.
         if (Check(TokenType.StarStarEqual))
         {
             if (State.LanguageMode == LanguageMode.Standard)
@@ -172,8 +170,7 @@ internal abstract class ParserBase
     internal bool Check(TokenType type) => !IsAtEnd() && Peek().Type == type;
 
     /// <summary>
-    /// Checks if the token one position ahead of current has the given type.
-    /// Used for two-token lookahead (e.g., "not in", "not like").
+    /// Checks whether the next token has the given type.
     /// </summary>
     internal bool CheckNext(TokenType type)
     {
@@ -208,8 +205,8 @@ internal abstract class ParserBase
     }
 
     /// <summary>
-    /// Consumes an identifier or contextual keyword token for use as a variable name.
-    /// ECMA-334 §6.4.4: contextual keywords are not reserved and can appear as identifiers.
+    /// Consumes an identifier or contextual keyword token for identifier positions.
+    /// ECMA-334 §6.4.4 permits contextual keywords to appear as identifiers outside their contextual use.
     /// </summary>
     internal Token ConsumeIdentifierOrContextualKeyword(string message)
     {
@@ -225,7 +222,7 @@ internal abstract class ParserBase
     }
 
     /// <summary>
-    /// ECMA-334 §6.4.4: contextual keywords are not reserved and can appear as identifiers.
+    /// Returns whether <paramref name="type"/> is a contextual keyword rather than a reserved keyword.
     /// </summary>
     internal static bool IsContextualKeyword(TokenType type) =>
         type is TokenType.Value or TokenType.From or TokenType.Where or TokenType.Select
@@ -238,10 +235,8 @@ internal abstract class ParserBase
             or TokenType.Unless or TokenType.Until;
 
     /// <summary>
-    /// Matches a closing '>' for generic type arguments, handling the classic C# ambiguity
-    /// where the lexer greedily produces '>>' or '>>>' tokens.
-    /// ECMA-334 §8.2.6: >> in nested generics.
-    /// Splits multi-character tokens by replacing them in the token list.
+    /// Matches a closing generic-argument <c>&gt;</c> while handling the lexer ambiguity around <c>&gt;&gt;</c> and <c>&gt;&gt;&gt;</c>.
+    /// ECMA-334 §8.2.4 and §8.2.6 require the parser to recover nested generic closers from shift-token lexing.
     /// </summary>
     internal bool MatchClosingAngleBracket()
     {
@@ -250,7 +245,7 @@ internal abstract class ParserBase
 
         if (Check(TokenType.GreaterGreater))
         {
-            // Split >> into > (consumed now) + > (left for parent generic)
+            // Rewrite the current token so the inner generic consumes one > and the outer generic sees the other.
             var token = Peek();
             var greaterLexeme = TokenLexemes.GetCanonical(TokenType.Greater);
             State.Tokens[State.Current] = token with { Type = TokenType.Greater, Lexeme = greaterLexeme };

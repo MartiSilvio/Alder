@@ -1,16 +1,18 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class MultiDimEmitter :
-    INodeEmitter<BoundMultiDimArrayInitExpr>,
-    INodeEmitter<BoundResolvedMultiDimIndexAccessExpr>,
-    INodeEmitter<BoundDynamicMultiDimIndexAccessExpr>,
-    INodeEmitter<BoundMultiDimIndexAssignExpr>
+[EmitsNode(BoundNodeKind.MultiDimArrayInit, typeof(BoundMultiDimArrayInitExpr))]
+[EmitsNode(BoundNodeKind.ResolvedMultiDimIndexAccess, typeof(BoundResolvedMultiDimIndexAccessExpr))]
+[EmitsNode(BoundNodeKind.DynamicMultiDimIndexAccess, typeof(BoundDynamicMultiDimIndexAccessExpr))]
+[EmitsNode(BoundNodeKind.MultiDimIndexAssignment, typeof(BoundMultiDimIndexAssignExpr))]
+internal static class MultiDimEmitter
 {
-    public LinqExpression Emit(BoundMultiDimArrayInitExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundMultiDimArrayInitExpr node, EmissionContext ctx)
     {
         var dimensions = LinqExpression.NewArrayInit(
             typeof(int),
@@ -26,7 +28,7 @@ internal sealed class MultiDimEmitter :
             flatValues));
     }
 
-    public LinqExpression Emit(BoundDynamicMultiDimIndexAccessExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundDynamicMultiDimIndexAccessExpr node, EmissionContext ctx)
     {
         var target = ctx.EmitBoxed(node.Target);
         var indices = LinqExpression.NewArrayInit(
@@ -36,7 +38,7 @@ internal sealed class MultiDimEmitter :
         return EmitNullSafeMultiDimGet(target, indices, node.NullSafe);
     }
 
-    public LinqExpression Emit(BoundResolvedMultiDimIndexAccessExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundResolvedMultiDimIndexAccessExpr node, EmissionContext ctx)
     {
         if (node.IsArray)
         {
@@ -56,7 +58,7 @@ internal sealed class MultiDimEmitter :
         return EmitNullSafeMultiDimGet(target, indices, node.NullSafe);
     }
 
-    public LinqExpression Emit(BoundMultiDimIndexAssignExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundMultiDimIndexAssignExpr node, EmissionContext ctx)
     {
         if (node is { IsArray: true, TargetType: not null })
         {

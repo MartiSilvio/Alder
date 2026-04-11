@@ -1,12 +1,14 @@
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class VariableDeclEmitter : INodeEmitter<BoundVariableDeclExpr>
+[EmitsNode(BoundNodeKind.VariableDeclaration)]
+internal static class VariableDeclEmitter
 {
-    public LinqExpression Emit(BoundVariableDeclExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundVariableDeclExpr node, EmissionContext ctx)
     {
         if (ctx.TryGetPromoted(node.LocalId, out var promoted))
         {

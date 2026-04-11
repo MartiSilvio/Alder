@@ -6,13 +6,12 @@ using Alder.Generators.Model;
 namespace Alder.Generators.Emitters;
 
 /// <summary>
-/// Generates AOT dispatch for LINQ extension methods on value-type collections.
-/// Methods are discovered from Roslyn symbols, not hardcoded.
-/// Reference-type element types fall through to MakeGenericMethod (shared generics).
+/// Emits generated dispatch for supported LINQ extension methods.
+/// This covers collection shapes that NativeAOT cannot close reliably at runtime.
 /// </summary>
 internal static class ExtensionDispatchEmitter
 {
-    // Enumerable.Sum/Average have specific non-generic overloads only for these types
+    // Enumerable exposes dedicated numeric aggregate overloads only for these element types.
     private static readonly HashSet<string> NumericSumTypes = new() { "int", "long", "double", "float", "decimal" };
 
     public static (string? Source, ImmutableArray<DelegateSignature> DelegateShapes) Emit(
@@ -23,9 +22,7 @@ internal static class ExtensionDispatchEmitter
         if (valueTypes.Count == 0 || extensionMethods.IsDefaultOrEmpty)
             return (null, ImmutableArray<DelegateSignature>.Empty);
 
-        // Element + result type pool: value types + string + object. Under NativeAOT,
-        // the linker trims Enumerable method metadata, so reference-type collections
-        // also need pre-generated dispatch.
+        // Add common reference types that appear in LINQ selectors and projections even when no registered type roots them.
         var dispatchTypes = new List<string>(valueTypes) { "string", "object" };
 
         var delegateShapes = new List<DelegateSignature>();
@@ -125,7 +122,6 @@ internal static class ExtensionDispatchEmitter
                 break;
 
             case ExtensionMethodKind.Complex:
-                // Too complex for static dispatch, falls to reflection
                 break;
         }
     }
@@ -139,7 +135,6 @@ internal static class ExtensionDispatchEmitter
         if (method.ExtraParams.Length != 1 || method.ExtraParams[0].DelegateInfo is not { } sig)
             return;
 
-        // Predicate: Func<T, bool>, single concrete delegate
         if (sig.ParamTypes.Length == 1 && sig.ReturnType is "bool" or "global::System.Boolean")
         {
             var funcType = $"global::System.Func<{vt}, bool>";
@@ -149,7 +144,6 @@ internal static class ExtensionDispatchEmitter
             return;
         }
 
-        // Selector/key: Func<T, TResult>, expand for value-type TResult
         if (sig.ParamTypes.Length == 1)
         {
             if (IsNumericAggregate(method.MethodName))
@@ -167,7 +161,6 @@ internal static class ExtensionDispatchEmitter
                 return;
             }
 
-            // General selector: expand for all value types in result pool
             w.AppendLine("    if (args.Length == 2)");
             w.AppendLine("    {");
             foreach (var rt in dispatchTypes)
@@ -198,7 +191,6 @@ internal static class ExtensionDispatchEmitter
             return;
         }
 
-        // T param (Contains, Append, Prepend), checked via symbol flag
         if (paramType.Contains(vt) || method.ExtraParams[0].IsTypeParameter)
         {
             var varName = $"v_{method.MethodName}";

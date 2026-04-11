@@ -1,11 +1,14 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class DynamicIndexAccessEmitter : INodeEmitter<BoundDynamicIndexAccessExpr>
+[EmitsNode(BoundNodeKind.DynamicIndexAccess)]
+internal static class DynamicIndexAccessEmitter
 {
-    public LinqExpression Emit(BoundDynamicIndexAccessExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundDynamicIndexAccessExpr node, EmissionContext ctx)
     {
         var targetExpr = ctx.EmitBoxed(node.Target);
         var indexExpr = ctx.EmitBoxed(node.Index);

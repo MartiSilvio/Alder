@@ -9,8 +9,10 @@ namespace Alder.Runtime;
 
 /// <summary>
 /// Evaluation context for Alder expressions.
-/// Root contexts use ConcurrentDictionary for thread-safe variable access.
-/// Child contexts (block scopes) use plain Dictionary for performance.
+/// Root contexts use ConcurrentDictionary for concurrent lookup and slot replacement.
+/// This does not provide transactional semantics for compound read-modify-write operations
+/// across multiple evaluation steps. Child contexts (block scopes) use plain Dictionary
+/// and are intended for isolated scope mutation rather than shared concurrent writes.
 /// </summary>
 internal sealed class AlderContext
 {
@@ -40,6 +42,18 @@ internal sealed class AlderContext
         _variables = useConcurrentStore
             ? new ConcurrentDictionary<string, VariableSlot>(_config.Comparer)
             : new Dictionary<string, VariableSlot>(_config.Comparer);
+    }
+
+    internal CancellationToken ActiveCancellationToken;
+
+    internal CancellationToken GetActiveCancellationToken()
+    {
+        for (var ctx = this; ctx != null; ctx = ctx._parent)
+        {
+            if (ctx.ActiveCancellationToken != default)
+                return ctx.ActiveCancellationToken;
+        }
+        return default;
     }
 
     public AlderConfig Config => _config;

@@ -1,13 +1,12 @@
 namespace Alder.Compiled;
 
 /// <summary>
-/// String extension methods for compiling C# code into delegates.
-/// Uses the global <see cref="AlderEval"/> engine.
+/// String extension methods that route compilation through the global <see cref="AlderEval"/> engine.
 /// </summary>
 public static class AlderStringCompileExtensions
 {
     /// <summary>
-    /// Compiles this string as a C# code body with named parameters into a native delegate.
+    /// Compiles this string as a code body with named parameters into a native delegate.
     /// </summary>
     /// <typeparam name="TDelegate">A Func or Action delegate type.</typeparam>
     /// <param name="code">The C# code body to compile.</param>
@@ -18,7 +17,7 @@ public static class AlderStringCompileExtensions
         => AlderEval.GetEngine().Compile<TDelegate>(code, parameterNames);
 
     /// <summary>
-    /// Compiles this string as a C# expression and returns a <see cref="Func{T}"/> for zero-overhead invocation.
+    /// Compiles this string as an expression and returns a <see cref="Func{T}"/> backed by the global engine state.
     /// </summary>
     public static Func<T?> CompileToFunc<T>(this string code)
         => AlderEval.GetEngine().CompileToFunc<T>(code);

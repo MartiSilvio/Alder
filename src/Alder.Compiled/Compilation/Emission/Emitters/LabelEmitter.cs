@@ -1,10 +1,13 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class LabelEmitter : INodeEmitter<BoundLabelExpr>
+[EmitsNode(BoundNodeKind.Label)]
+internal static class LabelEmitter
 {
-    public LinqExpression Emit(BoundLabelExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundLabelExpr node, EmissionContext ctx)
     {
         return LinqExpression.Constant(null, typeof(object));
     }

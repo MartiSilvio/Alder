@@ -4,8 +4,8 @@ using Alder.Parsing;
 namespace Alder.Runtime.Extensions;
 
 /// <summary>
-/// Object merge via + operator: merges dictionaries and object properties.
-/// Called explicitly from Operators.Add() as a fallback for non-arithmetic, non-string operands.
+/// Implements the extended object-merge behavior behind the <c>+</c> operator.
+/// Dictionaries contribute their entries directly, and ordinary objects contribute readable instance properties.
 /// </summary>
 internal static class ObjectMergeOperator
 {

@@ -1,8 +1,8 @@
 namespace Alder.Parsing;
 
 /// <summary>
-/// Base class for AST visitors that need to traverse all nodes.
-/// Handles traversal automatically - subclasses just override to add behavior.
+/// Base class for parsed-tree walkers.
+/// Subclasses override hooks and visit methods to add behavior while traversal mechanics stay centralized here.
 /// </summary>
 internal abstract class AstWalker<T> : IExprVisitor<T>
 {
@@ -28,14 +28,12 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         }
     }
 
-    // Literals
     public virtual T VisitLiteral(LiteralExpr expr)
     {
         OnEnter(expr);
         return OnLeave(expr);
     }
 
-    // Identifiers & Access
     public virtual T VisitIdentifier(IdentifierExpr expr)
     {
         OnEnter(expr);
@@ -76,7 +74,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Operators
     public virtual T VisitUnary(UnaryExpr expr)
     {
         OnEnter(expr);
@@ -148,7 +145,7 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
     }
 
     /// <summary>
-    /// Recursively visits any Expr nodes within a Pattern tree.
+    /// Walks any expression children that appear inside a pattern tree.
     /// </summary>
     protected void WalkPattern(Pattern pattern)
     {
@@ -190,7 +187,7 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
                 if (sp.Subpattern != null)
                     WalkPattern(sp.Subpattern);
                 break;
-            // TypePattern, VarPattern, DiscardPattern have no Expr children
+            // TypePattern, VarPattern, and DiscardPattern do not contain expression children.
         }
     }
 
@@ -201,7 +198,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Assignment
     public virtual T VisitAssign(AssignExpr expr)
     {
         OnEnter(expr);
@@ -295,7 +291,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Null handling & Conditionals
     public virtual T VisitNullCoalesce(NullCoalesceExpr expr)
     {
         OnEnter(expr);
@@ -322,7 +317,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Functions & Lambdas
     public virtual T VisitCall(CallExpr expr)
     {
         OnEnter(expr);
@@ -410,7 +404,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Control Flow
     public virtual T VisitBlock(BlockExpr expr)
     {
         OnEnter(expr);
@@ -550,7 +543,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Declarations
     public virtual T VisitVariableDecl(VariableDeclExpr expr)
     {
         OnEnter(expr);
@@ -558,35 +550,30 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Default Expression
     public virtual T VisitDefault(DefaultExpr expr)
     {
         OnEnter(expr);
         return OnLeave(expr);
     }
 
-    // Nameof Expression
     public virtual T VisitNameof(NameofExpr expr)
     {
         OnEnter(expr);
         return OnLeave(expr);
     }
 
-    // Typeof Expression
     public virtual T VisitTypeof(TypeofExpr expr)
     {
         OnEnter(expr);
         return OnLeave(expr);
     }
 
-    // Sizeof Expression
     public virtual T VisitSizeof(SizeofExpr expr)
     {
         OnEnter(expr);
         return OnLeave(expr);
     }
 
-    // Throw Expression
     public virtual T VisitThrow(ThrowExpr expr)
     {
         OnEnter(expr);
@@ -594,7 +581,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Await Expression
     public virtual T VisitAwait(AwaitExpr expr)
     {
         OnEnter(expr);
@@ -602,7 +588,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Object Creation Expression
     public virtual T VisitObjectCreation(ObjectCreationExpr expr)
     {
         OnEnter(expr);
@@ -628,7 +613,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Typed Array Creation Expression
     public virtual T VisitTypedArrayCreation(TypedArrayCreationExpr expr)
     {
         OnEnter(expr);
@@ -644,7 +628,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Tuple Expression
     public virtual T VisitTuple(TupleExpr expr)
     {
         OnEnter(expr);
@@ -653,7 +636,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Deconstruction Expression
     public virtual T VisitDeconstruction(DeconstructionExpr expr)
     {
         OnEnter(expr);
@@ -661,7 +643,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Exception Handling
     public virtual T VisitTryCatchFinally(TryCatchFinallyExpr expr)
     {
         OnEnter(expr);
@@ -688,7 +669,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Resource Management
     public virtual T VisitUsingStatement(UsingStatementExpr expr)
     {
         OnEnter(expr);
@@ -697,7 +677,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Synchronization
     public virtual T VisitLockStatement(LockStatementExpr expr)
     {
         OnEnter(expr);
@@ -706,7 +685,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Multi-dimensional Array Operations
     public virtual T VisitMultiDimIndexAccess(MultiDimIndexAccessExpr expr)
     {
         OnEnter(expr);
@@ -745,7 +723,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Checked/Unchecked
     public virtual T VisitChecked(CheckedExpr expr)
     {
         OnEnter(expr);
@@ -760,7 +737,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Polyglot Extended Features
     public virtual T VisitRange(RangeExpr expr)
     {
         OnEnter(expr);

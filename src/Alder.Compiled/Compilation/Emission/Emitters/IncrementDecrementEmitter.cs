@@ -1,12 +1,15 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Parsing;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class IncrementDecrementEmitter : INodeEmitter<BoundIncrementDecrementExpr>
+[EmitsNode(BoundNodeKind.IncrementOperator)]
+internal static class IncrementDecrementEmitter
 {
-    public LinqExpression Emit(BoundIncrementDecrementExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundIncrementDecrementExpr node, EmissionContext ctx)
     {
         if (ctx.TryGetPromoted(node.LocalId, out var promoted))
         {

@@ -3,14 +3,16 @@ using System.Linq;
 using System.Reflection;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compilation;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
-internal sealed class ResolvedCallEmitter : INodeEmitter<BoundResolvedCallExpr>
+[EmitsNode(BoundNodeKind.ResolvedCall)]
+internal static class ResolvedCallEmitter
 {
-    public LinqExpression Emit(BoundResolvedCallExpr node, EmissionContext ctx)
+    public static LinqExpression Emit(BoundResolvedCallExpr node, EmissionContext ctx)
     {
         var chain = PostfixChain.TryCollect(node);
         if (chain != null) return EmitPostfixChain(chain.Value, ctx);
@@ -33,7 +35,23 @@ internal sealed class ResolvedCallEmitter : INodeEmitter<BoundResolvedCallExpr>
         {
             var seg = chain.Segments[i];
             if (seg.CallOrInvoke is BoundResolvedCallExpr call)
-                result = EmitWithTarget(call, result, ctx);
+            {
+                if (call.IsExtensionCall && call.Callee is BoundMethodGroupExpr { NullSafe: true })
+                {
+                    var receiverVar = LinqExpression.Variable(typeof(object), "nsExtRcv");
+                    var innerResult = EmitWithTarget(call, receiverVar, ctx);
+                    result = LinqExpression.Block(
+                        typeof(object),
+                        [receiverVar],
+                        LinqExpression.Assign(receiverVar, EmitHelpers.AsObject(result)),
+                        LinqExpression.Condition(
+                            LinqExpression.Equal(receiverVar, LinqExpression.Constant(null, typeof(object))),
+                            LinqExpression.Constant(null, typeof(object)),
+                            EmitHelpers.AsObject(innerResult)));
+                }
+                else
+                    result = EmitWithTarget(call, result, ctx);
+            }
             else if (seg.CallOrInvoke is BoundDynamicCallExpr invoke)
                 result = EmitCollectionSizeCheck(
                     DynamicCallEmitter.EmitInvokeCore(invoke.Callee, invoke.Arguments, invoke.TypeArguments, result, ctx),
