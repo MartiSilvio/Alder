@@ -15,9 +15,6 @@ namespace Alder.Compiled.Compilation;
 internal sealed partial class BoundExpressionEmitter
 {
     private readonly ParameterExpression _contextParam;
-    private readonly ParameterExpression _configParam;
-    private readonly ParameterExpression _constraintStateParam;
-    private readonly ParameterExpression _ctParam;
     private readonly EmissionContext _emissionCtx;
 
     private Dictionary<string, HoistedIdentifier>? _hoistedIdentifiers;
@@ -30,9 +27,6 @@ internal sealed partial class BoundExpressionEmitter
         bool preferResolvedRuntimeDispatch)
     {
         _contextParam = contextParam;
-        _configParam = configParam;
-        _constraintStateParam = constraintStateParam;
-        _ctParam = ctParam;
         _emissionCtx = new EmissionContext(
             contextParam,
             configParam,

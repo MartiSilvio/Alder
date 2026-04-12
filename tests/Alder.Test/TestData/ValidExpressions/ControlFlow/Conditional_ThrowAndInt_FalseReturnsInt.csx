@@ -1,1 +1,1 @@
-false ? throw new System.Exception("fail") : 42
+false ? throw new Exception("fail") : 42

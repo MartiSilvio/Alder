@@ -1,1 +1,1 @@
-System.String.Concat("a", "b", "c")
+String.Concat("a", "b", "c")

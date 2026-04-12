@@ -1,0 +1,1 @@
+return char.IsLower('z');

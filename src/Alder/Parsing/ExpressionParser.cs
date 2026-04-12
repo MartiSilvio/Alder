@@ -123,7 +123,8 @@ internal sealed partial class ExpressionParser : ParserBase
         }
 
         if (Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
-            Check(TokenType.Goto) || Check(TokenType.Yield) ||
+            Check(TokenType.Goto) ||
+            (Check(TokenType.Yield) && PeekNext().Type is TokenType.Return or TokenType.Break) ||
             Check(TokenType.While) || Check(TokenType.For) ||
             Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
             Check(TokenType.Try) || Check(TokenType.Const) ||
@@ -1088,18 +1089,6 @@ internal sealed partial class ExpressionParser : ParserBase
 
         Consume(TokenType.RightBrace, "Expected '}' after switch expression arms");
         return new SwitchExpressionExpr(subject, arms) { Span = SpanFrom(mark) };
-    }
-
-    private bool MatchTypeKeywordNoNullable(out Token typeToken)
-    {
-        if (IsTypeKeyword(Peek().Type))
-        {
-            typeToken = Advance();
-            return true;
-        }
-
-        typeToken = default;
-        return false;
     }
 
     internal bool IsCastExpression()

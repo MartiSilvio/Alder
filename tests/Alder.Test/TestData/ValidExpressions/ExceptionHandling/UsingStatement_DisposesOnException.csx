@@ -3,10 +3,10 @@ try
 {
     using (var ms = new System.IO.MemoryStream())
     {
-        throw new System.InvalidOperationException();
+        throw new InvalidOperationException();
     }
 }
-catch (System.InvalidOperationException)
+catch (InvalidOperationException)
 {
     disposed = true;
 }

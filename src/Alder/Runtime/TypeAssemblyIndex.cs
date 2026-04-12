@@ -30,6 +30,8 @@ internal sealed class TypeAssemblyIndex
         "System.Globalization",
     ];
 
+    internal static IReadOnlyList<string> GetDefaultImplicitNamespaces() => DefaultImplicitNamespaces;
+
     internal TypeAssemblyIndex(
         ImmutableArray<Assembly> assemblies,
         bool implicitBclImports,

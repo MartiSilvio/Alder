@@ -1,8 +1,8 @@
 var nodeCount = 7;
 
-var adj = new System.Collections.Generic.List<int>[nodeCount];
+var adj = new List<int>[nodeCount];
 for (var i = 0; i < nodeCount; i++)
-    adj[i] = new System.Collections.Generic.List<int>();
+    adj[i] = new List<int>();
 
 var edgeSrc = new[] { 0, 0, 1, 1, 2, 3, 3, 4, 5 };
 var edgeDst = new[] { 1, 2, 2, 3, 4, 4, 5, 6, 6 };
@@ -21,7 +21,7 @@ for (var i = 0; i < nodeCount; i++)
 var maxColor = 0;
 for (var node = 0; node < nodeCount; node++)
 {
-    var usedColors = new System.Collections.Generic.List<int>();
+    var usedColors = new List<int>();
     foreach (var neighbor in adj[node])
     {
         if (colors[neighbor] != -1)

@@ -1,1 +1,1 @@
-System.String.Join(", ", new string[] { "a", "b", "c" })
+String.Join(", ", new string[] { "a", "b", "c" })

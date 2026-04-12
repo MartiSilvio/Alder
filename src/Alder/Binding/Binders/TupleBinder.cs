@@ -17,8 +17,18 @@ internal static class TupleBinder
         var names = expr.Elements
             .Select(static element => element.Name)
             .ToImmutableArray();
-        var tupleType = CreateTupleStaticType(elements.Select(static element => element.StaticType.ClrType).ToArray());
-        return new BoundTupleExpr(elements, names, new BoundType(tupleType));
+        var elementClrTypes = elements.Select(static element => element.StaticType.ClrType).ToArray();
+        var tupleType = CreateTupleStaticType(elementClrTypes);
+        var staticType = CreateBoundType(tupleType, names, elementClrTypes);
+        return new BoundTupleExpr(elements, names, staticType);
+    }
+
+    private static BoundType CreateBoundType(Type tupleType, ImmutableArray<string?> names, Type[] elementClrTypes)
+    {
+        if (names.All(static n => n == null))
+            return new BoundType(tupleType);
+
+        return BoundStructuralType.FromElementNames(tupleType, names, elementClrTypes);
     }
 
     private static Type CreateTupleStaticType(Type[] elementTypes)

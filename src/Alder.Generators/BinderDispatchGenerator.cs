@@ -13,7 +13,6 @@ public sealed class BinderDispatchGenerator : IIncrementalGenerator
     private const string BoundExprMetadataName = "Alder.Binding.BoundExpr";
     private const string BindingContextMetadataName = "Alder.Binding.BindingContext";
     private const string BinderContextMetadataName = "Alder.Binding.BinderContext";
-    private const string ExprMetadataName = "Alder.Parsing.Expr";
 
     private static readonly DiagnosticDescriptor NotStaticRule = new DiagnosticDescriptor(
         "ALDR9001",

@@ -1,16 +1,20 @@
 using System.Globalization;
+using System.Reflection;
 using Alder;
 
 namespace Alder.Mcp;
 
+internal readonly record struct McpParseResult(McpServerConfig? Config, bool ShowHelp);
+
 internal sealed class McpServerConfig
 {
-    private const long DefaultMaxStatements = 100_000_000;
-    private const long DefaultMaxLoopIterations = 100_000_000;
-    private static readonly TimeSpan DefaultMaxTimeout = TimeSpan.FromSeconds(30);
+    internal const string DefaultSandboxPreset = "trusted";
+    internal const long DefaultMaxStatements = 1_000_000;
+    internal const long DefaultMaxLoopIterations = 1_000_000;
+    internal static readonly TimeSpan DefaultMaxTimeout = TimeSpan.FromSeconds(10);
 
     public SandboxOptions Sandbox { get; init; } = SandboxOptions.Trusted();
-    public string SandboxPreset { get; init; } = "trusted";
+    public string SandboxPreset { get; init; } = DefaultSandboxPreset;
     public LanguageMode LanguageMode { get; init; } = LanguageMode.Standard;
     public long? MaxStatements { get; init; } = DefaultMaxStatements;
     public long? MaxLoopIterations { get; init; } = DefaultMaxLoopIterations;
@@ -18,9 +22,9 @@ internal sealed class McpServerConfig
     public IReadOnlyList<string> ExtraNamespaces { get; init; } = [];
     public IReadOnlyList<string> ExtraAssemblies { get; init; } = [];
 
-    public static McpServerConfig Parse(string[] args)
+    public static McpParseResult ParseArguments(string[] args)
     {
-        var sandboxPreset = "trusted";
+        var sandboxPreset = DefaultSandboxPreset;
         var sandbox = SandboxOptions.Trusted();
         var languageMode = LanguageMode.Standard;
         long? maxStatements = DefaultMaxStatements;
@@ -29,26 +33,18 @@ internal sealed class McpServerConfig
         var extraNamespaces = new List<string>();
         var extraAssemblies = new List<string>();
 
-        // Environment variables and CLI arguments share the same validation path so failures
-        // produce a clean usage error instead of an unhandled exception.
-        try
-        {
-            ApplyEnvVars(ref sandboxPreset, ref sandbox, ref languageMode,
-                ref maxStatements, ref maxLoopIterations, ref maxTimeout,
-                extraNamespaces, extraAssemblies);
+        ApplyEnvVars(ref sandboxPreset, ref sandbox, ref languageMode,
+            ref maxStatements, ref maxLoopIterations, ref maxTimeout,
+            extraNamespaces, extraAssemblies);
 
-            ApplyCli(args, ref sandboxPreset, ref sandbox, ref languageMode,
-                ref maxStatements, ref maxLoopIterations, ref maxTimeout,
-                extraNamespaces, extraAssemblies);
-        }
-        catch (ArgumentException ex)
-        {
-            Console.Error.WriteLine($"alder-mcp: {ex.Message}");
-            Console.Error.WriteLine("Run 'alder-mcp --help' for usage.");
-            Environment.Exit(1);
-        }
+        if (ShouldShowHelp(args))
+            return new McpParseResult(null, ShowHelp: true);
 
-        return new McpServerConfig
+        ApplyCli(args, ref sandboxPreset, ref sandbox, ref languageMode,
+            ref maxStatements, ref maxLoopIterations, ref maxTimeout,
+            extraNamespaces, extraAssemblies);
+
+        return new McpParseResult(new McpServerConfig
         {
             Sandbox = sandbox,
             SandboxPreset = sandboxPreset,
@@ -58,8 +54,14 @@ internal sealed class McpServerConfig
             MaxTimeout = maxTimeout,
             ExtraNamespaces = extraNamespaces.AsReadOnly(),
             ExtraAssemblies = extraAssemblies.AsReadOnly(),
-        };
+        }, ShowHelp: false);
     }
+
+    internal static IReadOnlyList<string> GetImplicitNamespaces() =>
+        Runtime.TypeAssemblyIndex.GetDefaultImplicitNamespaces();
+
+    private static bool ShouldShowHelp(string[] args) =>
+        args.Any(arg => arg is "--help" or "-h");
 
     private static void ApplyEnvVars(
         ref string sandboxPreset, ref SandboxOptions sandbox,
@@ -90,8 +92,13 @@ internal sealed class McpServerConfig
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
         if (Environment.GetEnvironmentVariable("ALDER_ASSEMBLIES") is { Length: > 0 } envAssemblies)
-            extraAssemblies.AddRange(envAssemblies.Split(';',
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        {
+            foreach (var path in envAssemblies.Split(';',
+                         StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                extraAssemblies.Add(NormalizeAndValidateAssemblyPath(path));
+            }
+        }
     }
 
     private static void ApplyCli(
@@ -106,8 +113,6 @@ internal sealed class McpServerConfig
             switch (args[i])
             {
                 case "--help" or "-h":
-                    PrintHelp();
-                    Environment.Exit(0);
                     break;
 
                 case "--sandbox":
@@ -137,14 +142,31 @@ internal sealed class McpServerConfig
                     break;
 
                 case "--assembly":
-                    // Normalize to an absolute path so file checks and assembly loading use the same base directory.
-                    var path = Path.GetFullPath(NextValue(args, ref i, "--assembly"));
-                    if (!File.Exists(path))
-                        throw new ArgumentException($"Assembly file not found: '{path}'.");
-                    extraAssemblies.Add(path);
+                    extraAssemblies.Add(NormalizeAndValidateAssemblyPath(NextValue(args, ref i, "--assembly")));
                     break;
+
+                default:
+                    throw new ArgumentException($"Unknown option '{args[i]}'. Run 'alder-mcp --help' for usage.");
             }
         }
+    }
+
+    private static string NormalizeAndValidateAssemblyPath(string pathValue)
+    {
+        var path = Path.GetFullPath(pathValue);
+        if (!File.Exists(path))
+            throw new ArgumentException($"Assembly file not found: '{path}'.");
+
+        try
+        {
+            _ = AssemblyName.GetAssemblyName(path);
+        }
+        catch (Exception ex) when (ex is BadImageFormatException or FileLoadException)
+        {
+            throw new ArgumentException($"Assembly file is not loadable: '{path}'. {ex.Message}", ex);
+        }
+
+        return path;
     }
 
     private static string NextValue(string[] args, ref int i, string argName)
@@ -189,23 +211,22 @@ internal sealed class McpServerConfig
     {
         if (value.Equals("unlimited", StringComparison.OrdinalIgnoreCase))
             return null;
-        // Use InvariantCulture so the decimal separator stays '.' regardless of the system locale.
         if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0)
             return TimeSpan.FromSeconds(seconds);
         throw new ArgumentException(
             $"Invalid value '{value}' for --max-timeout. Expected a positive number of seconds or 'unlimited'.");
     }
 
-    private static void PrintHelp()
+    public static void PrintHelp(TextWriter writer)
     {
-        Console.Error.WriteLine("""
+        writer.WriteLine($"""
             Alder MCP Server: C# expression evaluation for AI agents
 
             Usage: alder-mcp [options]
 
             Options:
-              --sandbox <preset>            Security preset: trusted, safe, or strict (default: trusted)
-                                              trusted  = all operations allowed (method calls, construction, etc.)
+              --sandbox <preset>            Security preset: trusted, safe, or strict (default: {DefaultSandboxPreset})
+                                              trusted  = all operations allowed
                                               safe     = property access and assignment; no method calls or construction
                                               strict   = read-only property access only
 
@@ -213,9 +234,9 @@ internal sealed class McpServerConfig
                                               standard = standard C# expression semantics
                                               extended = superset with additional operators, builtins, and sugar
 
-              --max-statements <n>          Maximum statements per evaluation, or 'unlimited' (default: 100000000)
-              --max-loop-iterations <n>     Maximum iterations per loop, or 'unlimited' (default: 100000000)
-              --max-timeout <seconds>       Wall-clock timeout in seconds, or 'unlimited' (default: 30)
+              --max-statements <n>          Maximum statements per evaluation, or 'unlimited' (default: {DefaultMaxStatements})
+              --max-loop-iterations <n>     Maximum iterations per loop, or 'unlimited' (default: {DefaultMaxLoopIterations})
+              --max-timeout <seconds>       Wall-clock timeout in seconds, or 'unlimited' (default: {DefaultMaxTimeout.TotalSeconds:0})
 
               --namespace <name>            Add a .NET namespace to implicit imports (repeatable)
               --assembly <path>             Load an external assembly and expose its types (repeatable)
@@ -228,19 +249,8 @@ internal sealed class McpServerConfig
               ALDER_MAX_STATEMENTS          Same values as --max-statements
               ALDER_MAX_LOOP_ITERATIONS     Same values as --max-loop-iterations
               ALDER_MAX_TIMEOUT             Same values as --max-timeout
-              ALDER_NAMESPACES              Comma-separated namespaces (e.g. "MyCompany.Domain,MyCompany.Utils")
+              ALDER_NAMESPACES              Comma-separated namespaces
               ALDER_ASSEMBLIES              Semicolon-separated assembly paths
-
-            Example MCP client configuration:
-              {
-                "mcpServers": {
-                  "alder": {
-                    "command": "alder-mcp",
-                    "args": ["--sandbox", "safe", "--max-timeout", "10"],
-                    "env": { "ALDER_NAMESPACES": "MyCompany.Domain" }
-                  }
-                }
-              }
             """);
     }
 }

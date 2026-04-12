@@ -19,7 +19,7 @@ internal sealed class AlderTools
     [McpServerTool(Name = "evaluate", Title = "Evaluate C# Expression",
         Destructive = false, ReadOnly = false, OpenWorld = false, Idempotent = false),
      Description(
-        "Execute a C# expression and return its result. " +
+        "Execute a C# expression and return its result. This is the primary tool for normal use. " +
         "Supports: arithmetic, string interpolation, LINQ (Select, Where, Aggregate, etc.), lambdas, ternary (?:), " +
         "null-coalescing (??), pattern matching (is), object creation (new), method calls on .NET types (Math.Round, string.Join, etc.), " +
         "multi-statement blocks (semicolons between statements, last expression is the return value), " +
@@ -27,7 +27,6 @@ internal sealed class AlderTools
         "Does NOT support: class/struct/enum/record declarations, or using directives. " +
         "Pre-imported: System, System.Collections.Generic, System.Linq, System.Threading.Tasks, " +
         "System.Text, System.Text.RegularExpressions, System.Text.Json. " +
-        "Execution limits: 100M statements, 100M loop iterations, 30s timeout. " +
         "Output format: '<value> (<TypeName>)' e.g. '42 (Int32)', '\"hello\" (String)', '[1, 2, 3] (List<Int32>)'. " +
         "Null results return 'null'. Collections truncate at 100 elements with '...'.")]
     public static CallToolResult Evaluate(
@@ -58,7 +57,7 @@ internal sealed class AlderTools
 
         try
         {
-            var result = engine.Evaluate(expression, vars, cancellationToken);
+            var result = EvaluateWithVariables(engine, expression, vars, cancellationToken);
             return OkResult(FormatResult(result));
         }
         catch (OperationCanceledException)
@@ -78,22 +77,29 @@ internal sealed class AlderTools
     [McpServerTool(Name = "validate", Title = "Validate C# Expression",
         Destructive = false, ReadOnly = true, OpenWorld = false, Idempotent = true),
      Description(
-        "Check whether a C# expression is syntactically and semantically valid WITHOUT executing it. " +
-        "Use this to verify an expression before calling 'evaluate', or to diagnose syntax errors. " +
+        "Check whether a C# expression is syntactically and semantically valid without executing it. " +
+        "Use this only when the caller needs diagnostics or approval before execution. " +
+        "If you use it, pass the same 'variables' payload you plan to send to 'evaluate'. " +
         "Returns 'Valid' if the expression would evaluate successfully, or a list of diagnostics with " +
-        "C#-compatible error codes and messages (e.g. 'CS0103: The name 'foo' does not exist in the current context'). " +
-        "Note: cannot validate expressions that reference injected variables because those variables are unknown at validation time.")]
+        "C#-compatible error codes and messages (e.g. 'CS0103: The name 'foo' does not exist in the current context').")]
     public static CallToolResult Validate(
         AlderEngine engine,
         [Description(
             "The C# expression to validate. Same syntax rules as the 'evaluate' tool. " +
             "Example: 'Math.Sqrt(x) > threshold' (reports CS0103 if 'x' or 'threshold' are not in scope).")]
-        string expression)
+        string expression,
+        [Description(
+            "Optional JSON object whose keys become variables visible during validation. " +
+            "Use the same payload you plan to pass to 'evaluate' so identifier and member binding are checked against the intended inputs.")]
+        string? variables = null)
     {
         if (string.IsNullOrWhiteSpace(expression))
             return ErrorResult("'expression' is required and must not be empty.");
 
-        if (engine.TryValidate(expression, out var diagnostics))
+        if (!TryParseVariables(variables, out var vars, out var parseError))
+            return ErrorResult(parseError!);
+
+        if (TryValidateWithVariables(engine, expression, vars, out var diagnostics))
             return OkResult("Valid");
 
         var sb = new StringBuilder();
@@ -135,7 +141,7 @@ internal sealed class AlderTools
 
         try
         {
-            var trace = engine.EvaluateWithTrace(expression, vars, cancellationToken);
+            var trace = EvaluateWithTraceVariables(engine, expression, vars, cancellationToken);
             var sb = new StringBuilder();
             sb.Append("Result: ");
             sb.AppendLine(FormatValue(trace.Result));
@@ -161,7 +167,7 @@ internal sealed class AlderTools
     [McpServerTool(Name = "get_info", Title = "Get Engine Configuration",
         Destructive = false, ReadOnly = true, OpenWorld = false, Idempotent = true),
      Description(
-        "Returns the active engine configuration: sandbox level and permitted operations, language mode, " +
+        "Return the active engine configuration: sandbox level and permitted operations, language mode, " +
         "execution limits, and available namespaces. Use this to discover what operations and types are " +
         "available before crafting expressions, or when an expression fails due to a missing namespace.")]
     public static CallToolResult GetInfo(McpServerConfig config)
@@ -192,12 +198,7 @@ internal sealed class AlderTools
 
         sb.AppendLine();
         sb.AppendLine("Pre-imported namespaces (short names available):");
-        foreach (var ns in new[]
-        {
-            "System", "System.Collections.Generic", "System.Linq", "System.Threading.Tasks",
-            "System.Text", "System.Text.RegularExpressions", "System.Text.Json",
-            "System.Numerics", "System.Globalization",
-        })
+        foreach (var ns in McpServerConfig.GetImplicitNamespaces())
         {
             sb.Append("  ");
             sb.AppendLine(ns);
@@ -236,6 +237,7 @@ internal sealed class AlderTools
     static CallToolResult OkResult(string text) => new()
     {
         Content = [new TextContentBlock { Text = text }],
+        IsError = false,
     };
 
     static CallToolResult ErrorResult(string text) => new()
@@ -273,7 +275,7 @@ internal sealed class AlderTools
                 return false;
             }
 
-            var result = new Dictionary<string, object?>();
+            var result = new Dictionary<string, object?>(StringComparer.Ordinal);
             foreach (var prop in doc.RootElement.EnumerateObject())
                 result[prop.Name] = ConvertJsonElement(prop.Value);
 
@@ -287,6 +289,7 @@ internal sealed class AlderTools
         JsonValueKind.String => element.GetString(),
         JsonValueKind.Number when element.TryGetInt32(out var i) => i,
         JsonValueKind.Number when element.TryGetInt64(out var l) => l,
+        JsonValueKind.Number when element.TryGetDecimal(out var d) => d,
         JsonValueKind.Number => element.GetDouble(),
         JsonValueKind.True => true,
         JsonValueKind.False => false,
@@ -436,5 +439,47 @@ internal sealed class AlderTools
 
         foreach (var child in node.Children)
             AppendTrace(sb, child, indent + 1);
+    }
+
+    private static object? EvaluateWithVariables(
+        AlderEngine engine,
+        string expression,
+        IDictionary<string, object?>? vars,
+        CancellationToken cancellationToken)
+    {
+        if (vars == null || vars.Count == 0)
+            return engine.Evaluate(expression, cancellationToken: cancellationToken);
+
+        using var child = engine.CreateChild();
+        child.SetVariablesPreservingRuntimeTypes(vars);
+        return child.Evaluate(expression, cancellationToken: cancellationToken);
+    }
+
+    private static EvaluationTraceResult EvaluateWithTraceVariables(
+        AlderEngine engine,
+        string expression,
+        IDictionary<string, object?>? vars,
+        CancellationToken cancellationToken)
+    {
+        if (vars == null || vars.Count == 0)
+            return engine.EvaluateWithTrace(expression, cancellationToken: cancellationToken);
+
+        using var child = engine.CreateChild();
+        child.SetVariablesPreservingRuntimeTypes(vars);
+        return child.EvaluateWithTrace(expression, cancellationToken: cancellationToken);
+    }
+
+    private static bool TryValidateWithVariables(
+        AlderEngine engine,
+        string expression,
+        IDictionary<string, object?>? vars,
+        out IReadOnlyList<AlderDiagnostic> diagnostics)
+    {
+        if (vars == null || vars.Count == 0)
+            return engine.TryValidate(expression, out diagnostics);
+
+        using var child = engine.CreateChild();
+        child.SetVariablesPreservingRuntimeTypes(vars);
+        return child.TryValidate(expression, out diagnostics);
     }
 }

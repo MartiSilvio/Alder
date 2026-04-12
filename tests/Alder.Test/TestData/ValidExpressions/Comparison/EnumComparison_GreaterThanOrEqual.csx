@@ -1,1 +1,1 @@
-System.DayOfWeek.Friday >= System.DayOfWeek.Friday
+DayOfWeek.Friday >= DayOfWeek.Friday

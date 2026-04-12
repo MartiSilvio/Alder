@@ -6,7 +6,7 @@ foreach (var item in items)
     {
         sum += 10 / item;
     }
-    catch (System.DivideByZeroException)
+    catch (DivideByZeroException)
     {
         sum += -1;
     }

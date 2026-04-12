@@ -1,1 +1,1 @@
-System.DayOfWeek.Friday - 2
+DayOfWeek.Friday - 2

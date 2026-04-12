@@ -208,9 +208,12 @@ internal abstract class ParserBase
     /// Consumes an identifier or contextual keyword token for identifier positions.
     /// ECMA-334 §6.4.4 permits contextual keywords to appear as identifiers outside their contextual use.
     /// </summary>
+    internal bool CheckIdentifierOrContextualKeyword() =>
+        Check(TokenType.Identifier) || IsContextualKeyword(Peek().Type);
+
     internal Token ConsumeIdentifierOrContextualKeyword(string message)
     {
-        if (Check(TokenType.Identifier) || IsContextualKeyword(Peek().Type))
+        if (CheckIdentifierOrContextualKeyword())
             return Advance();
         throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, message);
     }
@@ -229,7 +232,7 @@ internal abstract class ParserBase
             or TokenType.Group or TokenType.Into or TokenType.Orderby or TokenType.Join or TokenType.On
             or TokenType.Equals or TokenType.By or TokenType.Ascending or TokenType.Descending or TokenType.Let
             or TokenType.Get or TokenType.Set or TokenType.Add or TokenType.Remove or TokenType.Init or TokenType.When
-            or TokenType.With or TokenType.And or TokenType.Or or TokenType.Not or TokenType.File or TokenType.Required
+            or TokenType.With or TokenType.Yield or TokenType.And or TokenType.Or or TokenType.Not or TokenType.File or TokenType.Required
             or TokenType.Scoped or TokenType.Args
             or TokenType.Like or TokenType.Between
             or TokenType.Unless or TokenType.Until;
@@ -313,7 +316,7 @@ internal abstract class ParserBase
             if (firstElementType == null) return null;
 
             string? firstName = null;
-            if (Check(TokenType.Identifier) && !IsTypeKeyword(Peek().Type))
+            if (CheckIdentifierOrContextualKeyword() && !IsTypeKeyword(Peek().Type))
                 firstName = Advance().Lexeme;
 
             if (!Check(TokenType.Comma)) return null;
@@ -326,7 +329,7 @@ internal abstract class ParserBase
                 if (elementType == null) return null;
 
                 string? elementName = null;
-                if (Check(TokenType.Identifier) && !IsTypeKeyword(Peek().Type))
+                if (CheckIdentifierOrContextualKeyword() && !IsTypeKeyword(Peek().Type))
                     elementName = Advance().Lexeme;
 
                 elements.Add(elementType);

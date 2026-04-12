@@ -700,7 +700,7 @@ internal sealed class PrimaryParser : ParserBase
         var parameters = new List<LambdaParameter>();
         do
         {
-            var param = Consume(TokenType.Identifier, "Expected parameter name");
+            var param = ConsumeIdentifierOrContextualKeyword("Expected parameter name");
             parameters.Add(new LambdaParameter(null, param));
         } while (Match(TokenType.Comma));
 
@@ -740,12 +740,12 @@ internal sealed class PrimaryParser : ParserBase
         var parameters = new List<LambdaParameter>();
         var isLambda = false;
 
-        if (Check(TokenType.Identifier))
+        if (CheckIdentifierOrContextualKeyword())
         {
             parameters.Add(new LambdaParameter(null, Advance()));
             while (Match(TokenType.Comma))
             {
-                if (!Check(TokenType.Identifier))
+                if (!CheckIdentifierOrContextualKeyword())
                     break;
                 parameters.Add(new LambdaParameter(null, Advance()));
             }
@@ -783,7 +783,7 @@ internal sealed class PrimaryParser : ParserBase
 
     private TupleElement ParseTupleElement()
     {
-        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
+        if (CheckIdentifierOrContextualKeyword() && PeekNext().Type == TokenType.Colon)
         {
             var nameToken = Advance();
             Advance(); // consume colon

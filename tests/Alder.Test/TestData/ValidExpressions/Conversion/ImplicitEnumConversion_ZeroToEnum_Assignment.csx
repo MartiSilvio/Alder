@@ -1,2 +1,2 @@
-System.DayOfWeek d = 0;
+DayOfWeek d = 0;
 return d;

@@ -1,1 +1,1 @@
-return (System.DayOfWeek)1;
+return (DayOfWeek)1;

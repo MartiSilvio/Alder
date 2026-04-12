@@ -1,8 +1,8 @@
 try
 {
-    throw new System.ArgumentException("bad value", "param1");
+    throw new ArgumentException("bad value", "param1");
 }
-catch (System.ArgumentException ex)
+catch (ArgumentException ex)
 {
     return ex.ParamName;
 }

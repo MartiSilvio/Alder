@@ -1,1 +1,1 @@
-System.String.Format("{0} + {1} = {2}", 1, 2, 3)
+String.Format("{0} + {1} = {2}", 1, 2, 3)

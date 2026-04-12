@@ -144,7 +144,17 @@ public class ParityTests(CompilationMode mode)
         }
 
         var engine = CreateEngine();
-        var alderEx = Assert.Catch<Exception>(() => engine.Evaluate(expr));
+
+        Exception? alderEx = null;
+        try
+        {
+            engine.Evaluate(expr);
+        }
+        catch (Exception ex)
+        {
+            alderEx = ex;
+        }
+
         Assert.That(alderEx, Is.Not.Null, "Alder should throw for invalid expression parity.");
 
         if (alderEx is not AlderException csEx)

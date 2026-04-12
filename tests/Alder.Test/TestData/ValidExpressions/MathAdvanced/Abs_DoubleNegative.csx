@@ -1,0 +1,1 @@
+return Math.Abs(-3.5) == 3.5;

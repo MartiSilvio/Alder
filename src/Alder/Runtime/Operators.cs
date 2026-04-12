@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
-using System.Text;
 using Alder.Diagnostics;
 using Alder.Parsing;
 

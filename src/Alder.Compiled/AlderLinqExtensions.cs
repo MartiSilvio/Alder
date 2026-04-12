@@ -23,9 +23,6 @@ public static class AlderLinqExtensions
         return engine;
     }
 
-    private static AlderEngine ResolveEngine(AlderEngine? engine) =>
-        engine != null ? ValidateEngine(engine) : GetGlobalEngine();
-
     private static Dictionary<string, object?>? BuildPositionalVars(object?[] variables) =>
         variables.Length == 0 ? null : AlderEngine.BuildPositionalVariables(variables);
 

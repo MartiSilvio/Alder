@@ -4,14 +4,14 @@ try
     try
     {
         log += "A";
-        throw new System.InvalidOperationException();
+        throw new InvalidOperationException();
     }
     finally
     {
         log += "B";
     }
 }
-catch (System.InvalidOperationException)
+catch (InvalidOperationException)
 {
     log += "C";
 }

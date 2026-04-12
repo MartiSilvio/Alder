@@ -1,8 +1,8 @@
 try
 {
-    throw new System.ArgumentNullException("myParam");
+    throw new ArgumentNullException("myParam");
 }
-catch (System.ArgumentNullException ex)
+catch (ArgumentNullException ex)
 {
     return ex.ParamName;
 }

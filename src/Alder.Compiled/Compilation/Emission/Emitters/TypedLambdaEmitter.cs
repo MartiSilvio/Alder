@@ -2,6 +2,8 @@ using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Compilation;
+using Alder.Runtime;
+using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
@@ -32,7 +34,18 @@ internal static class TypedLambdaEmitter
             }
             else if (body.Type != returnType)
             {
-                body = EmitHelpers.EnsureTypedExpression(body, returnType);
+                // §7.3: Named tuple expressions create NamedTupleValue (wrapping a ValueTuple)
+                // but typed delegates expect raw ValueTuple. CastResult handles the unwrapping.
+                if (body.Type == typeof(object) && TypeHelpers.IsValueTupleType(returnType))
+                {
+                    var closedCastResult = RuntimeGenericFactory.CloseGenericMethod(
+                        CastResultOpenMethod, [returnType]);
+                    body = LinqExpression.Call(closedCastResult, body);
+                }
+                else
+                {
+                    body = EmitHelpers.EnsureTypedExpression(body, returnType);
+                }
             }
 
             // Inject cancellation check so LINQ predicates/selectors respect CancellationToken

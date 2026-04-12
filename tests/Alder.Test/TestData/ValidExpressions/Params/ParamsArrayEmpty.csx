@@ -1,1 +1,1 @@
-System.String.Concat()
+String.Concat()

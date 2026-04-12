@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Reflection;
 
 namespace Alder.Runtime;
 
@@ -140,6 +139,18 @@ internal static partial class LambdaDelegateFactory
     {
         if (value is TResult typed)
             return typed;
+
+        // NamedTupleValue wraps a real ValueTuple — unwrap before casting so .NET
+        // delegates (e.g. LINQ's Func<T,TResult>) receive the underlying ValueTuple.
+        if (value is NamedTupleValue named)
+        {
+            if (named.Tuple is TResult unwrapped)
+                return unwrapped;
+            // TResult is object — keep the NamedTupleValue so element names are preserved
+            // through LINQ chains (e.g. Select → Where with named element access).
+            if (typeof(TResult) == typeof(object))
+                return (TResult)value!;
+        }
 
         // Async lambda returns Task<object?> but the delegate expects Task<T>.
         // MakeGenericMethod is safe here: CastResult is only called from factory methods

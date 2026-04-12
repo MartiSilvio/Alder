@@ -1,1 +1,1 @@
-Math.Sign(string.Compare("apple", "banana", System.StringComparison.Ordinal))
+Math.Sign(string.Compare("apple", "banana", StringComparison.Ordinal))

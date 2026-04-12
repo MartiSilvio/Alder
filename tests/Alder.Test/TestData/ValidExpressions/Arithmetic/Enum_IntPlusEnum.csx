@@ -1,1 +1,1 @@
-3 + System.DayOfWeek.Tuesday
+3 + DayOfWeek.Tuesday

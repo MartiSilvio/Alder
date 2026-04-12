@@ -151,14 +151,6 @@ internal sealed partial class ExpressionParser
     /// <summary>
     /// Returns true if the token type can be used as a parameter name in a named argument.
     /// </summary>
-    private static bool IsParameterName(TokenType type)
-    {
-        return type is TokenType.Identifier or TokenType.Value or TokenType.From or TokenType.Where or TokenType.Select
-            or TokenType.Group or TokenType.Into or TokenType.Orderby or TokenType.Join or TokenType.On
-            or TokenType.Equals or TokenType.By or TokenType.Ascending or TokenType.Descending or TokenType.Let
-            or TokenType.Get or TokenType.Set or TokenType.Add or TokenType.Remove or TokenType.Init or TokenType.When
-            or TokenType.With or TokenType.And or TokenType.Or or TokenType.Not or TokenType.File or TokenType.Required
-            or TokenType.Scoped or TokenType.Args
-            or TokenType.Like or TokenType.Between;
-    }
+    private static bool IsParameterName(TokenType type) =>
+        type is TokenType.Identifier || IsContextualKeyword(type);
 }

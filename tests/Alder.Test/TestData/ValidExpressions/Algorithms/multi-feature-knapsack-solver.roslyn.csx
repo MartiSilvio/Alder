@@ -24,7 +24,7 @@ for (var i = 1; i <= n; i++)
 
 var maxValue = dp[n * cols + capacity];
 
-var selected = new System.Collections.Generic.List<int>();
+var selected = new List<int>();
 var remaining = capacity;
 for (var i = n; i > 0; i--)
 {
@@ -42,7 +42,7 @@ foreach (var idx in selected)
 
 var valid = totalWeight >= 0 && totalWeight <= capacity;
 
-var densities = new System.Collections.Generic.List<double>();
+var densities = new List<double>();
 foreach (var idx in selected)
     densities.Add(Math.Pow(values[idx], 2) / (double)weights[idx]);
 

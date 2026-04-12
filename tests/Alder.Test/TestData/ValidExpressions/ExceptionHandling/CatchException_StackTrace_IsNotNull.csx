@@ -1,2 +1,2 @@
-try { throw new System.Exception("test"); }
-catch (System.Exception ex) { return ex.StackTrace != null; }
+try { throw new Exception("test"); }
+catch (Exception ex) { return ex.StackTrace != null; }

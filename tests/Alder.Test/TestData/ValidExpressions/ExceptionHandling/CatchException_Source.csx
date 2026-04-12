@@ -1,2 +1,2 @@
-try { throw new System.InvalidOperationException("bad"); }
-catch (System.InvalidOperationException ex) { return ex.Message; }
+try { throw new InvalidOperationException("bad"); }
+catch (InvalidOperationException ex) { return ex.Message; }

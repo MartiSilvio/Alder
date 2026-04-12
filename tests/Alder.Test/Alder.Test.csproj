@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Alder\Alder.csproj" />
     <ProjectReference Include="..\..\src\Alder.Compiled\Alder.Compiled.csproj" />
+    <ProjectReference Include="..\..\src\AI\Alder.Mcp\Alder.Mcp.csproj" />
   </ItemGroup>
 
   <ItemGroup>

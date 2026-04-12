@@ -1,1 +1,1 @@
-System.DayOfWeek.Monday + 2
+DayOfWeek.Monday + 2

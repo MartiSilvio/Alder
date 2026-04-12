@@ -37,6 +37,9 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo ResolveTypeMethod =
         typeof(TypeResolver).GetMethod(nameof(TypeResolver.ResolveType))!;
 
+    internal static readonly MethodInfo CastResultOpenMethod =
+        typeof(LambdaDelegateFactory).GetMethod(nameof(LambdaDelegateFactory.CastResult), BindingFlags.NonPublic | BindingFlags.Static)!;
+
     internal static readonly MethodInfo GetMemberMethod =
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetMember))!;
 

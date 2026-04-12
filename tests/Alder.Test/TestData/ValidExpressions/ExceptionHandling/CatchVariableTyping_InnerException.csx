@@ -1,12 +1,12 @@
 try
 {
-    try { throw new System.InvalidOperationException("inner"); }
-    catch (System.Exception inner)
+    try { throw new InvalidOperationException("inner"); }
+    catch (Exception inner)
     {
-        throw new System.ArgumentException("outer", inner);
+        throw new ArgumentException("outer", inner);
     }
 }
-catch (System.ArgumentException ex)
+catch (ArgumentException ex)
 {
     return ex.InnerException.Message;
 }

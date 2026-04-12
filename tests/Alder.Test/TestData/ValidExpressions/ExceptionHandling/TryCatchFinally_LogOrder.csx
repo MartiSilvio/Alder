@@ -2,9 +2,9 @@ var log = "";
 try
 {
     log += "try:";
-    throw new System.InvalidOperationException();
+    throw new InvalidOperationException();
 }
-catch (System.InvalidOperationException)
+catch (InvalidOperationException)
 {
     log += "catch:";
 }

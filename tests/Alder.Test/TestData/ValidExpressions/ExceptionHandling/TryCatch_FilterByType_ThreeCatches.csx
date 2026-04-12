@@ -1,16 +1,16 @@
 try
 {
-    throw new System.NotImplementedException();
+    throw new NotImplementedException();
 }
-catch (System.ArgumentException)
+catch (ArgumentException)
 {
     return "arg";
 }
-catch (System.NotImplementedException)
+catch (NotImplementedException)
 {
     return "notimpl";
 }
-catch (System.Exception)
+catch (Exception)
 {
     return "generic";
 }

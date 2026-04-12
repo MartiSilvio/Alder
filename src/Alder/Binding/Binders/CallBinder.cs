@@ -42,7 +42,13 @@ internal static class CallBinder
                     : callBinderService.TryBindInstanceCall(methodGroup.DeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out callPlan);
 
                 if (bound)
-                    return new BoundResolvedCallExpr(callee, arguments, callPlan!.Resolution, callPlan.IsStaticCall, callPlan.IsModuleCall, new BoundType(callPlan.SelectedMethod.ReturnType));
+                {
+                    var returnType = callPlan!.SelectedMethod.ReturnType;
+                    var boundReturnType = TypeHelpers.IsValueTupleType(returnType)
+                        ? CreateTupleAwareBoundType(returnType, arguments.Insert(0, methodGroup.Target))
+                        : new BoundType(returnType);
+                    return new BoundResolvedCallExpr(callee, arguments, callPlan.Resolution, callPlan.IsStaticCall, callPlan.IsModuleCall, boundReturnType);
+                }
 
                 if (!methodGroup.IsStatic && methodGroup.DeclaringType != typeof(object))
                 {
@@ -157,7 +163,7 @@ internal static class CallBinder
         return new BoundResolvedCallExpr(
             callee, typedArguments.Value, plan.Resolution,
             plan.IsStaticCall, plan.IsModuleCall,
-            new BoundType(plan.SelectedMethod.ReturnType),
+            CreateTupleAwareBoundType(plan.SelectedMethod.ReturnType, typedArguments.Value),
             IsExtensionCall: true);
     }
 
@@ -177,10 +183,11 @@ internal static class CallBinder
         allArguments.Add(targetExpr);
         allArguments.AddRange(userArguments);
 
+        var fullArguments = allArguments.ToImmutable();
         return new BoundResolvedCallExpr(
-            callee, allArguments.ToImmutable(), plan.Resolution,
+            callee, fullArguments, plan.Resolution,
             plan.IsStaticCall, plan.IsModuleCall,
-            new BoundType(plan.SelectedMethod.ReturnType),
+            CreateTupleAwareBoundType(plan.SelectedMethod.ReturnType, fullArguments),
             IsExtensionCall: true);
     }
 
@@ -216,7 +223,7 @@ internal static class CallBinder
         return new BoundResolvedCallExpr(
             callee, typedArguments.Value, resolution,
             callPlan.IsStaticCall, callPlan.IsModuleCall,
-            new BoundType(callPlan.SelectedMethod.ReturnType));
+            CreateTupleAwareBoundType(callPlan.SelectedMethod.ReturnType, typedArguments.Value));
     }
 
     private static ImmutableArray<BoundExpr>? TryBindLambdaArguments(
@@ -255,7 +262,8 @@ internal static class CallBinder
                 for (var p = 0; p < lambda.Parameters.Length; p++)
                 {
                     var paramType = invokeParams[p].ParameterType;
-                    var paramId = lambdaScope.DeclareLocal(lambda.Parameters[p], new BoundType(paramType));
+                    var boundParamType = CreateTupleAwareBoundType(paramType, arguments);
+                    var paramId = lambdaScope.DeclareLocal(lambda.Parameters[p], boundParamType);
                     lambdaParamIds.Add(paramId);
                     typedParams.Add(new BoundTypedLambdaParameter(lambda.Parameters[p], paramType));
                 }
@@ -302,6 +310,66 @@ internal static class CallBinder
         });
         return captures;
     }
+
+    /// <summary>
+    /// §7.3: Tuple element names are compile-time metadata erased at runtime.
+    /// When a type is a ValueTuple, search the bound tree for upstream lambdas that
+    /// produced a BoundStructuralType with element names and propagate them.
+    /// Used for both lambda parameter types (Where's p.squared → p.Item2) and
+    /// return types (First().value resolves via the propagated names).
+    /// </summary>
+    private static BoundType CreateTupleAwareBoundType(Type type, ImmutableArray<BoundExpr> arguments)
+    {
+        if (!TypeHelpers.IsValueTupleType(type))
+            return new BoundType(type);
+
+        foreach (var arg in arguments)
+        {
+            var names = FindTupleElementNames(type, arg);
+            if (!names.IsDefaultOrEmpty)
+                return BoundStructuralType.FromElementNames(type, names);
+        }
+
+        return new BoundType(type);
+    }
+
+    private static ImmutableArray<string?> FindTupleElementNames(Type tupleType, BoundExpr expr)
+    {
+        if (expr is BoundTypedLambdaExpr { Body.StaticType: BoundStructuralType st }
+            && st.ClrType == tupleType
+            && !st.TupleElementNames.IsDefaultOrEmpty)
+        {
+            return st.TupleElementNames;
+        }
+
+        if (expr is BoundResolvedCallExpr call)
+        {
+            // Check typed lambdas at this call level first (nearest producer wins)
+            foreach (var callArg in call.Arguments)
+            {
+                if (callArg is BoundTypedLambdaExpr { Body.StaticType: BoundStructuralType s }
+                    && s.ClrType == tupleType
+                    && !s.TupleElementNames.IsDefaultOrEmpty)
+                {
+                    return s.TupleElementNames;
+                }
+            }
+
+            // Recurse into non-lambda source expressions (chained calls like Select().OrderBy())
+            foreach (var callArg in call.Arguments)
+            {
+                if (callArg is not BoundTypedLambdaExpr)
+                {
+                    var names = FindTupleElementNames(tupleType, callArg);
+                    if (!names.IsDefaultOrEmpty)
+                        return names;
+                }
+            }
+        }
+
+        return default;
+    }
+
 
     private static ArgumentDescriptor[] BuildDescriptorsForLambdasAndMethodGroups(ImmutableArray<BoundExpr> arguments)
     {
@@ -390,7 +458,7 @@ internal static class CallBinder
             IsStatic: true,
             BoundType.Unknown);
 
-        boundCall = new BoundResolvedCallExpr(callee, arguments, callResult.Resolution, callResult.IsStaticCall, callResult.IsModuleCall, new BoundType(callResult.SelectedMethod.ReturnType));
+        boundCall = new BoundResolvedCallExpr(callee, arguments, callResult.Resolution, callResult.IsStaticCall, callResult.IsModuleCall, CreateTupleAwareBoundType(callResult.SelectedMethod.ReturnType, arguments));
         return true;
     }
 

@@ -1,1 +1,1 @@
-System.String.Concat("hello")
+String.Concat("hello")

@@ -11,6 +11,45 @@ namespace Alder.Test.Types;
 [TestFixture(CompilationMode.Compiled)]
 public class TupleTests(CompilationMode mode)
 {
+    #region Engine-only: Named tuple internal API tests
+
+    [Test]
+    public void CastResult_UnwrapsNamedTupleValue()
+    {
+        // Engine-only: tests CastResult internal API directly
+        var named = new Alder.Runtime.NamedTupleValue(
+            (1, 4),
+            new Dictionary<string, int> { ["val"] = 0, ["squared"] = 1 });
+        var result = Alder.Runtime.LambdaDelegateFactory.CastResult<(int, int)>(named);
+        Assert.That(result, Is.EqualTo((1, 4)));
+    }
+
+    [Test]
+    public void CastResult_PreservesNamedTupleAsObject()
+    {
+        // Engine-only: when TResult is object, NamedTupleValue is preserved (not unwrapped)
+        var named = new Alder.Runtime.NamedTupleValue(
+            (1, 4),
+            new Dictionary<string, int> { ["val"] = 0, ["squared"] = 1 });
+        var result = Alder.Runtime.LambdaDelegateFactory.CastResult<object>(named);
+        Assert.That(result, Is.InstanceOf<Alder.Runtime.NamedTupleValue>());
+    }
+
+    [Test]
+    public void NamedTuple_SelectOnly_ProducesValueTupleType()
+    {
+        // Engine-only: asserts runtime type is ValueTuple, not value comparison
+        var engine = TestEngineFactory.Create(mode);
+        var result = engine.Evaluate("""
+            var items = new[] { 1, 2, 3 };
+            return items.Select(x => (val: x, squared: x * x)).First();
+            """);
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
+    }
+
+    #endregion
+
     #region Engine-only: Type name assertions (GetType().Name checks, not value comparison)
 
     [Test]

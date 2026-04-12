@@ -165,20 +165,19 @@ internal sealed class StatementParser : ParserBase
             return ParseConstDeclaration(mark);
 
         // ECMA-334 §13.15: yield return and yield break are statement forms.
-        if (Match(TokenType.Yield))
+        // §6.4.4: yield is contextual — only a keyword when followed by 'return' or 'break'.
+        if (Check(TokenType.Yield) && PeekNext().Type is TokenType.Return or TokenType.Break)
         {
+            Advance(); // consume 'yield'
             if (Match(TokenType.Return))
             {
                 var value = _expression.ParseExpression();
                 Consume(TokenType.Semicolon, "Expected ';' after yield return");
                 return new YieldReturnExpr(value) { Span = SpanFrom(mark) };
             }
-            if (Match(TokenType.Break))
-            {
-                Consume(TokenType.Semicolon, "Expected ';' after yield break");
-                return new YieldBreakExpr() { Span = SpanFrom(mark) };
-            }
-            throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'return' or 'break' after 'yield'");
+            Advance(); // consume 'break'
+            Consume(TokenType.Semicolon, "Expected ';' after yield break");
+            return new YieldBreakExpr() { Span = SpanFrom(mark) };
         }
 
         if (MatchVar())

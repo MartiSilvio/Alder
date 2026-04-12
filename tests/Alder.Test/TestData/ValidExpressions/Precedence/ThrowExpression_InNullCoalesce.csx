@@ -1,2 +1,2 @@
 string? s = "ok";
-return s ?? throw new System.Exception();
+return s ?? throw new Exception();

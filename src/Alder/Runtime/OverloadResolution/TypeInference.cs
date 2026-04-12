@@ -589,28 +589,7 @@ internal static class TypeInference
         return false;
     }
 
-    private static bool IsLambdaOutputParam(int paramIndex, InferenceContext ctx, ParameterInfo[] parameters, object?[] lambdaArgs)
-    {
-        var genericParam = ctx.GenericParams[paramIndex];
-        for (var i = 0; i < parameters.Length && i < lambdaArgs.Length; i++)
-        {
-            if (lambdaArgs[i] == null)
-                continue;
 
-            var paramType = parameters[i].ParameterType;
-            if (!paramType.IsGenericType)
-                continue;
-
-            var paramGenericDef = paramType.GetGenericTypeDefinition();
-            if (!IsFuncType(paramGenericDef))
-                continue;
-
-            var outputType = paramType.GetGenericArguments()[^1];
-            if (ContainsGenericParam(outputType, genericParam))
-                return true;
-        }
-        return false;
-    }
 
     private static bool ContainsGenericParam(Type type, Type genericParam)
     {

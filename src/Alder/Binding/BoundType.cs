@@ -73,4 +73,20 @@ internal sealed class BoundStructuralType : BoundType
         _memberTypes = memberTypes;
         TupleElementNames = tupleElementNames;
     }
+
+    /// <summary>
+    /// Creates a BoundStructuralType from ordered tuple element names and their CLR types.
+    /// </summary>
+    internal static BoundStructuralType FromElementNames(Type tupleType, ImmutableArray<string?> names, Type[]? elementTypes = null)
+    {
+        elementTypes ??= tupleType.GetGenericArguments();
+        var members = ImmutableDictionary.CreateBuilder<string, Type>();
+        for (var i = 0; i < names.Length && i < elementTypes.Length; i++)
+        {
+            if (names[i] is { } name)
+                members[name] = elementTypes[i];
+        }
+
+        return new BoundStructuralType(tupleType, members.ToImmutable(), names);
+    }
 }

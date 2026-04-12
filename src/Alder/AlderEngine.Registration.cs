@@ -92,6 +92,13 @@ public sealed partial class AlderEngine
             DefineOrStageVariable(name, value, type);
     }
 
+    internal void SetVariablesPreservingRuntimeTypes(IDictionary<string, object?> variables)
+    {
+        ThrowIfDisposed();
+        foreach (var (name, value) in variables)
+            DefineOrStageVariable(name, value, value?.GetType() ?? typeof(object));
+    }
+
     private void DefineOrStageVariables(IDictionary<string, object?> variables, Type inferredType)
     {
         if (_context != null)

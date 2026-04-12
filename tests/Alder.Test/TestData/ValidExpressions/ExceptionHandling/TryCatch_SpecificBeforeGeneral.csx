@@ -1,12 +1,12 @@
 try
 {
-    throw new System.ArgumentException("test");
+    throw new ArgumentException("test");
 }
-catch (System.ArgumentException)
+catch (ArgumentException)
 {
     return "specific";
 }
-catch (System.Exception)
+catch (Exception)
 {
     return "general";
 }
