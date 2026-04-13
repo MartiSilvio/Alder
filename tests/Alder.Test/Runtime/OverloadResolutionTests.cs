@@ -111,7 +111,7 @@ public class OverloadResolutionTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("named", new NamedCaseTarget());
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("named.M(VALUE: 1)"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0304));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1739));
     }
 
     #endregion

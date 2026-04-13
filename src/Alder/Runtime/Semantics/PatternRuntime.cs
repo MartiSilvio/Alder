@@ -32,7 +32,30 @@ internal static class PatternRuntime
 
                 case TypePattern typePattern:
                 {
-                    var targetType = runtime.Context.TypeResolver.ResolveType(typePattern.TypeToken.Lexeme);
+                    var lexeme = typePattern.TypeToken.Lexeme;
+                    var targetType = runtime.Context.TypeResolver.TryResolveType(lexeme);
+                    if (targetType is null && typePattern.VariableName is null)
+                    {
+                        // §11.2.3: an enum member reference (`EnumType.Member`) without a variable binding
+                        // is a constant pattern — equality against the enum value.
+                        var lastDot = lexeme.LastIndexOf('.');
+                        if (lastDot > 0)
+                        {
+                            var enumType = runtime.Context.TypeResolver.ResolveType(lexeme[..lastDot]);
+                            if (enumType is { IsEnum: true })
+                            {
+                                var memberName = lexeme[(lastDot + 1)..];
+                                var field = enumType.GetField(memberName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                                if (field is not null)
+                                {
+                                    var enumValue = field.GetValue(null);
+                                    return TypeHelpers.RequireBoolean(Operators.Equals(value, enumValue));
+                                }
+                            }
+                        }
+                    }
+                    if (targetType is null)
+                        throw new AlderException(DiagnosticDescriptors.TypeNotFound, lexeme);
                     var isMatch = TypeHelpers.IsType(value, targetType);
                     if (isMatch && typePattern.VariableName != null) runtime.Context.DefineNew(typePattern.VariableName.Value.Lexeme, value, targetType);
                     return isMatch;

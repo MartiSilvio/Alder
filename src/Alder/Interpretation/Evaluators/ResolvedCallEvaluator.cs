@@ -180,6 +180,16 @@ internal static class ResolvedCallEvaluator
     {
         var parameters = MethodDispatchCache.GetParameters(resolved.Method);
         var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, ct);
+
+        // A boxed Nullable<T> with HasValue=false is indistinguishable from a null reference,
+        // but its struct methods are still well-defined on the default value.
+        if (target == null && !resolved.Method.IsStatic &&
+            resolved.Method.DeclaringType is { IsGenericType: true } declaringType &&
+            declaringType.GetGenericTypeDefinition() == typeof(Nullable<>))
+        {
+            return TypeHelpers.InvokeNullableInstanceMethod(declaringType, resolved.Method.Name, prepared);
+        }
+
         var result = MethodInvoker.InvokeResolvedMethod(resolved.Method, target, prepared, ctx.Context);
         ArgumentPreparer.CopyBackOutArgs(args, prepared, parameters);
         TypeHelpers.GuardReflectionLeak(result, "method", resolved.Method.Name);

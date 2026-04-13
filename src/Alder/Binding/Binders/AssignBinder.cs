@@ -27,7 +27,17 @@ internal static class AssignBinder
 
     internal static void EnsureVariableIsAssignable(string variableName, BindingContext context)
     {
-        if (context.IsReadOnlyLocal(variableName))
-            throw new AlderException(DiagnosticDescriptors.AssignmentRequiresVariable);
+        var reason = context.GetReadOnlyReason(variableName);
+        if (reason == ReadOnlyReason.None)
+            return;
+
+        // §13.9.5: foreach's iteration variable is readonly; Roslyn reports CS1656 with the
+        // specific "kind" text rather than the generic CS0131.
+        if (reason == ReadOnlyReason.IterationVariable)
+            throw new AlderException(
+                DiagnosticDescriptors.ReadOnlyAssignmentToReservedKind,
+                variableName, "foreach iteration variable");
+
+        throw new AlderException(DiagnosticDescriptors.AssignmentRequiresVariable);
     }
 }

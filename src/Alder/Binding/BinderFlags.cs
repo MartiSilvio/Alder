@@ -7,4 +7,6 @@ internal enum BinderFlags
     InLoop = 1 << 0,
     InSwitch = 1 << 1,
     InLockBody = 1 << 2,
+    InFinally = 1 << 3,
+    InCatch = 1 << 4,
 }

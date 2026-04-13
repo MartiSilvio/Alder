@@ -55,11 +55,24 @@ public sealed partial class AlderEngine
 
             var version = context.GetTypeInferenceVersion();
 
-            if (!expression.TryGetOrCreateBoundExpression(context, out var bound, out var failureReason) ||
-                bound == null)
+            Alder.Binding.BoundExpr? bound;
+            string? failureReason;
+            try
             {
-                expression.CompiledInfo = new CompiledExpressionInfo(null, false,
-                    failureReason ?? "Binding failed for expression.", TypeVersion: version);
+                if (!expression.TryGetOrCreateBoundExpression(context, out bound, out failureReason) ||
+                    bound == null)
+                {
+                    expression.CompiledInfo = new CompiledExpressionInfo(null, false,
+                        failureReason ?? "Binding failed for expression.", TypeVersion: version);
+                    return false;
+                }
+            }
+            catch (AlderException ex)
+            {
+                // Bind-time semantic errors (CS0163 fall-through, etc.) mean the expression cannot
+                // be compiled. Surface them as a compile failure rather than propagating — TryCompile
+                // is a probe, not an assertion.
+                expression.CompiledInfo = new CompiledExpressionInfo(null, false, ex.Message, ex, TypeVersion: version);
                 return false;
             }
 

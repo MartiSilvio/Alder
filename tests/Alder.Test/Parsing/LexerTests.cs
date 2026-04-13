@@ -226,7 +226,7 @@ public class LexerTests
     {
         var lexer = new Lexer("\"line1\nline2\"");
         var ex = Assert.Throws<AlderException>(() => lexer.Tokenize());
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1010));
     }
 
     [TestCase(@"""\{""")]
@@ -235,7 +235,7 @@ public class LexerTests
     {
         var lexer = new Lexer(input);
         var ex = Assert.Throws<AlderException>(() => lexer.Tokenize());
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1009));
     }
 
     [Test]
@@ -309,7 +309,7 @@ public class LexerTests
     {
         var lexer = new Lexer("''");
         var ex = Assert.Throws<AlderException>(() => lexer.Tokenize());
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1011));
     }
 
     [Test]
@@ -317,7 +317,7 @@ public class LexerTests
     {
         var lexer = new Lexer("'ab'");
         var ex = Assert.Throws<AlderException>(() => lexer.Tokenize());
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1012));
     }
 
     #endregion

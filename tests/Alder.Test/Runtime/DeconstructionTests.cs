@@ -32,8 +32,9 @@ public class DeconstructionTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("{ var (x, y, z) = (1, 2); return x; }"));
-        Assert.That(ex!.Message, Does.Contain("Cannot deconstruct"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS8132));
+        // Reported at bind time as CS8130 ("cannot infer type of implicitly-typed deconstruction
+        // variable") to match Roslyn — the extra variable has no source to infer from.
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8130));
     }
 
     // Engine-only: error test (arity mismatch assertion)

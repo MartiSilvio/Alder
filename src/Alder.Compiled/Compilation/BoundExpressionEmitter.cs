@@ -64,13 +64,14 @@ internal sealed partial class BoundExpressionEmitter
         {
             var emittedBody = Emit(expr);
             var resultVar = LinqExpression.Variable(typeof(object), "rootResult");
+            // §13.10.4: escaping goto must throw CS0159, not silently unwrap to its label name.
             var body = LinqExpression.Block(
                 typeof(object),
                 [resultVar],
                 LinqExpression.Assign(resultVar, EmitHelpers.AsObject(emittedBody)),
                 LinqExpression.IfThen(
                     LinqExpression.NotEqual(signalParam, LinqExpression.Constant(null, typeof(ControlFlowSignal))),
-                    LinqExpression.Assign(resultVar, LinqExpression.Property(signalParam, ControlFlowValueProperty))),
+                    LinqExpression.Assign(resultVar, LinqExpression.Call(ControlFlowUnwrapOrThrowMethod, signalParam))),
                 resultVar);
 
             var allVariables = new List<ParameterExpression> { signalParam };

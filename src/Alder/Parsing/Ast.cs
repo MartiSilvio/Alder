@@ -361,7 +361,7 @@ internal sealed record DoWhileStatementExpr(List<Expr> Body, Expr Condition) : E
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitDoWhile(this);
 }
 
-internal sealed record ForEachStatementExpr(Token VariableName, Expr Collection, List<Expr> Body) : Expr
+internal sealed record ForEachStatementExpr(Token VariableName, Expr Collection, List<Expr> Body, string? DeclaredTypeName = null) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitForEach(this);
 }

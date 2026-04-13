@@ -80,12 +80,12 @@ public class VariableDeclarationTests(CompilationMode mode)
     }
 
     [Test]
-    public void ConstDeclaration_Increment_ThrowsCs0131()
+    public void ConstDeclaration_Increment_ThrowsCs1059()
     {
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("{ const int x = 1; x++; return x; }"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0131));
-        Assert.That(ex.FormattedCode, Is.EqualTo("CS0131"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1059));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CS1059"));
     }
 
     #endregion

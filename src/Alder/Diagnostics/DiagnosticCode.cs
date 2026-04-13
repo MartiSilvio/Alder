@@ -37,24 +37,42 @@ public enum DiagnosticCode
     CS0128 = 128,
     /// <summary>The left-hand side of an assignment must be a variable, property or indexer</summary>
     CS0131 = 131,
+    /// <summary>The label '{0}' is a duplicate</summary>
+    CS0152 = 152,
+    /// <summary>The expression being assigned to '{0}' must be constant</summary>
+    CS0133 = 133,
+    /// <summary>Cannot create an instance of the abstract type or interface '{0}'</summary>
+    CS0144 = 144,
+    /// <summary>Cannot create an instance of the static class '{0}'</summary>
+    CS0712 = 712,
+    /// <summary>A constant value is expected</summary>
+    CS0150 = 150,
     /// <summary>No enclosing loop out of which to break or continue</summary>
     CS0139 = 139,
     /// <summary>The type caught or thrown must be derived from System.Exception</summary>
     CS0155 = 155,
     /// <summary>A throw statement with no arguments is not allowed outside of a catch clause</summary>
     CS0156 = 156,
+    /// <summary>Control cannot leave the body of a finally clause</summary>
+    CS0157 = 157,
     /// <summary>No such label '{0}' within the scope of the goto statement</summary>
     CS0159 = 159,
+    /// <summary>A previous catch clause already catches all exceptions of this or of a super type</summary>
+    CS0160 = 160,
     /// <summary>Control cannot fall through from one case label to another</summary>
     CS0163 = 163,
     /// <summary>A lock expression must be a reference type</summary>
     CS0185 = 185,
     /// <summary>A readonly field cannot be assigned to</summary>
     CS0191 = 191,
+    /// <summary>Property or indexer '{0}' cannot be assigned to -- it is read only</summary>
+    CS0200 = 200,
     /// <summary>'{0}' does not have a predefined size</summary>
     CS0233 = 233,
     /// <summary>The type or namespace name '{0}' could not be found</summary>
     CS0246 = 246,
+    /// <summary>Using the generic type '{0}' requires {1} type arguments</summary>
+    CS0305 = 305,
     /// <summary>Cannot implicitly convert type '{0}' to '{1}'. An explicit conversion exists (are you missing a cast?)</summary>
     CS0266 = 266,
 
@@ -64,25 +82,59 @@ public enum DiagnosticCode
     CS0744 = 744,
     /// <summary>Cannot assign null to an implicitly-typed variable</summary>
     CS0815 = 815,
+    /// <summary>Implicitly-typed variables must be initialized</summary>
+    CS0818 = 818,
     /// <summary>No best type found for an implicitly-typed array</summary>
     CS0826 = 826,
 
+    /// <summary>; expected</summary>
+    CS1002 = 1002,
     /// <summary>Syntax error, '{0}' expected</summary>
     CS1003 = 1003,
+    /// <summary>Unrecognized escape sequence</summary>
+    CS1009 = 1009,
+    /// <summary>Newline in constant</summary>
+    CS1010 = 1010,
+    /// <summary>Empty character literal</summary>
+    CS1011 = 1011,
+    /// <summary>Too many characters in character literal</summary>
+    CS1012 = 1012,
     /// <summary>Invalid number</summary>
     CS1013 = 1013,
     /// <summary>Try statement already has an empty catch block</summary>
     CS1017 = 1017,
+    /// <summary>Expected catch or finally</summary>
+    CS1524 = 1524,
+    /// <summary>Type expected</summary>
+    CS1031 = 1031,
+    /// <summary>) expected</summary>
+    CS1026 = 1026,
     /// <summary>Integral constant is too large</summary>
     CS1021 = 1021,
+    /// <summary>No overload for method '{0}' takes {1} arguments</summary>
+    CS1501 = 1501,
+    /// <summary>Argument {0}: cannot convert from '{1}' to '{2}'</summary>
+    CS1503 = 1503,
     /// <summary>'{0}' does not contain a definition for '{1}'</summary>
     CS1061 = 1061,
+    /// <summary>The operand of an increment or decrement operator must be a variable, property or indexer</summary>
+    CS1059 = 1059,
+    /// <summary>Cannot assign to '{0}' because it is a '{1}'</summary>
+    CS1656 = 1656,
     /// <summary>Invalid expression term '{0}'</summary>
     CS1525 = 1525,
+    /// <summary>The best overload for '{0}' does not have a parameter named '{1}'</summary>
+    CS1739 = 1739,
     /// <summary>foreach requires GetEnumerator</summary>
     CS1579 = 1579,
+    /// <summary>Delegate '{0}' does not take {1} arguments</summary>
+    CS1593 = 1593,
+    /// <summary>Cannot convert lambda expression to type '{0}' because it is not a delegate type</summary>
+    CS1660 = 1660,
     /// <summary>Cannot convert lambda to delegate type because parameter types do not match</summary>
     CS1661 = 1661,
+    /// <summary>Cannot convert {0} to intended delegate type because some of the return types in the block are not implicitly convertible to the delegate return type</summary>
+    CS1662 = 1662,
     /// <summary>'{0}' does not contain a constructor that takes {1} arguments</summary>
     CS1729 = 1729,
     /// <summary>Expression expected</summary>
@@ -91,6 +143,18 @@ public enum DiagnosticCode
     CS1955 = 1955,
     /// <summary>Cannot await in the body of a lock statement</summary>
     CS1996 = 1996,
+    /// <summary>Since '{0}' returns void, a return keyword must not be followed by an object expression</summary>
+    CS0127 = 127,
+    /// <summary>There is no target type for the default literal.</summary>
+    CS8716 = 8716,
+    /// <summary>The delegate type could not be inferred.</summary>
+    CS8917 = 8917,
+    /// <summary>It is not legal to use nullable type '{0}?' in a pattern; use the underlying type '{0}' instead</summary>
+    CS8116 = 8116,
+    /// <summary>An expression of type '{0}' cannot be handled by a pattern of type '{1}'</summary>
+    CS8121 = 8121,
+    /// <summary>List patterns may not be used for a value of type '{0}'</summary>
+    CS8985 = 8985,
 
     /// <summary>Cannot await '{0}'</summary>
     CS4001 = 4001,
@@ -107,14 +171,24 @@ public enum DiagnosticCode
     CS8129 = 8129,
     /// <summary>Cannot deconstruct a tuple of '{0}' elements into '{1}' variables</summary>
     CS8132 = 8132,
-    /// <summary>The pattern is unreachable</summary>
+    /// <summary>Cannot infer the type of implicitly-typed deconstruction variable '{0}'</summary>
+    CS8130 = 8130,
+    /// <summary>Expression does not have a name</summary>
+    CS8081 = 8081,
+    /// <summary>The switch expression does not handle all possible values of its input type</summary>
+    CS8509 = 8509,
+    /// <summary>The pattern is unreachable. It has already been handled by a previous arm of the switch expression or it is impossible to match</summary>
     CS8510 = 8510,
+    /// <summary>Relational patterns may not be used for a value of type '{0}'</summary>
+    CS8781 = 8781,
     /// <summary>Cannot convert lambda to delegate type because return type does not match</summary>
     CS8934 = 8934,
     /// <summary>Unterminated raw string literal</summary>
     CS8997 = 8997,
     /// <summary>There is no target type for the collection expression</summary>
     CS9176 = 9176,
+    /// <summary>A constant value of type '{0}' is expected</summary>
+    CS9135 = 9135,
 
     /// <summary>Strict compilation mode could not compile the expression to IL</summary>
     ALDR0001 = 1_000_001,

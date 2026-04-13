@@ -57,7 +57,10 @@ internal static class GotoEmitter
     {
         return LinqExpression.Assign(
             ctx.SignalParam,
-            LinqExpression.Call(ControlFlowGotoMethod, LinqExpression.Constant(node.Label)));
+            LinqExpression.Call(
+                ControlFlowGotoMethod,
+                LinqExpression.Constant(node.Label),
+                LinqExpression.Constant(node.Source.Span)));
     }
 }
 

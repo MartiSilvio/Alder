@@ -587,7 +587,7 @@ internal sealed class PrimaryParser : ParserBase
         {
             var typeName = TryParseTypeName();
             if (typeName == null)
-                throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "type name after 'typeof('");
+                throw SyntaxError(DiagnosticDescriptors.TypeExpected);
             typeToken = new Token(TokenType.Identifier, typeName, null, Peek().Line, Peek().Column);
         }
         Consume(TokenType.RightParen, "Expected ')' after typeof type");
@@ -611,6 +611,15 @@ internal sealed class PrimaryParser : ParserBase
     private Expr ParseNameofExpression(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'nameof'");
+        // §12.8.22: the nameof operand must name an entity (identifier, member access, or qualified name).
+        // Roslyn rejects literals with CS8081 ("Expression does not have a name"), and rejects type
+        // keywords like `nameof(int)` with CS1525 ("Invalid expression term") — the latter matches the
+        // standard InvalidExpressionTerm fallback used elsewhere in the primary parser.
+        if (IsTypeKeyword(Peek().Type))
+            throw SyntaxError(DiagnosticDescriptors.InvalidExpressionTerm, Peek().Lexeme);
+        if (Check(TokenType.Number) || Check(TokenType.String) || Check(TokenType.InterpolatedString) ||
+            Check(TokenType.Character) || Check(TokenType.True) || Check(TokenType.False) || Check(TokenType.Null))
+            throw SyntaxError(DiagnosticDescriptors.NameofExpressionHasNoName);
         var name = StripVerbatimPrefix(Consume(TokenType.Identifier, "Expected identifier after 'nameof('").Lexeme);
 
         if (Check(TokenType.Less))
@@ -641,6 +650,10 @@ internal sealed class PrimaryParser : ParserBase
             }
         }
 
+        // §12.8.22: if the name chain is followed by additional expression tokens (e.g. `x + 1`),
+        // the operand is not a name expression — Roslyn reports CS8081 rather than a syntax error.
+        if (!Check(TokenType.RightParen))
+            throw SyntaxError(DiagnosticDescriptors.NameofExpressionHasNoName);
         Consume(TokenType.RightParen, "Expected ')' after nameof expression");
         return new NameofExpr(name) { Span = SpanFrom(mark) };
     }
@@ -773,11 +786,15 @@ internal sealed class PrimaryParser : ParserBase
             {
                 elements.Add(ParseTupleElement());
             }
-            Consume(TokenType.RightParen, "Expected ')' after tuple elements");
+            if (!Check(TokenType.RightParen))
+                throw SyntaxError(DiagnosticDescriptors.CloseParenExpected);
+            Advance();
             return new TupleExpr(elements) { Span = SpanFrom(mark) };
         }
 
-        Consume(TokenType.RightParen, "Expected ')' after expression");
+        if (!Check(TokenType.RightParen))
+            throw SyntaxError(DiagnosticDescriptors.CloseParenExpected);
+        Advance();
         return firstElement.Expression;
     }
 
@@ -974,10 +991,23 @@ internal sealed class PrimaryParser : ParserBase
                     var exprText = exprEnd >= 0 ? content[exprStart..exprEnd] : content[exprStart..i];
                     i++; // skip }
 
+                    if (string.IsNullOrWhiteSpace(exprText))
+                        throw new AlderException(DiagnosticDescriptors.ExpressionExpected, token.Span, token.Line, token.Column);
+
                     var lexer = new Lexer(exprText);
                     var parserTokens = lexer.Tokenize();
                     var subParser = ExpressionParser.CreateForSubExpression(parserTokens, State.LanguageMode);
-                    var expr = subParser.ParseExpression();
+                    Expr expr;
+                    try
+                    {
+                        expr = subParser.ParseExpression();
+                    }
+                    catch (AlderException ex) when (ex.ErrorCode == DiagnosticCode.CS1525)
+                    {
+                        // §12.8.3: an interpolation hole requires a complete expression;
+                        // Roslyn reports CS1733 "Expression expected" rather than CS1525.
+                        throw new AlderException(DiagnosticDescriptors.ExpressionExpected, token.Span, token.Line, token.Column);
+                    }
                     parts.Add(new ExpressionPart(expr, alignmentSpec, formatSpec));
                     break;
                 }

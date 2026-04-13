@@ -88,7 +88,6 @@ The operator system also handles non-numeric operations that share the operator 
 | Enum arithmetic | `Enum + int`, `Enum - Enum`, `~Enum`, `Enum & Enum` | Via underlying integral type |
 | User-defined operators | `op_Addition`, `op_Subtraction`, etc. | Searched on both operand types, cached; `op_CheckedXxx` tried first in checked context |
 | Nullable lifted | `int? + int?` where either is null | Returns `null` (lifted operator semantics) |
-| String repetition | `"ab" * 3` (Extended mode) | Repeats string n times |
 
 For equality, NaN follows IEEE 754: `NaN != NaN` is `true`, `NaN == anything` is `false`. Tuple equality is element-wise with type promotion per element. Strict equality (`===`) requires exact runtime type match.
 

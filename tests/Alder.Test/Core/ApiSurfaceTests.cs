@@ -33,6 +33,7 @@ public class ApiSurfaceTests
             "Parse",
             "SetVariable",
             "SetVariables",
+            "SetVariablesPreservingRuntimeTypes",
             "TryCompile",
             "TryEvaluate",
             "TryParse",

@@ -2797,16 +2797,6 @@ not true          // false
 
 In Standard mode, `and`, `or`, `not` are parsed as identifiers.
 
-### String Repetition (`*`)
-
-`string * count` or `count * string`. Count must be non-negative. Count 0 returns `""`.
-
-```csharp
-"ab" * 3    // "ababab"
-3 * "ab"    // "ababab"
-```
-
-
 ### Inclusive Range (`..=`, `..<`)
 
 Standard `..` produces `System.Range` (exclusive end). Extended adds `..=` (inclusive) and `..<` (explicit exclusive) producing `IEnumerable<int>` sequences.
@@ -4010,7 +4000,7 @@ When types don't match the fast path (mixed types, nullables, `string + object`,
 - Nullable three-valued logic (`bool? & bool?`, `bool? | bool?`)
 - User-defined operators (`op_Addition`, `op_Subtraction`, etc.)
 - Cross-type numeric promotion via the ECMA-334 §12.4.7.3 rules (see [Numeric Promotion](numeric-promotion.md))
-- Extended mode: string repetition (`"ab" * 3`), object merge (`new { A = 1 } + new { B = 2 }`)
+- Extended mode: object merge (`new { A = 1 } + new { B = 2 }`)
 
 Before the fallback path, ECMA-334 §10.2.11 constant promotion is applied: if one operand is a literal constant, it may be implicitly promoted (e.g., `int` 0 to `uint`).
 
@@ -4326,7 +4316,6 @@ The operator system also handles non-numeric operations that share the operator 
 | Enum arithmetic | `Enum + int`, `Enum - Enum`, `~Enum`, `Enum & Enum` | Via underlying integral type |
 | User-defined operators | `op_Addition`, `op_Subtraction`, etc. | Searched on both operand types, cached; `op_CheckedXxx` tried first in checked context |
 | Nullable lifted | `int? + int?` where either is null | Returns `null` (lifted operator semantics) |
-| String repetition | `"ab" * 3` (Extended mode) | Repeats string n times |
 
 For equality, NaN follows IEEE 754: `NaN != NaN` is `true`, `NaN == anything` is `false`. Tuple equality is element-wise with type promotion per element. Strict equality (`===`) requires exact runtime type match.
 

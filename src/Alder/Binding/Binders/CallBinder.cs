@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Alder.Binding.BoundNodes;
 using Alder.Binding.Services;
+using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
 
@@ -37,8 +38,8 @@ internal static class CallBinder
                 var argumentTypes = arguments.Select(static argument => argument.StaticType.ClrType).ToArray();
                 var callBinderService = new CallBinderService(context.RuntimeContext);
 
-                var bound = methodGroup is { IsStatic: true, Target: BoundLiteralExpr { Value: Type staticDeclaringType } }
-                    ? callBinderService.TryBindStaticCall(staticDeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out var callPlan)
+                var bound = methodGroup.IsStatic
+                    ? callBinderService.TryBindStaticCall(methodGroup.DeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out var callPlan)
                     : callBinderService.TryBindInstanceCall(methodGroup.DeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out callPlan);
 
                 if (bound)
@@ -205,11 +206,7 @@ internal static class CallBinder
         if (!context.IsCaseSensitive)
             flags |= BindingFlags.IgnoreCase;
 
-        var declaringType = methodGroup is { IsStatic: true, Target: BoundLiteralExpr { Value: Type staticType } }
-            ? staticType
-            : methodGroup.DeclaringType;
-
-        var methods = context.RuntimeContext.TypeMetadata.GetMethods(declaringType, methodGroup.MethodName, flags);
+        var methods = context.RuntimeContext.TypeMetadata.GetMethods(methodGroup.DeclaringType, methodGroup.MethodName, flags);
         var callBinderService = new CallBinderService(context.RuntimeContext);
 
         if (!callBinderService.TryBindWithDescriptors(methods, descriptors, methodGroup.IsStatic, out var callPlan))
@@ -253,6 +250,8 @@ internal static class CallBinder
                 return null;
 
             var savedLocalCount = context.LocalCount;
+            BoundExpr? boundBody = null;
+            ImmutableArray<BoundTypedLambdaParameter> typedParamsImmutable = default;
             try
             {
                 var lambdaScope = context.CreateChildScope();
@@ -268,7 +267,7 @@ internal static class CallBinder
                     typedParams.Add(new BoundTypedLambdaParameter(lambda.Parameters[p], paramType));
                 }
 
-                var boundBody = binder.Bind(lambda.Body, lambdaScope);
+                boundBody = binder.Bind(lambda.Body, lambdaScope);
                 if (boundBody.HasErrors)
                 {
                     context.LocalCount = savedLocalCount;
@@ -281,17 +280,32 @@ internal static class CallBinder
                     return null;
                 }
 
-                result[i] = new BoundTypedLambdaExpr(
-                    typedParams.ToImmutable(),
-                    boundBody,
-                    delegateType,
-                    new BoundType(delegateType));
+                typedParamsImmutable = typedParams.ToImmutable();
             }
             catch (Exception ex) when (ex is AlderException or BindingNotSupportedException or InvalidOperationException)
             {
                 context.LocalCount = savedLocalCount;
                 return null;
             }
+
+            // §10.7.1 / CS0029: an expression-bodied lambda's body must implicitly convert to the
+            // delegate's return type. `object`-typed bodies defer to runtime because Alder uses
+            // object as the fallback for dynamic/untyped expressions and Roslyn would have a
+            // sharper static type at this point.
+            if (invokeMethod.ReturnType != typeof(void)
+                && boundBody.StaticType is not BoundUnknownType
+                && boundBody.StaticType.ClrType != typeof(object)
+                && !TypeHelpers.CanImplicitlyConvert(boundBody.StaticType.ClrType, invokeMethod.ReturnType))
+            {
+                throw new AlderException(DiagnosticDescriptors.NoImplicitConversion,
+                    boundBody.StaticType.ClrType.Name, invokeMethod.ReturnType.Name);
+            }
+
+            result[i] = new BoundTypedLambdaExpr(
+                typedParamsImmutable,
+                boundBody,
+                delegateType,
+                new BoundType(delegateType));
         }
 
         return result.ToImmutable();
@@ -451,7 +465,7 @@ internal static class CallBinder
         var callResult = moduleCallPlan! with { IsModuleCall = true };
 
         var callee = new BoundMethodGroupExpr(
-            new BoundLiteralExpr(moduleInfo.Type, new BoundType(typeof(Type))),
+            new BoundTypeRefExpr(moduleInfo.Type, new BoundType(typeof(Type))),
             moduleInfo.Type,
             memberAccess.Name.Lexeme,
             memberAccess.NullSafe,

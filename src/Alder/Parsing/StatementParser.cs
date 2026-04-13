@@ -186,10 +186,10 @@ internal sealed class StatementParser : ParserBase
             {
                 Advance(); // consume '('
                 var variableNames = new List<string>
-                    { Consume(TokenType.Identifier, "Expected variable name in deconstruction").Lexeme };
+                    { ConsumeIdentifierOrContextualKeyword("Expected variable name in deconstruction").Lexeme };
                 while (Match(TokenType.Comma))
                 {
-                    variableNames.Add(Consume(TokenType.Identifier, "Expected variable name in deconstruction").Lexeme);
+                    variableNames.Add(ConsumeIdentifierOrContextualKeyword("Expected variable name in deconstruction").Lexeme);
                 }
 
                 Consume(TokenType.RightParen, "Expected ')' after deconstruction variable list");
@@ -200,7 +200,8 @@ internal sealed class StatementParser : ParserBase
             }
 
             var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
-            Consume(TokenType.Equal, "Expected '=' after variable name");
+            if (!Match(TokenType.Equal))
+                throw new AlderException(DiagnosticDescriptors.ImplicitlyTypedVariableMustBeInitialized, name.Span, name.Line, name.Column);
             var initializer = _expression.ParseExpression();
             if (initializer is LiteralExpr { Value: null })
                 throw new AlderException(DiagnosticDescriptors.NullToImplicitlyTyped, name.Span, name.Line, name.Column);
@@ -348,6 +349,18 @@ internal sealed class StatementParser : ParserBase
                 var typeToken = new Token(TokenType.Identifier, typeName, null,
                     State.Tokens[saved].Line, State.Tokens[saved].Column, State.Tokens[saved].Start);
                 return ParseLocalFunctionDeclaration(typeToken, name, mark);
+            }
+
+            // §13.6.2: uninitialized local declarations (int i;) — the runtime value starts at
+            // default(T). Represented as `int i = default;` so downstream binders see a concrete
+            // initializer and rely on VariableDeclBinder's target-typed default path.
+            if (Check(TokenType.Semicolon))
+            {
+                var defaultInitializer = new DefaultExpr(TypeToken: null) { Span = SpanFrom(mark) };
+                var uninitializedTypeToken = new Token(TokenType.Identifier, typeName, null,
+                    State.Tokens[saved].Line, State.Tokens[saved].Column, State.Tokens[saved].Start);
+                Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
+                return new VariableDeclExpr(uninitializedTypeToken, name, defaultInitializer) { Span = SpanFrom(mark) };
             }
 
             if (!Match(TokenType.Equal))
@@ -673,6 +686,10 @@ internal sealed class StatementParser : ParserBase
             body = ParseStatementList();
             Consume(TokenType.RightBrace, "Expected '}' after for body");
         }
+        else if (Match(TokenType.Semicolon))
+        {
+            // §13.9.4: empty statement body — all work is done in the initializer and iterator.
+        }
         else
         {
             var stmt = ParseStatement();
@@ -711,12 +728,34 @@ internal sealed class StatementParser : ParserBase
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'foreach'");
 
-        if (!MatchVar() && !MatchTypeKeyword(out _))
+        string? declaredTypeName = null;
+        if (!MatchVar())
         {
-            throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'var' or type keyword in foreach");
+            declaredTypeName = TryParseTypeName();
+            if (declaredTypeName == null)
+                throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'var' or type in foreach");
         }
 
-        var variableName = ConsumeIdentifierOrContextualKeyword("Expected variable name in foreach");
+        // §12.7: `foreach (var (a, b) in ...)` — deconstruction iteration variable.
+        // Parse as `foreach (var $iter in ...) { var (a, b) = $iter; <body> }`.
+        List<string>? deconstructionNames = null;
+        Token variableName;
+        if (Check(TokenType.LeftParen))
+        {
+            Advance(); // consume '('
+            deconstructionNames = new List<string>
+                { ConsumeIdentifierOrContextualKeyword("Expected variable name in foreach deconstruction").Lexeme };
+            while (Match(TokenType.Comma))
+            {
+                deconstructionNames.Add(ConsumeIdentifierOrContextualKeyword("Expected variable name in foreach deconstruction").Lexeme);
+            }
+            Consume(TokenType.RightParen, "Expected ')' after foreach deconstruction variable list");
+            variableName = new Token(TokenType.Identifier, $"__foreach_decon_{mark}", null, Peek().Line, Peek().Column, default);
+        }
+        else
+        {
+            variableName = ConsumeIdentifierOrContextualKeyword("Expected variable name in foreach");
+        }
 
         if (!Match(TokenType.In))
         {
@@ -739,7 +778,14 @@ internal sealed class StatementParser : ParserBase
                 body.Add(stmt);
         }
 
-        return new ForEachStatementExpr(variableName, collection, body) { Span = SpanFrom(mark) };
+        if (deconstructionNames is not null)
+        {
+            var iterRef = new IdentifierExpr(variableName) { Span = variableName.Span };
+            var deconstruct = new DeconstructionExpr(deconstructionNames, iterRef) { Span = SpanFrom(mark) };
+            body.Insert(0, deconstruct);
+        }
+
+        return new ForEachStatementExpr(variableName, collection, body, declaredTypeName) { Span = SpanFrom(mark) };
     }
 
     private Expr ParseUsingStatement(int mark)
@@ -828,17 +874,11 @@ internal sealed class StatementParser : ParserBase
             {
                 Advance(); // consume '('
 
-                var typeParts = new List<string>
-                {
-                    Consume(TokenType.Identifier, "Expected exception type name").Lexeme
-                };
-                while (Check(TokenType.Dot))
-                {
-                    Advance(); // consume '.'
-                    typeParts.Add(Consume(TokenType.Identifier, "Expected type name part").Lexeme);
-                }
-
-                exceptionTypeName = string.Join(".", typeParts);
+                // §13.11: a catch clause type is any type — semantic validation (must
+                // derive from System.Exception, CS0155) happens in the binder. Accept
+                // keyword types (int, string, ...) here so the binder can emit CS0155.
+                exceptionTypeName = TryParseTypeName()
+                    ?? throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "exception type name");
 
                 if (Check(TokenType.Identifier))
                 {
@@ -872,7 +912,7 @@ internal sealed class StatementParser : ParserBase
         }
 
         if (catchClauses.Count == 0 && finallyBody == null)
-            throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'catch' or 'finally' after try block");
+            throw SyntaxError(DiagnosticDescriptors.ExpectedCatchOrFinally);
 
         // Bare catch (no type AND no when guard) must be last
         for (var i = 0; i < catchClauses.Count - 1; i++)

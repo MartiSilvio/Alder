@@ -187,7 +187,9 @@ internal static class ResolvedCallEmitter
         var assignTarget = LinqExpression.Assign(
             targetVar,
             EmitHelpers.EnsureTypedExpression(emittedTarget ?? ctx.Emit(memberAccess.Target), targetType));
-        var ensureNonNullTarget = IsNonNullableValueType(targetType)
+        // Value-type targets can never be null once unboxed: non-nullable structs are always
+        // present, and Nullable<T> method calls are well-defined on the default value.
+        var ensureNonNullTarget = targetType.IsValueType
             ? (LinqExpression)LinqExpression.Empty()
             : LinqExpression.Call(
                 EnsureCallTargetNotNullMethod,
@@ -215,9 +217,6 @@ internal static class ResolvedCallEmitter
             ensureNonNullTarget,
             EmitHelpers.WrapGuardedValue(directInstanceCall, method.ReturnType, EmitHelpers.CreateMethodGuardContext(method.Name)));
     }
-
-    private static bool IsNonNullableValueType(Type type) =>
-        type.IsValueType && Nullable.GetUnderlyingType(type) == null;
 
     private static LinqExpression[] EmitPlannedCallArguments(
         BoundResolvedCallExpr call, ParameterInfo[] parameters, EmissionContext ctx,

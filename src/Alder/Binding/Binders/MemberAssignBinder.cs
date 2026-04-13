@@ -1,5 +1,6 @@
 using Alder.Binding.BoundNodes;
 using Alder.Binding.Services;
+using Alder.Diagnostics;
 using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
@@ -12,6 +13,9 @@ internal static class MemberAssignBinder
         var target = binder.Bind(expr.Object, context);
         var value = binder.Bind(expr.Value, context);
         var (resolvedMember, declaringType) = ResolveMemberForAssignment(target.StaticType.ClrType, expr.Name.Lexeme, context);
+        // §12.21.2 / CS0200: assigning to a property with no setter is a bind-time error.
+        if (resolvedMember is PropertyInfo property && property.SetMethod == null)
+            throw new AlderException(DiagnosticDescriptors.ReadonlyPropertyAssignment, $"{property.DeclaringType?.Name}.{property.Name}");
         return new BoundMemberAssignExpr(target, expr.Name.Lexeme, resolvedMember, declaringType, value, value.StaticType);
     }
 

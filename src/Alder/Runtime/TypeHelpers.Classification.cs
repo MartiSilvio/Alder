@@ -113,6 +113,31 @@ internal static partial class TypeHelpers
         };
     }
 
+    /// <summary>
+    /// Dispatches an instance-method call whose receiver is a null-boxed <see cref="Nullable{T}"/>.
+    /// Nullable&lt;T&gt; is the only CLR type where <c>default(T?)</c> boxes to a null reference,
+    /// collapsing <c>HasValue=false</c> to indistinguishable-from-null. Its struct methods
+    /// (<see cref="Nullable{T}.GetValueOrDefault()"/>, <c>Equals</c>, etc.) remain well-defined
+    /// on the default value, but reflection cannot invoke instance methods on a null target, and
+    /// <c>System.Linq.Expressions</c> is banned in the interpreted path. The small fixed set of
+    /// Nullable&lt;T&gt; methods is hardcoded here as the minimal bridge across that gap.
+    /// </summary>
+    public static object? InvokeNullableInstanceMethod(Type nullableType, string methodName, object?[] args)
+    {
+        var underlyingType = Nullable.GetUnderlyingType(nullableType)
+            ?? throw new InvalidOperationException($"Type '{nullableType}' is not a nullable type.");
+
+        return (methodName, args.Length) switch
+        {
+            (nameof(Nullable<int>.GetValueOrDefault), 0) => GetDefaultValue(underlyingType),
+            (nameof(Nullable<int>.GetValueOrDefault), 1) => args[0],
+            (nameof(Nullable<int>.Equals), 1) => args[0] == null,
+            (nameof(Nullable<int>.GetHashCode), 0) => 0,
+            (nameof(Nullable<int>.ToString), 0) => string.Empty,
+            _ => throw new AlderException(DiagnosticDescriptors.NullMethodCall, methodName)
+        };
+    }
+
     public static bool IsType(object? value, Type targetType)
     {
         if (value == null)

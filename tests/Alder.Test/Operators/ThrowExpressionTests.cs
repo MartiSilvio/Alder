@@ -18,13 +18,13 @@ public class ThrowExpressionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.16 - Null-coalescing with throw
 
-    // Engine-only: Alder runtime model treats int as object?, Roslyn rejects `42 ?? throw` (int not nullable)
+    // §12.15 / CS0019: left operand of ?? must be nullable. `42 ?? throw` is a C# error.
     [Test]
-    public void NullCoalesce_NonNullInt_ReturnsValue()
+    public void NullCoalesce_NonNullableLeft_Throws()
     {
         var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("""42 ?? throw new Exception("fail")""");
-        Assert.That(result, Is.EqualTo(42));
+        var ex = Assert.Catch<AlderException>(() => engine.Evaluate("""42 ?? throw new Exception("fail")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
     }
 
     // Engine-only: exception verification, SetVariable

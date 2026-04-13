@@ -322,7 +322,7 @@ internal static class AssignmentRuntime
         {
             TokenType.Plus => Operators.Add(left, right, context.Config, context, isChecked),
             TokenType.Minus => Operators.Subtract(left, right, isChecked),
-            TokenType.Star => Operators.Multiply(left, right, context.Config.LanguageMode, isChecked),
+            TokenType.Star => Operators.Multiply(left, right, isChecked),
             TokenType.Slash => Operators.Divide(left, right),
             TokenType.Percent => Operators.Modulo(left, right),
             TokenType.EqualEqual => Operators.Equals(left, right),

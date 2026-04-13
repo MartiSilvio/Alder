@@ -32,7 +32,7 @@ When types don't match the fast path (mixed types, nullables, `string + object`,
 - Nullable three-valued logic (`bool? & bool?`, `bool? | bool?`)
 - User-defined operators (`op_Addition`, `op_Subtraction`, etc.)
 - Cross-type numeric promotion via the ECMA-334 §12.4.7.3 rules (see [Numeric Promotion](numeric-promotion.md))
-- Extended mode: string repetition (`"ab" * 3`), object merge (`new { A = 1 } + new { B = 2 }`)
+- Extended mode: object merge (`new { A = 1 } + new { B = 2 }`)
 
 Before the fallback path, ECMA-334 §10.2.11 constant promotion is applied: if one operand is a literal constant, it may be implicitly promoted (e.g., `int` 0 to `uint`).
 

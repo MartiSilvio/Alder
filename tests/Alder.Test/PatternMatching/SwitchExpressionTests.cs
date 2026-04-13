@@ -3,14 +3,11 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.PatternMatching;
 
-// Engine-only: All tests use SetVariable, verify SwitchExpressionException (error tests),
-// or test Roslyn-rejected patterns (CS8510 unreachable pattern arms, variable scoping)
-
 /// <summary>
 /// ECMA-334 §12.8.21 -- Switch expressions.
 /// Tests switch expression parsing and evaluation, constant/type/relational/property pattern arms,
 /// when guards (section 12.8.21.3), discard catch-all (section 11.2.8),
-/// and SwitchExpressionException for non-exhaustive matches.
+/// and non-exhaustive match behavior (CS8509).
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
@@ -24,7 +21,7 @@ public class SwitchExpressionTests(CompilationMode mode)
         engine.SetVariable("x", (object)99);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("""x switch { 1 => "one" } """));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8510));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8509));
     }
 
     [Test]
@@ -34,23 +31,8 @@ public class SwitchExpressionTests(CompilationMode mode)
         engine.SetVariable("x", (object?)null);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("""x switch { 1 => "one", "hello" => "two" } """));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8510));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8509));
     }
-
-
-
-    // Roslyn rejects unreachable pattern arms (CS8510), so this is engine-only.
-    // Verifies that when object precedes string, the object arm wins (first-match semantics).
-    [Test]
-    public void SwitchExpression_FirstMatch_ObjectBeforeString()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("x", (object)"hello");
-        var result = engine.Evaluate("""x switch { object => "object", string => "string", _ => "other" } """);
-        Assert.That(result, Is.EqualTo("object"));
-    }
-
-
 
     // Pattern variables in one arm should not leak to other arms
     [Test]

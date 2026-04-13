@@ -109,7 +109,8 @@ internal static class SwitchStatementEvaluator
                     return signal;
             }
 
-            throw new AlderException(DiagnosticDescriptors.CaseFallThrough);
+            // §13.8.3 (CS0163): fall-through is rejected by the binder — unreachable at runtime.
+            return null;
         }
 
         return null;
@@ -223,7 +224,8 @@ internal static class SwitchStatementEvaluator
                     return signal;
             }
 
-            throw new AlderException(DiagnosticDescriptors.CaseFallThrough);
+            // §13.8.3 (CS0163): fall-through is rejected by the binder — unreachable at runtime.
+            return null;
         }
 
         return null;

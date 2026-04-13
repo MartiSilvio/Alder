@@ -39,7 +39,9 @@ internal sealed class QueryParser : ParserBase
                 if (IsIdentifierOrContextualKeyword(Peek().Type))
                 {
                     Advance();
-                    return Check(TokenType.In);
+                    // §12.20.2: typed range variable + identifier pattern is unambiguous — commit
+                    // to query parsing even if 'in' is missing so the error can be reported precisely.
+                    return true;
                 }
                 return false;
             }
@@ -47,7 +49,17 @@ internal sealed class QueryParser : ParserBase
             if (IsIdentifierOrContextualKeyword(Peek().Type))
             {
                 Advance();
-                return Check(TokenType.In);
+                if (Check(TokenType.In))
+                    return true;
+
+                // §12.20.2: if `from <id>` is followed by another identifier or 'select'/'where',
+                // we commit to query parsing so a missing 'in' is reported at the right position
+                // with the correct CS1003 "'in' expected" diagnostic.
+                if (IsIdentifierOrContextualKeyword(Peek().Type)
+                    || Check(TokenType.Select) || Check(TokenType.Where))
+                    return true;
+
+                return false;
             }
 
             return false;

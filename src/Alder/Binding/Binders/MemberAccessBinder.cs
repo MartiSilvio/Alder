@@ -104,8 +104,13 @@ internal static class MemberAccessBinder
 
     internal static (BoundType TargetType, bool IsStatic) ResolveMemberTarget(BoundExpr target)
     {
-        if (target is BoundLiteralExpr { Value: Type staticTargetType })
-            return (new BoundType(staticTargetType), true);
+        // ECMA-334 §12.7.3: a type name in expression position (`int.MaxValue`) is bound as a
+        // static-member target on the wrapped type. A runtime `Type` value from `typeof(...)`
+        // or `GetType()` is a literal whose `StaticType` is `System.Type`, so it falls through
+        // to the default branch and resolves against `Type`'s instance surface — that is how
+        // `typeof(int).ToString()` routes to `Type.ToString` instead of "static on int".
+        if (target is BoundTypeRefExpr typeRef)
+            return (new BoundType(typeRef.TargetType), true);
 
         return (target.StaticType, false);
     }

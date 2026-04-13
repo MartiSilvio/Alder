@@ -36,7 +36,8 @@ while (j < encoded.Length)
             repeat = repeat * 10 + (numStr[k] - '0');
         }
 
-        decoded += letter.ToString() * repeat;
+        foreach (var _ in 0..<repeat)
+            decoded += letter;
     }
 }
 

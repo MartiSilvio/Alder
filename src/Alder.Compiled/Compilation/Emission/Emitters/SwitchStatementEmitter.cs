@@ -144,6 +144,8 @@ internal static class SwitchStatementEmitter
             LinqExpression.Call(RequireBooleanMethod, ctx.EmitBoxed(switchCase.WhenGuard)));
     }
 
+    // §13.8.3 (CS0163): fall-through is rejected by SwitchStatementBinder, so every non-empty
+    // case is guaranteed to terminate by the time we emit it.
     private static LinqExpression EmitCaseExecution(
         ImmutableArray<BoundSwitchCase> cases,
         int startIndex,
@@ -158,9 +160,6 @@ internal static class SwitchStatementEmitter
             var switchCase = cases[i];
             if (switchCase.Statements.IsDefaultOrEmpty)
                 continue;
-
-            if (!TerminatesControlFlow(switchCase.Statements[^1]))
-                throw new AlderException(DiagnosticDescriptors.CaseFallThrough);
 
             var caseDone = LinqExpression.Label($"switchCaseDone{i}");
             BlockEmitter.EmitStatementListBody(ctx, statements, switchCase.Statements, resultVar, caseDone);
@@ -178,11 +177,6 @@ internal static class SwitchStatementEmitter
                                 LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))),
                                 LinqExpression.Goto(doneLabel))),
                         LinqExpression.Goto(doneLabel))));
-
-            statements.Add(
-                LinqExpression.Throw(
-                    LinqExpression.Constant(new AlderException(DiagnosticDescriptors.CaseFallThrough)),
-                    typeof(void)));
             break;
         }
 
@@ -191,22 +185,5 @@ internal static class SwitchStatementEmitter
 
         statements.Add(resultVar);
         return LinqExpression.Block(typeof(object), statements);
-    }
-
-    private static bool TerminatesControlFlow(BoundExpr expr)
-    {
-        return expr.Kind switch
-        {
-            BoundNodeKind.BreakStatement => true,
-            BoundNodeKind.ReturnStatement => true,
-            BoundNodeKind.ContinueStatement => true,
-            BoundNodeKind.GotoStatement => true,
-            BoundNodeKind.GotoCaseStatement => true,
-            BoundNodeKind.GotoDefaultStatement => true,
-            BoundNodeKind.ThrowExpression => true,
-            BoundNodeKind.Block when ((BoundBlockExpr)expr).Statements.Length > 0 =>
-                TerminatesControlFlow(((BoundBlockExpr)expr).Statements[^1]),
-            _ => false
-        };
     }
 }

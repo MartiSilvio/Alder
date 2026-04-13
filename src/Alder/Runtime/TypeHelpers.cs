@@ -58,6 +58,69 @@ internal static partial class TypeHelpers
     }
 
     /// <summary>
+    /// Determines whether an explicit conversion exists from <paramref name="sourceType"/> to <paramref name="targetType"/>
+    /// per ECMA-334 §10.3. Used by the cast binder to reject statically-impossible casts with CS0030.
+    /// Callers must guarantee both types are statically known (not <see cref="BoundUnknownType"/>).
+    /// </summary>
+    public static bool HasExplicitConversion(Type sourceType, Type targetType)
+    {
+        if (sourceType == targetType)
+            return true;
+
+        // §10.3.1: every implicit conversion is also an explicit conversion.
+        if (CanImplicitlyConvert(sourceType, targetType))
+            return true;
+
+        var srcUnderlying = Nullable.GetUnderlyingType(sourceType) ?? sourceType;
+        var tgtUnderlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        // §10.3.2: explicit numeric conversions between any numeric or char types.
+        if (IsNumericOrCharType(srcUnderlying) && IsNumericOrCharType(tgtUnderlying))
+            return true;
+
+        // §10.3.3: explicit enum conversions — enum↔numeric and enum↔enum.
+        if (srcUnderlying.IsEnum && (IsNumericOrCharType(tgtUnderlying) || tgtUnderlying.IsEnum))
+            return true;
+        if (tgtUnderlying.IsEnum && IsNumericOrCharType(srcUnderlying))
+            return true;
+
+        // §10.3.5: explicit reference conversions. Any reference type can be cast to any other
+        // reference type at bind time; the cast succeeds or fails at runtime based on actual type.
+        if (!srcUnderlying.IsValueType && !tgtUnderlying.IsValueType)
+            return true;
+
+        // §10.3.6: unboxing. object/interface sources permit casts to any value type.
+        if ((srcUnderlying == typeof(object) || srcUnderlying.IsInterface) && tgtUnderlying.IsValueType)
+            return true;
+
+        // Boxing conversions to object/interface are implicit and already handled above, but when
+        // the target is a specific interface a value type may still satisfy it via explicit cast.
+        if (srcUnderlying.IsValueType && (tgtUnderlying == typeof(object) || tgtUnderlying.IsInterface))
+            return true;
+
+        // §10.3.8: tuple explicit conversions recurse element-wise through the explicit rules.
+        if (IsTupleType(srcUnderlying) && IsTupleType(tgtUnderlying))
+        {
+            var sourceArgs = srcUnderlying.GetGenericArguments();
+            var targetArgs = tgtUnderlying.GetGenericArguments();
+            if (sourceArgs.Length != targetArgs.Length)
+                return false;
+            for (var i = 0; i < sourceArgs.Length; i++)
+            {
+                if (!HasExplicitConversion(sourceArgs[i], targetArgs[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        // §10.5: user-defined explicit (or implicit) conversions.
+        if (TryResolveUserDefinedConversion(srcUnderlying, tgtUnderlying, out _))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
     /// Determines whether a standard implicit conversion exists.
     /// User-defined conversions are intentionally excluded so this helper can be used safely while resolving user-defined operators.
     /// </summary>
@@ -148,6 +211,12 @@ internal static partial class TypeHelpers
     /// </summary>
     public static Type? TryGetBinaryNumericPromotionType(Type leftType, Type rightType)
     {
+        // §12.4.7.3: binary numeric promotion applies only to the numeric types
+        // (sbyte, byte, short, ushort, int, uint, long, ulong, char, float, double, decimal).
+        // Enum types use the separate rules in §12.9.5/§12.13.3 and must not participate here
+        // even though Type.GetTypeCode returns the underlying TypeCode for enums.
+        if (leftType.IsEnum || rightType.IsEnum)
+            return null;
         if (!IsArithmetic(leftType) || !IsArithmetic(rightType))
             return null;
 

@@ -42,7 +42,9 @@ public class NamedParameterTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("str.Substring(STARTINDEX: 0, LENGTH: 5)"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0304));
+        // Overload resolution classifies the named-argument failure as CS1739 ("no parameter
+        // named '{name}' on '{method}'") instead of the generic ALDR0304 method-invocation error.
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1739));
     }
 
     #endregion
@@ -58,7 +60,9 @@ public class NamedParameterTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("str.Substring(invalidParam: 0, length: 5)"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0304));
+        // Overload resolution classifies the named-argument failure as CS1739 ("no parameter
+        // named '{name}' on '{method}'") instead of the generic ALDR0304 method-invocation error.
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1739));
     }
 
     #endregion

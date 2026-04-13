@@ -1,9 +1,24 @@
+using System.Globalization;
 using Alder.Diagnostics;
 
 namespace Alder.Runtime;
 
 internal static partial class TypeHelpers
 {
+    /// <summary>
+    /// Mirrors Roslyn's <c>ConversionsBase.IsValidFunctionTypeConversionTarget</c>
+    /// (ConversionsBase.cs:2828): a lambda or method group can bind to an inferred delegate type
+    /// when the declared target is either <see cref="object"/>, <see cref="Delegate"/>,
+    /// <see cref="MulticastDelegate"/>, or a non-generic <c>System.Linq.Expressions.Expression</c>.
+    /// Callers that classify a lambda-to-non-delegate failure use this to choose between CS8917
+    /// (delegate type could not be inferred) and CS1660 (not a delegate type).
+    /// </summary>
+    public static bool IsValidFunctionTypeConversionTarget(Type target) =>
+        target == typeof(object)
+        || target == typeof(Delegate)
+        || target == typeof(MulticastDelegate)
+        || target == typeof(System.Linq.Expressions.Expression);
+
     /// <summary>
     /// Performs an explicit cast with optional static-type guidance.
     /// When <paramref name="sourceStaticType"/> is <see cref="object"/>, the runtime enforces C# unboxing semantics
@@ -203,7 +218,52 @@ internal static partial class TypeHelpers
         if (delegateInstance != null)
             return delegateInstance;
 
+        ThrowIfLambdaConversionFailed(value, underlyingType);
+
         throw CreateImplicitConversionException(sourceType, targetType, value);
+    }
+
+    // §10.7.1: lambda conversions have their own diagnostic codes. If the target is not a delegate
+    // type, Roslyn emits CS1660. If the target is a delegate but the arity doesn't match, CS1593.
+    private static void ThrowIfLambdaConversionFailed(object? value, Type underlyingType)
+    {
+        if (value is not (LambdaValue or CompiledLambdaValue))
+            return;
+
+        if (!typeof(Delegate).IsAssignableFrom(underlyingType))
+            throw new AlderException(DiagnosticDescriptors.LambdaToNonDelegate, underlyingType.Name);
+
+        var invoke = underlyingType.GetMethod("Invoke");
+        if (invoke != null)
+        {
+            var delegateArity = invoke.GetParameters().Length;
+            var lambdaArity = value switch
+            {
+                LambdaValue lv => lv.Parameters.Count,
+                CompiledLambdaValue cv => cv.Parameters.Count,
+                _ => -1
+            };
+            if (lambdaArity >= 0 && lambdaArity != delegateArity)
+                throw new AlderException(DiagnosticDescriptors.DelegateWrongArgumentCount,
+                    FormatDelegateName(underlyingType), lambdaArity.ToString());
+        }
+    }
+
+    private static string FormatDelegateName(Type delegateType)
+    {
+        if (!delegateType.IsGenericType)
+            return delegateType.Name;
+
+        var def = delegateType.GetGenericTypeDefinition();
+        var baseName = def.Name;
+        var tick = baseName.IndexOf('`');
+        if (tick >= 0) baseName = baseName[..tick];
+
+        var args = delegateType.GetGenericArguments();
+        var argNames = new string[args.Length];
+        for (var i = 0; i < args.Length; i++)
+            argNames[i] = args[i].Name;
+        return $"{baseName}<{string.Join(", ", argNames)}>";
     }
 
     /// <summary>
@@ -258,6 +318,8 @@ internal static partial class TypeHelpers
         var delegateInstance = LambdaDelegateConverter.TryConvert(value, targetType);
         if (delegateInstance != null)
             return delegateInstance;
+
+        ThrowIfLambdaConversionFailed(value, Nullable.GetUnderlyingType(targetType) ?? targetType);
 
         throw CreateImplicitConversionException(sourceType, targetType, value);
     }

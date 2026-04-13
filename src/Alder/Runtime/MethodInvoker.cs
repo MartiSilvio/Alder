@@ -42,10 +42,13 @@ internal static class MethodInvoker
         if (target == null)
             throw new AlderException(DiagnosticDescriptors.NullMethodCall, methodName);
 
-        // When target is a Type (e.g., Enumerable.Range, string.Format), try typed static
-        // dispatch first. On NativeAOT, reflection-based static method discovery is trimmed,
-        // but the generated TryInvokeStatic handles these calls.
-        // Resolve lambdas first so Func<T, bool> type checks match in the generated dispatch.
+        // Dynamic entry: the binder couldn't resolve this call at compile time. If the runtime
+        // target is a `Type`, try the source-generated static dispatch as a fast path — that is
+        // AOT-safe and avoids surfacing NativeAOT's internal `NativeFormatRuntimeNamedTypeInfo`
+        // via reflection on `System.Type`. On a miss, fall through to instance dispatch on the
+        // `Type` object itself so `typeof(int).ToString()` and `typeof(int).GetInterfaces()`
+        // still resolve (the bound path handles these statically after the binder split, but
+        // the fallback keeps genuinely dynamic callers working).
         if (target is Type staticType && !HasSpecialArgs(args))
         {
             var resolvedArgs = args.Length >= 2 && args[0] != null
@@ -119,7 +122,11 @@ internal static class MethodInvoker
         if (!HasAnyMethodWithName(target!, methodRef.MethodName, context))
             throw new AlderException(DiagnosticDescriptors.MemberNotFound, target!.GetType().Name, methodRef.MethodName);
 
-        throw new AlderException(DiagnosticDescriptors.MissingRequiredArgument, args.Length.ToString(), methodRef.MethodName);
+        var flags = BindingFlags.Public | BindingFlags.Instance;
+        if (!context.Config.IsCaseSensitive) flags |= BindingFlags.IgnoreCase;
+        var methods = context.TypeMetadata.GetMethods(target!.GetType(), methodRef.MethodName, flags);
+        var descriptors = ArgumentDescriptor.FromArgs(args);
+        throw ClassifyOverloadFailure(methodRef.MethodName, methods, args, descriptors);
     }
 
     public static (bool Success, object? Value) TryInvokeInstanceMethod(
@@ -330,7 +337,10 @@ internal static class MethodInvoker
         if (ambiguous)
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
-        throw new AlderException(DiagnosticDescriptors.MissingRequiredArgument, args.Length.ToString(), methodName);
+        if (methods.Length > 0)
+            throw ClassifyOverloadFailure(methodName, methods, args, descriptors);
+
+        throw new AlderException(DiagnosticDescriptors.MemberNotFound, module.Type.Name, methodName);
     }
 
     private static object? InvokeStaticMethod(
@@ -369,9 +379,97 @@ internal static class MethodInvoker
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, $"{type.Name}.{methodName}");
 
         if (methods.Length > 0)
-            throw new AlderException(DiagnosticDescriptors.MissingRequiredArgument, args.Length.ToString(), $"{type.Name}.{methodName}");
+            throw ClassifyOverloadFailure(methodName, methods, args, descriptors);
 
         throw new AlderException(DiagnosticDescriptors.MemberNotFound, type.Name, methodName);
+    }
+
+    private static AlderException ClassifyOverloadFailure(
+        string methodName,
+        MethodBase[] methods,
+        object?[] args,
+        ArgumentDescriptor[] descriptors)
+    {
+        // §12.6.4: classify overload resolution failures against the actual provided arguments so
+        // callers see the same diagnostic codes Roslyn emits (CS1501/CS1503/CS1739), not the generic
+        // CS7036 "missing required parameter" catch-all.
+        foreach (var descriptor in descriptors)
+        {
+            if (descriptor.Name is null) continue;
+            var matched = false;
+            foreach (var method in methods)
+            {
+                foreach (var parameter in method.GetParameters())
+                {
+                    if (string.Equals(parameter.Name, descriptor.Name, StringComparison.Ordinal))
+                    {
+                        matched = true;
+                        break;
+                    }
+                }
+                if (matched) break;
+            }
+            if (!matched)
+                return new AlderException(DiagnosticDescriptors.NoParameterNamed, methodName, descriptor.Name);
+        }
+
+        var argCount = args.Length;
+        var anyCountMatch = false;
+        foreach (var method in methods)
+        {
+            var parameters = method.GetParameters();
+            var required = 0;
+            foreach (var p in parameters)
+                if (!p.HasDefaultValue) required++;
+            if (argCount >= required && argCount <= parameters.Length)
+            {
+                anyCountMatch = true;
+                break;
+            }
+        }
+
+        if (!anyCountMatch)
+            return new AlderException(DiagnosticDescriptors.NoOverloadTakesArguments, methodName, argCount.ToString());
+
+        // Count matched at least one overload — the failure is an argument type mismatch.
+        // Find the first argument position that does not satisfy any applicable overload.
+        for (var i = 0; i < descriptors.Length; i++)
+        {
+            var descriptor = descriptors[i];
+            if (descriptor.StaticType is null && descriptor.Kind != ArgumentKind.Null) continue;
+            var compatible = false;
+            foreach (var method in methods)
+            {
+                var parameters = method.GetParameters();
+                if (i >= parameters.Length) continue;
+                var expected = parameters[i].ParameterType;
+                if (descriptor.Kind == ArgumentKind.Null)
+                {
+                    if (!expected.IsValueType || Nullable.GetUnderlyingType(expected) != null)
+                    {
+                        compatible = true;
+                        break;
+                    }
+                }
+                else if (descriptor.StaticType is not null
+                    && TypeHelpers.CanImplicitlyConvert(descriptor.StaticType, expected))
+                {
+                    compatible = true;
+                    break;
+                }
+            }
+            if (!compatible)
+            {
+                var fromName = descriptor.Kind == ArgumentKind.Null ? "<null>" : descriptor.StaticType?.Name ?? "?";
+                var toName = methods[0].GetParameters() is { Length: > 0 } firstParams && i < firstParams.Length
+                    ? firstParams[i].ParameterType.Name
+                    : "?";
+                return new AlderException(DiagnosticDescriptors.ArgumentConversionFailed,
+                    (i + 1).ToString(), fromName, toName);
+            }
+        }
+
+        return new AlderException(DiagnosticDescriptors.MissingRequiredArgument, argCount.ToString(), methodName);
     }
 
     private static (bool Success, object? Value) InvokeWithResolved(
@@ -417,21 +515,61 @@ internal static class MethodInvoker
 
     private static bool HasAnyMethodWithName(object target, string name, AlderContext context)
     {
+        var type = target.GetType();
         var flags = BindingFlags.Public | BindingFlags.Instance;
         if (!context.Config.IsCaseSensitive) flags |= BindingFlags.IgnoreCase;
 
-        if (context.TypeMetadata.GetMethods(target.GetType(), name, flags).Length > 0)
+        if (context.TypeMetadata.GetMethods(type, name, flags).Length > 0)
             return true;
 
         var extFlags = BindingFlags.Public | BindingFlags.Static;
         if (!context.Config.IsCaseSensitive) extFlags |= BindingFlags.IgnoreCase;
 
+        // §12.8.9.3: an extension method is a *member of the receiver type* only when the
+        // receiver is implicitly convertible to the extension's first parameter. Otherwise
+        // the method name is not a member and the diagnostic must be CS1061, not CS1501.
         foreach (var extType in context.ExtensionTypes)
         {
-            if (context.TypeMetadata.GetMethods(extType, name, extFlags).Length > 0)
-                return true;
+            foreach (var m in context.TypeMetadata.GetMethods(extType, name, extFlags))
+            {
+                if (!m.IsDefined(typeof(System.Runtime.CompilerServices.ExtensionAttribute), false))
+                    continue;
+                var parameters = m.GetParameters();
+                if (parameters.Length == 0) continue;
+                if (IsExtensionReceiverApplicable(type, parameters[0].ParameterType))
+                    return true;
+            }
         }
 
+        return false;
+    }
+
+    private static bool IsExtensionReceiverApplicable(Type receiverType, Type firstParamType)
+    {
+        if (firstParamType.IsAssignableFrom(receiverType))
+            return true;
+        if (TypeHelpers.CanImplicitlyConvert(receiverType, firstParamType))
+            return true;
+        // Open-generic extensions (e.g. IEnumerable<T>) require inference — accept if the
+        // receiver implements the generic type definition of the first parameter.
+        if (firstParamType.IsGenericType)
+        {
+            var def = firstParamType.GetGenericTypeDefinition();
+            if (receiverType.IsGenericType && receiverType.GetGenericTypeDefinition() == def)
+                return true;
+            foreach (var iface in receiverType.GetInterfaces())
+            {
+                if (iface.IsGenericType && iface.GetGenericTypeDefinition() == def)
+                    return true;
+            }
+            var baseType = receiverType.BaseType;
+            while (baseType != null)
+            {
+                if (baseType.IsGenericType && baseType.GetGenericTypeDefinition() == def)
+                    return true;
+                baseType = baseType.BaseType;
+            }
+        }
         return false;
     }
 

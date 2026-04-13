@@ -100,7 +100,7 @@ internal static class BinaryEvaluator
             TokenType.Plus => Operators.Add(left, right, ctx.Context.Config, ctx.Context, ctx.IsChecked,
                 isStringContext: binary.Left.StaticType.ClrType == typeof(string) || binary.Right.StaticType.ClrType == typeof(string)),
             TokenType.Minus => Operators.Subtract(left, right, ctx.IsChecked),
-            TokenType.Star => Operators.Multiply(left, right, ctx.Context.Config.LanguageMode, ctx.IsChecked),
+            TokenType.Star => Operators.Multiply(left, right, ctx.IsChecked),
             TokenType.Slash => Operators.Divide(left, right),
             TokenType.Percent => Operators.Modulo(left, right),
             TokenType.EqualEqual => Operators.Equals(left, right),

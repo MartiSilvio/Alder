@@ -248,7 +248,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("text.Length = 10"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0191));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0200));
     }
 
     public class TestPerson

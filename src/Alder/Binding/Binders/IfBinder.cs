@@ -10,6 +10,7 @@ internal static class IfBinder
     public static BoundExpr Bind(IfStatementExpr expr, BindingContext context, BinderContext binder)
     {
         var condition = binder.Bind(expr.Condition, context);
+        BooleanConditionValidator.Validate(condition);
         var thenScope = context.CreateChildScope();
         var thenStatements = expr.ThenStatements
             .Select(statement => binder.Bind(statement, thenScope))

@@ -366,7 +366,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         Assert.Catch<Exception>(() => engine.Evaluate("list[-1]"));
     }
 
-    // 14. String multiply (Extended: "abc" * 3 = "abcabcabc"; Standard: throws)
+    // 14. String multiply: rejected in both modes (C# has no `string * int` operator)
 
     [Test]
     public void StandardMode_RejectsStringMultiply()
@@ -376,10 +376,10 @@ public class StandardModeNegativeTests(CompilationMode mode)
     }
 
     [Test]
-    public void ExtendedMode_AcceptsStringMultiply()
+    public void ExtendedMode_RejectsStringMultiply()
     {
         var engine = TestEngineFactory.Create(mode, ExtendedOptions);
-        Assert.That(engine.Evaluate(""" "abc" * 3"""), Is.EqualTo("abcabcabc"));
+        Assert.Catch<AlderException>(() => engine.Evaluate(""" "abc" * 3"""));
     }
 
     // 15. Object merge via + (Extended: merges dictionaries; Standard: throws CS0019)

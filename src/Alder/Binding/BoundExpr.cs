@@ -104,6 +104,7 @@ internal enum BoundNodeKind
     DynamicMemberAccess = 1_003,
 
     Identifier = 1_010,
+    TypeReference = 1_016,
     LogicalOperator = 1_011,
     ChainedComparisonOperator = 1_012,
     CheckedExpression = 1_013,

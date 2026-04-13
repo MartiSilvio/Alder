@@ -208,13 +208,52 @@ internal sealed class TypeResolver
         var arity = typeArgNames.Count;
 
         var openGenericName = baseName + "`" + arity;
-        var openType = ResolveType(openGenericName);
+        var openType = TryResolveType(openGenericName);
+        if (openType == null)
+        {
+            // §8.4: requested arity has no matching definition. If the base name exists under a
+            // different arity, Roslyn reports CS0305 ("requires N type arguments") rather than
+            // CS0246 ("type not found"). Scan known arities to give the more precise diagnostic.
+            var actualArity = FindKnownArity(baseName);
+            if (actualArity >= 0)
+            {
+                var knownOpen = ResolveType(baseName + "`" + actualArity);
+                throw new AlderException(
+                    Diagnostics.DiagnosticDescriptors.GenericTypeWrongArity,
+                    FormatOpenGenericName(knownOpen),
+                    actualArity.ToString());
+            }
+            throw new AlderException(Diagnostics.DiagnosticDescriptors.TypeNotFound, openGenericName);
+        }
 
         var typeArgs = new Type[arity];
         for (var i = 0; i < arity; i++)
             typeArgs[i] = ResolveType(typeArgNames[i].Trim());
 
         return RuntimeGenericFactory.CloseGenericType(openType, typeArgs);
+    }
+
+    private int FindKnownArity(string baseName)
+    {
+        for (var a = 1; a <= 16; a++)
+        {
+            if (TryResolveType(baseName + "`" + a) != null)
+                return a;
+        }
+        return -1;
+    }
+
+    private static string FormatOpenGenericName(Type openType)
+    {
+        var name = openType.Name;
+        var tick = name.IndexOf('`');
+        if (tick >= 0) name = name[..tick];
+        var args = openType.GetGenericArguments();
+        if (args.Length == 0) return name;
+        var paramNames = new string[args.Length];
+        for (var i = 0; i < args.Length; i++)
+            paramNames[i] = args[i].Name;
+        return $"{name}<{string.Join(", ", paramNames)}>";
     }
 
     private Type? TryResolveGenericType(string typeName)

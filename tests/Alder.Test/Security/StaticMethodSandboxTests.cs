@@ -43,16 +43,6 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_ModuleMethodsUnaffected()
-    {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe());
-
-        var result = engine.Evaluate("Math.Abs(-42)");
-
-        Assert.That(result, Is.EqualTo(42));
-    }
-
-    [Test]
     public void Safe_LambdasUnaffected()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe());

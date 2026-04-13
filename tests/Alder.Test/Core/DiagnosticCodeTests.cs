@@ -226,14 +226,16 @@ public class DiagnosticCodeTests
     }
 
     [Test]
-    public void CS0155_ThrowOperandMustBeException_AllCompilationModes()
+    public void CS0029_ThrowOperandNotConvertibleToException_AllCompilationModes()
     {
+        // §13.10.6 / Roslyn parity: when the operand's static type is known and not
+        // convertible to System.Exception, the throw is rejected with CS0029 at bind time.
         foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled })
         {
             var engine = TestEngineFactory.Create(mode);
             var ex = Assert.Throws<AlderException>(() => engine.Evaluate("throw 42"));
-            Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0155), $"Mode: {mode}");
-            Assert.That(ex.FormattedCode, Is.EqualTo("CS0155"), $"Mode: {mode}");
+            Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0029), $"Mode: {mode}");
+            Assert.That(ex.FormattedCode, Is.EqualTo("CS0029"), $"Mode: {mode}");
         }
     }
 
@@ -265,14 +267,14 @@ public class DiagnosticCodeTests
     // --- CS0191: A readonly field cannot be assigned to ---
 
     [Test]
-    public void CS0191_ReadonlyAssignment()
+    public void CS0200_ReadonlyPropertyAssignment()
     {
-        // DateTime.MaxValue is a readonly field -- assigning to a property on the
-        // result of a member access triggers CS0191 when the property has no setter.
+        // DateTime.Ticks is a get-only property — assigning raises CS0200.
+        // (CS0191 applies to readonly *fields*, not get-only properties.)
         _engine.SetVariable("dt", DateTime.Now);
         var ex = Assert.Throws<AlderException>(() => _engine.Evaluate("dt.Ticks = 0"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0191));
-        Assert.That(ex.FormattedCode, Is.EqualTo("CS0191"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0200));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CS0200"));
         Assert.That(ex.Message, Does.Not.Contain("{0}"));
     }
 

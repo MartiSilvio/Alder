@@ -275,7 +275,9 @@ public class AggregateTests(CompilationMode mode)
         engine.SetVariable("strings", new List<string> { "a", "b", "c" });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("strings.Sum()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0304));
+        // Overload resolution now reports CS1501 ("no overload takes 0 arguments") because
+        // extension-receiver filtering excludes Sum() overloads that cannot bind to IEnumerable<string>.
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1501));
     }
 
     [Test]
@@ -285,7 +287,7 @@ public class AggregateTests(CompilationMode mode)
         engine.SetVariable("items", new List<object> { "hello", "world" });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("items.Sum()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0304));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1501));
     }
 
     [Test]

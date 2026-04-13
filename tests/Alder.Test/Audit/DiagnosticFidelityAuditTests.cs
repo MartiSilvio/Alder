@@ -91,7 +91,8 @@ public class DiagnosticFidelityAuditTests(CompilationMode mode)
     {
         var engine = CreateEngine();
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("return Math.Max(1, 2, 3);"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS7036)
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1501)
+            .Or.EqualTo(DiagnosticCode.CS7036)
             .Or.EqualTo(DiagnosticCode.CS1729),
             $"Math.Max(1,2,3) produces {ex.ErrorCode} — should produce a CS-prefixed code for argument " +
             "count mismatch, not the generic ALDR0304 'method invocation failed'");

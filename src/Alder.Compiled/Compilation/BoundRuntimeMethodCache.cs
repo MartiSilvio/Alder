@@ -99,13 +99,16 @@ internal static class BoundRuntimeMethodCache
         typeof(ControlFlowSignal).GetMethod(nameof(ControlFlowSignal.GotoCaseSignal))!;
 
     internal static readonly MethodInfo ControlFlowGotoMethod =
-        typeof(ControlFlowSignal).GetMethod(nameof(ControlFlowSignal.GotoSignal))!;
+        typeof(ControlFlowSignal).GetMethod(nameof(ControlFlowSignal.GotoSignal), [typeof(string), typeof(Alder.Text.TextSpan)])!;
 
     internal static readonly PropertyInfo ControlFlowSignalKindProperty =
         typeof(ControlFlowSignal).GetProperty(nameof(ControlFlowSignal.SignalKind))!;
 
     internal static readonly PropertyInfo ControlFlowValueProperty =
         typeof(ControlFlowSignal).GetProperty(nameof(ControlFlowSignal.Value))!;
+
+    internal static readonly MethodInfo ControlFlowUnwrapOrThrowMethod =
+        typeof(ControlFlowSignal).GetMethod(nameof(ControlFlowSignal.UnwrapOrThrow), [typeof(ControlFlowSignal)])!;
 
     internal static readonly MethodInfo InvokeCallMethod =
         typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeCall))!;
@@ -328,7 +331,7 @@ internal static class BoundRuntimeMethodCache
         typeof(Operators).GetMethod(nameof(Operators.Subtract), [typeof(object), typeof(object), typeof(bool)])!;
 
     internal static readonly MethodInfo MultiplyMethod =
-        typeof(Operators).GetMethod(nameof(Operators.Multiply), [typeof(object), typeof(object), typeof(LanguageMode), typeof(bool)])!;
+        typeof(Operators).GetMethod(nameof(Operators.Multiply), [typeof(object), typeof(object), typeof(bool)])!;
 
     internal static readonly MethodInfo DivideMethod =
         typeof(Operators).GetMethod(nameof(Operators.Divide), [typeof(object), typeof(object)])!;

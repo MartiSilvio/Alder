@@ -213,6 +213,15 @@ public class ParityTests(CompilationMode mode)
             case "CS1061" when csEx.ErrorCode is DiagnosticCode.ALDR0304:
             // Roslyn reports missing GetAwaiter (CS1061), Alder reports not awaitable (CS4001)
             case "CS1061" when csEx.ErrorCode is DiagnosticCode.CS4001:
+            // Roslyn distinguishes static-member-not-found (CS0117) from instance-member-not-found
+            // (CS1061) at compile time. Alder is a dynamic environment and reports both as CS1061
+            // at runtime, since the receiver shape isn't always known until evaluation.
+            case "CS0117" when csEx.ErrorCode is DiagnosticCode.CS1061:
+            // Roslyn script mode wraps top-level locals into script-class fields, so referencing
+            // a prior `int y = 5` from a `const int x = y;` fires CS0120 (instance field needs
+            // an object reference). Alder treats them as true locals and correctly reports the
+            // §13.6.3 constant-initializer violation.
+            case "CS0120" when csEx.ErrorCode is DiagnosticCode.CS0133:
                 return;
         }
 

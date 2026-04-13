@@ -9,6 +9,9 @@ internal static class DefaultBinder
 {
     public static BoundExpr Bind(DefaultExpr expr, BindingContext context, BinderContext binder)
     {
+        // §12.8.20: a bare `default` literal (without a target type) is represented as a null
+        // literal of unknown type. Surrounding binders (VariableDeclBinder, assignment, calls)
+        // either provide a target type or reject the bare form with CS8716.
         if (expr.TypeToken == null)
             return new BoundLiteralExpr(null, BoundType.Unknown);
 

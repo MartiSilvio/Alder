@@ -146,13 +146,8 @@ internal static class Operators
             "op_Subtraction", isChecked);
     }
 
-    public static object? Multiply(object? left, object? right, LanguageMode languageMode, bool isChecked = false)
+    public static object? Multiply(object? left, object? right, bool isChecked = false)
     {
-        if (left is string || right is string)
-        {
-            if (languageMode == LanguageMode.Extended)
-                return StringMultiply(left, right);
-        }
         return ApplyBinaryArithmetic(
             left,
             right,
@@ -611,48 +606,6 @@ internal static class Operators
             ExceptionDispatchInfo.Capture(tie.InnerException).Throw();
             throw;
         }
-    }
-
-    private static string? StringMultiply(object? left, object? right)
-    {
-        string? str;
-        object? countObj;
-
-        if (left is string s)
-        {
-            str = s;
-            countObj = right;
-        }
-        else if (right is string s2)
-        {
-            str = s2;
-            countObj = left;
-        }
-        else
-        {
-            throw new AlderException(
-                DiagnosticDescriptors.BadBinaryOps,
-                TokenLexemes.GetCanonical(TokenType.Star),
-                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
-        }
-
-        if (countObj == null || !TypeHelpers.IsInteger(countObj))
-            throw new AlderException(
-                DiagnosticDescriptors.BadBinaryOps,
-                TokenLexemes.GetCanonical(TokenType.Star),
-                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
-
-        var count = Convert.ToInt32(countObj);
-        return count switch
-        {
-            < 0 => throw new AlderException(
-                DiagnosticDescriptors.BadBinaryOps,
-                TokenLexemes.GetCanonical(TokenType.Star),
-                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right)),
-            0 => string.Empty,
-            1 => str,
-            _ => new StringBuilder(str.Length * count).Insert(0, str, count).ToString()
-        };
     }
 
     public static bool Like(object? left, object? right, StringComparison comparison)

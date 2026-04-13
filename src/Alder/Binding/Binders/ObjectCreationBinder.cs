@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Alder.Binding.BoundNodes;
+using Alder.Diagnostics;
 using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
@@ -25,6 +26,15 @@ internal static class ObjectCreationBinder
             ]
             : ImmutableArray<BoundInitializerEntry>.Empty;
         var resolvedType = context.RuntimeContext.TypeResolver.TryResolveType(expr.TypeName);
+        if (resolvedType != null)
+        {
+            // §12.8.16.2: static classes surface as `abstract sealed` in IL — Roslyn emits CS0712 for them.
+            if (resolvedType is { IsAbstract: true, IsSealed: true })
+                throw new AlderException(DiagnosticDescriptors.CannotInstantiateStaticClass, resolvedType.Name);
+            if (resolvedType.IsInterface || resolvedType.IsAbstract)
+                throw new AlderException(DiagnosticDescriptors.CannotInstantiateAbstractOrInterface, resolvedType.Name);
+        }
+
         var staticType = resolvedType != null ? new BoundType(resolvedType) : BoundType.Unknown;
         return new BoundObjectCreationExpr(expr.TypeName, arguments, initializerEntries, staticType);
     }

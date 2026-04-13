@@ -148,6 +148,11 @@ internal sealed class SecurityValidationPass : IBoundTreePass
                     throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, typeValue.Name);
                 break;
 
+            case BoundTypeRefExpr typeRef:
+                if (!policy.IsTypeAllowed(typeRef.TargetType))
+                    throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, typeRef.TargetType.Name);
+                break;
+
             case BoundAssignExpr or BoundCompoundAssignExpr or BoundNullCoalesceAssignExpr
                 or BoundIncrementDecrementExpr:
                 if (!policy.AllowAssignment)

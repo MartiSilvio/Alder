@@ -8,6 +8,6 @@ internal static class GotoEvaluator
 {
     public static object? Evaluate(BoundGotoExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        return ControlFlowSignal.GotoSignal(node.Label);
+        return ControlFlowSignal.GotoSignal(node.Label, node.Source.Span);
     }
 }

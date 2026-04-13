@@ -205,8 +205,10 @@ internal sealed class Lexer
                     else if (Match('=')) AddToken(TokenType.DotDotEquals);
                     else AddToken(TokenType.DotDot);
                 }
-                else if (char.IsDigit(Peek()))
-                    // ECMA-334 permits a real literal that starts with a decimal point.
+                else if (char.IsDigit(Peek()) && !PreviousTokenContinuesExpression())
+                    // ECMA-334 §6.4.5.4: a real literal may start with a decimal point, but only
+                    // in an expression-starting position. After an expression-continuing token
+                    // (number, identifier, closing paren/bracket, etc.) `.` is member access.
                     ScanLeadingDecimalNumber();
                 else
                     AddToken(TokenType.Dot);
@@ -425,7 +427,7 @@ internal sealed class Lexer
         while (Peek() != quote && !IsAtEnd())
         {
             if (Peek() == '\n')
-                throw LexError($"Newline in constant at {_line}:{_column}");
+                throw LexError(DiagnosticDescriptors.NewlineInConstant, $"Newline in constant at {_line}:{_column}");
             if (Peek() == '\\')
             {
                 Advance();
@@ -438,7 +440,7 @@ internal sealed class Lexer
         }
 
         if (IsAtEnd())
-            throw LexError($"Unterminated string at {_line}:{_column}");
+            throw LexError(DiagnosticDescriptors.NewlineInConstant, $"Unterminated string at {_line}:{_column}");
 
         Advance(); // closing quote
         AddToken(TokenType.String, sb.ToString());
@@ -449,22 +451,22 @@ internal sealed class Lexer
         char value;
 
         if (IsAtEnd())
-            throw LexError($"Unterminated character literal at {_line}:{_column}");
+            throw LexError(DiagnosticDescriptors.NewlineInConstant, $"Unterminated character literal at {_line}:{_column}");
 
         if (Peek() == '\\')
         {
             Advance(); // consume backslash
             if (IsAtEnd())
-                throw LexError($"Unterminated character literal at {_line}:{_column}");
+                throw LexError(DiagnosticDescriptors.NewlineInConstant, $"Unterminated character literal at {_line}:{_column}");
 
             var escaped = ParseEscapeSequence(forCharacterLiteral: true);
             if (escaped.Length != 1)
-                throw LexError($"Character literal must contain exactly one character at {_line}:{_column}");
+                throw LexError(DiagnosticDescriptors.TooManyCharactersInLiteral, $"Character literal must contain exactly one character at {_line}:{_column}");
             value = escaped[0];
         }
         else if (Peek() == '\'')
         {
-            throw LexError($"Empty character literal at {_line}:{_column}");
+            throw LexError(DiagnosticDescriptors.EmptyCharacterLiteral, $"Empty character literal at {_line}:{_column}");
         }
         else
         {
@@ -472,7 +474,7 @@ internal sealed class Lexer
         }
 
         if (Peek() != '\'')
-            throw LexError($"Character literal must contain exactly one character at {_line}:{_column}");
+            throw LexError(DiagnosticDescriptors.TooManyCharactersInLiteral, $"Character literal must contain exactly one character at {_line}:{_column}");
 
         Advance(); // closing quote
         AddToken(TokenType.Character, value);
@@ -954,7 +956,42 @@ internal sealed class Lexer
             throw new AlderException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
         }
 
+        RejectTrailingIdentifierChars();
         AddToken(TokenType.Number, value);
+    }
+
+    /// <summary>
+    /// ECMA-334 §6.4.5: a numeric literal may not be immediately followed by an
+    /// identifier-start character — the only letters permitted after the digits are
+    /// the recognized type suffixes (L/U/UL/F/D/M), which <see cref="ParseNumericSuffix"/>
+    /// has already consumed. Anything left over (e.g. the <c>xyz</c> in <c>42xyz</c>)
+    /// is a syntax error: Roslyn surfaces it as CS1002 "; expected" at the position of
+    /// the rogue identifier, and we match that diagnostic here so parity tests stay aligned.
+    /// </summary>
+    private void RejectTrailingIdentifierChars()
+    {
+        var next = Peek();
+        if (char.IsLetter(next) || next == '_')
+            throw LexError(DiagnosticDescriptors.SemicolonExpected, string.Empty);
+    }
+
+    /// <summary>
+    /// A <c>.</c> immediately followed by a digit is a leading-decimal real literal only
+    /// when it appears in expression-starting position. After an expression-continuing
+    /// token (a preceding number, identifier, closing paren/bracket, etc.) the <c>.</c>
+    /// is member access and the following digits are a separate number token, which the
+    /// parser will then reject.
+    /// </summary>
+    private bool PreviousTokenContinuesExpression()
+    {
+        if (_tokens.Count == 0) return false;
+        return _tokens[^1].Type switch
+        {
+            TokenType.Number or TokenType.Identifier or TokenType.String or TokenType.Char
+                or TokenType.RightParen or TokenType.RightBracket or TokenType.RightBrace
+                or TokenType.True or TokenType.False or TokenType.Null or TokenType.This or TokenType.Base => true,
+            _ => false
+        };
     }
 
     /// <summary>
@@ -993,6 +1030,7 @@ internal sealed class Lexer
             _ => throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid suffix for decimal literal at {_line}:{_column}")
         };
 
+        RejectTrailingIdentifierChars();
         AddToken(TokenType.Number, value);
     }
 
@@ -1046,6 +1084,7 @@ internal sealed class Lexer
             throw new AlderException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
         }
 
+        RejectTrailingIdentifierChars();
         AddToken(TokenType.Number, value);
     }
 
@@ -1077,6 +1116,7 @@ internal sealed class Lexer
             throw new AlderException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
         }
 
+        RejectTrailingIdentifierChars();
         AddToken(TokenType.Number, value);
     }
 
@@ -1102,7 +1142,7 @@ internal sealed class Lexer
             'u' => ParseUnicodeEscape(4, forCharacterLiteral),
             'U' => ParseUnicodeEscape(8, forCharacterLiteral),
             'x' => ParseHexEscape().ToString(),
-            _ => throw LexError($"Unknown escape sequence '\\{escaped}' at {_line}:{_column}")
+            _ => throw LexError(DiagnosticDescriptors.UnrecognizedEscapeSequence, $"Unrecognized escape sequence '\\{escaped}' at {_line}:{_column}")
         };
 
         char Consume(char c) { Advance(); return c; }

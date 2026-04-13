@@ -92,11 +92,22 @@ public sealed partial class AlderEngine
             DefineOrStageVariable(name, value, type);
     }
 
-    internal void SetVariablesPreservingRuntimeTypes(IDictionary<string, object?> variables)
+    /// <summary>
+    /// Sets multiple variables from a dictionary, using each value's runtime
+    /// type for binding instead of erasing to <see cref="object"/>. Use this
+    /// overload when injecting dynamically-sourced inputs (JSON payloads, agent
+    /// tool arguments, user forms) so overload resolution and member access
+    /// bind against the concrete types an expression actually needs.
+    /// </summary>
+    /// <param name="variables">Variable name/value pairs. Values of
+    /// <see langword="null"/> bind as <see cref="object"/>.</param>
+    /// <returns>This engine instance, for method chaining.</returns>
+    public AlderEngine SetVariablesPreservingRuntimeTypes(IDictionary<string, object?> variables)
     {
         ThrowIfDisposed();
         foreach (var (name, value) in variables)
             DefineOrStageVariable(name, value, value?.GetType() ?? typeof(object));
+        return this;
     }
 
     private void DefineOrStageVariables(IDictionary<string, object?> variables, Type inferredType)

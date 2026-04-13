@@ -135,17 +135,6 @@ not true          // false
 
 In Standard mode, `and`, `or`, `not` are parsed as identifiers.
 
-### String Repetition (`*`)
-
-`string * count` or `count * string`. Count must be non-negative. Count 0 returns `""`.
-
-```csharp
-"ab" * 3    // "ababab"
-3 * "ab"    // "ababab"
-```
-
-<!-- test: ExtRef_Op_StringRepeat.csx -->
-
 ### Inclusive Range (`..=`, `..<`)
 
 Standard `..` produces `System.Range` (exclusive end). Extended adds `..=` (inclusive) and `..<` (explicit exclusive) producing `IEnumerable<int>` sequences.

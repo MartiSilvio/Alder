@@ -2,12 +2,19 @@ using Alder.Runtime;
 
 namespace Alder.Binding;
 
+internal enum ReadOnlyReason
+{
+    None,
+    Const,
+    IterationVariable,
+}
+
 internal sealed class BindingContext
 {
     private readonly AlderContext _context;
     private readonly BindingContext? _parent;
     private readonly Dictionary<string, (BoundType Type, int LocalId)> _locals;
-    private readonly HashSet<string> _readOnlyLocals;
+    private readonly Dictionary<string, ReadOnlyReason> _readOnlyLocals;
     private readonly BindingContext _root;
     private int _nextLocalId;
 
@@ -21,7 +28,7 @@ internal sealed class BindingContext
         _context = context;
         _parent = parent;
         _locals = new Dictionary<string, (BoundType, int)>(context.Comparer);
-        _readOnlyLocals = new HashSet<string>(context.Comparer);
+        _readOnlyLocals = new Dictionary<string, ReadOnlyReason>(context.Comparer);
         _root = parent?._root ?? this;
     }
 
@@ -31,23 +38,25 @@ internal sealed class BindingContext
     internal int LocalCount { get => _root._nextLocalId; set => _root._nextLocalId = value; }
     internal BindingContext CreateChildScope() => new(_context, this);
 
-    internal int DeclareLocal(string name, BoundType type, bool isReadOnly = false)
+    internal int DeclareLocal(string name, BoundType type, ReadOnlyReason readOnlyReason = ReadOnlyReason.None)
     {
         var id = _root._nextLocalId++;
         _locals[name] = (type, id);
-        if (isReadOnly)
-            _readOnlyLocals.Add(name);
+        if (readOnlyReason != ReadOnlyReason.None)
+            _readOnlyLocals[name] = readOnlyReason;
         else
             _readOnlyLocals.Remove(name);
         return id;
     }
 
-    internal bool IsReadOnlyLocal(string name)
+    internal bool IsReadOnlyLocal(string name) => GetReadOnlyReason(name) != ReadOnlyReason.None;
+
+    internal ReadOnlyReason GetReadOnlyReason(string name)
     {
         if (_locals.ContainsKey(name))
-            return _readOnlyLocals.Contains(name);
+            return _readOnlyLocals.TryGetValue(name, out var reason) ? reason : ReadOnlyReason.None;
 
-        return _parent?.IsReadOnlyLocal(name) ?? false;
+        return _parent?.GetReadOnlyReason(name) ?? ReadOnlyReason.None;
     }
 
     internal bool TryGetLocal(string name, out BoundType type, out int localId)

@@ -125,6 +125,7 @@ internal sealed partial class ExpressionParser : ParserBase
         if (Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
             Check(TokenType.Goto) ||
             (Check(TokenType.Yield) && PeekNext().Type is TokenType.Return or TokenType.Break) ||
+            (Check(TokenType.Throw) && PeekNext().Type == TokenType.Semicolon) ||
             Check(TokenType.While) || Check(TokenType.For) ||
             Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
             Check(TokenType.Try) || Check(TokenType.Const) ||
@@ -330,7 +331,7 @@ internal sealed partial class ExpressionParser : ParserBase
                 MemberAccessExpr m => new MemberIncrementExpr(m.Object, m.Name.Lexeme, true, isIncrement) { Span = SpanFrom(mark) },
                 IndexAccessExpr idx => new IndexIncrementExpr(idx.Object, idx.Index, true, isIncrement) { Span = SpanFrom(mark) },
                 IdentifierExpr id => new IncrementDecrementExpr(id.Name, op, true) { Span = SpanFrom(mark) },
-                _ => throw SyntaxError(DiagnosticDescriptors.InvalidExpressionTerm, op.Lexeme)
+                _ => throw SyntaxError(DiagnosticDescriptors.IncrementDecrementRequiresVariable)
             };
         }
         else
@@ -576,8 +577,20 @@ internal sealed partial class ExpressionParser : ParserBase
             }
         }
 
+        // §12.21.2: the left-hand side of an assignment must be a variable, property, or indexer.
+        // If we see `=`, `??=`, or a compound-assignment operator here, the LHS is not assignable.
+        if (Check(TokenType.Equal) || Check(TokenType.QuestionQuestionEqual) || IsCompoundAssignmentToken(Peek().Type))
+            throw SyntaxError(DiagnosticDescriptors.AssignmentRequiresVariable);
+
         return false;
     }
+
+    private static bool IsCompoundAssignmentToken(TokenType type) =>
+        type is TokenType.PlusEqual or TokenType.MinusEqual or TokenType.StarEqual
+            or TokenType.SlashEqual or TokenType.PercentEqual or TokenType.AmpEqual
+            or TokenType.PipeEqual or TokenType.CaretEqual or TokenType.LessLessEqual
+            or TokenType.GreaterGreaterEqual or TokenType.GreaterGreaterGreaterEqual
+            or TokenType.StarStarEqual;
 
     private Expr ParsePostfix(Expr expr, int mark)
     {
@@ -713,7 +726,8 @@ internal sealed partial class ExpressionParser : ParserBase
                 }
                 else
                 {
-                    break;
+                    // §12.8.15 / CS1059: operand of postfix ++/-- must be a variable, property, or indexer.
+                    throw SyntaxError(DiagnosticDescriptors.IncrementDecrementRequiresVariable);
                 }
             }
             else
