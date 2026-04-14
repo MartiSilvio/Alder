@@ -66,7 +66,7 @@ internal static class NullCoalesceBinder
             type.Name);
     }
 
-    // §12.15.7: the result type of A ?? B unwraps A's Nullable<T> when A is a nullable value
+    // §12.15: the result type of A ?? B unwraps A's Nullable<T> when A is a nullable value
     // type whose underlying T matches (or implicitly converts to) B's type.
     private static Type GetNullCoalesceResultType(Type leftType, Type rightType)
     {

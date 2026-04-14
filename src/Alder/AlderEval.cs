@@ -199,6 +199,36 @@ public static class AlderEval
         => GetEngine().EvaluateAsync<T>(expression, variables, cancellationToken);
 
     /// <summary>
+    /// Asynchronously evaluates source text using public properties from <paramref name="variables"/> as locals.
+    /// </summary>
+    public static ValueTask<object?> EvaluateAsync(
+        string expression,
+        object variables,
+        CancellationToken cancellationToken = default)
+        => GetEngine().EvaluateAsync(expression, variables, cancellationToken);
+
+    /// <summary>
+    /// Asynchronously evaluates source text with object-backed locals and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    public static ValueTask<T?> EvaluateAsync<T>(
+        string expression,
+        object variables,
+        CancellationToken cancellationToken = default)
+        => GetEngine().EvaluateAsync<T>(expression, variables, cancellationToken);
+
+    /// <summary>
+    /// Asynchronously evaluates source text with positional variables.
+    /// </summary>
+    public static ValueTask<object?> EvaluateAsync(string expression, params object?[] variables)
+        => GetEngine().EvaluateAsync(expression, variables);
+
+    /// <summary>
+    /// Asynchronously evaluates source text with positional variables and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    public static ValueTask<T?> EvaluateAsync<T>(string expression, params object?[] variables)
+        => GetEngine().EvaluateAsync<T>(expression, variables);
+
+    /// <summary>
     /// Validates source for syntax and binding errors without running it.
     /// </summary>
     /// <param name="expression">Expression source to validate.</param>

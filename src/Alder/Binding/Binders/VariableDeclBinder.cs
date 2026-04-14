@@ -113,9 +113,9 @@ internal static class VariableDeclBinder
 
         // §10.2.11 constant-expression conversion: int constants implicitly convert to any narrower
         // integral target they fit, and long constants implicitly convert to ulong when non-negative.
-        // §11.1.6: out-of-range constants within those same source/target pairs produce CS0031 rather
-        // than CS0266. Outside those pairs (e.g. long→int) the rule does not apply and we fall through
-        // to the regular explicit-conversion diagnostic.
+        // Out-of-range constants within those same source/target pairs produce CS0031 rather than CS0266.
+        // Outside those pairs (e.g. long→int) the rule does not apply and we fall through to the regular
+        // explicit-conversion diagnostic.
         if (TryGetConstantIntegralValue(initializer, out var iVal, out var lVal, out var isLong))
         {
             var effectiveTarget = Nullable.GetUnderlyingType(declaredType) ?? declaredType;

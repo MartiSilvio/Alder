@@ -591,24 +591,24 @@ internal sealed record ChainedComparisonExpr(List<Expr> Operands, List<Token> Op
 // ECMA-334 §11.2 - Pattern matching
 internal abstract record Pattern;
 
-// §11.2.1 - Constant pattern
+// ECMA-334 §11.2.3 - Constant pattern
 internal sealed record ConstantPattern(Expr Value) : Pattern;
 
-// §11.2.2 - Type pattern
+// ECMA-334 §11.2.2 - Declaration pattern
 internal sealed record TypePattern(Token TypeToken, Token? VariableName) : Pattern;
 
-// §11.2.3 - Relational pattern
+// Relational pattern (not in ECMA-334 7th edition)
 internal sealed record RelationalPattern(Token Operator, Expr Operand) : Pattern;
 
-// §11.2.5 - Logical patterns
+// Logical patterns (not in ECMA-334 7th edition)
 internal sealed record AndPattern(Pattern Left, Pattern Right) : Pattern;
 internal sealed record OrPattern(Pattern Left, Pattern Right) : Pattern;
 internal sealed record NotPattern(Pattern Operand) : Pattern;
 
-// §11.2.6 - Property pattern
+// Property pattern (not in ECMA-334 7th edition)
 internal sealed record PropertyPattern(Token? TypeToken, List<(Token Name, Pattern Pattern)> Properties, Token? VariableName) : Pattern;
 
-// §11.2.4 - Var pattern (always matches, binds variable)
+// ECMA-334 §11.2.4 - Var pattern (always matches, binds variable)
 internal sealed record VarPattern(Token VariableName) : Pattern;
 
 // Discard pattern (always matches, no binding)

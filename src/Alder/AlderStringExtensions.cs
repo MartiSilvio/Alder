@@ -78,6 +78,58 @@ public static class AlderStringExtensions
         => AlderEval.Evaluate<T>(expression, variables);
 
     /// <summary>
+    /// Asynchronously evaluates this string and returns the result.
+    /// </summary>
+    public static ValueTask<object?> EvaluateAsync(
+        this string expression,
+        IDictionary<string, object?>? variables = null,
+        CancellationToken cancellationToken = default)
+        => AlderEval.EvaluateAsync(expression, variables, cancellationToken);
+
+    /// <summary>
+    /// Asynchronously evaluates this string using public properties from <paramref name="variables"/> as locals.
+    /// </summary>
+    public static ValueTask<object?> EvaluateAsync(
+        this string expression,
+        object variables,
+        CancellationToken cancellationToken = default)
+        => AlderEval.EvaluateAsync(expression, variables, cancellationToken);
+
+    /// <summary>
+    /// Asynchronously evaluates this string and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    public static ValueTask<T?> EvaluateAsync<T>(
+        this string expression,
+        IDictionary<string, object?>? variables = null,
+        CancellationToken cancellationToken = default)
+        => AlderEval.EvaluateAsync<T>(expression, variables, cancellationToken);
+
+    /// <summary>
+    /// Asynchronously evaluates this string with object-backed locals and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    public static ValueTask<T?> EvaluateAsync<T>(
+        this string expression,
+        object variables,
+        CancellationToken cancellationToken = default)
+        => AlderEval.EvaluateAsync<T>(expression, variables, cancellationToken);
+
+    /// <summary>
+    /// Asynchronously evaluates this string with positional variables.
+    /// </summary>
+    public static ValueTask<object?> EvaluateAsync(
+        this string expression,
+        params object?[] variables)
+        => AlderEval.EvaluateAsync(expression, variables);
+
+    /// <summary>
+    /// Asynchronously evaluates this string with positional variables and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    public static ValueTask<T?> EvaluateAsync<T>(
+        this string expression,
+        params object?[] variables)
+        => AlderEval.EvaluateAsync<T>(expression, variables);
+
+    /// <summary>
     /// Attempts to evaluate this string without throwing for ordinary failures.
     /// </summary>
     /// <param name="expression">Expression source to evaluate.</param>

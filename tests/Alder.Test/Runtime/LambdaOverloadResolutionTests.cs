@@ -245,7 +245,7 @@ public class LambdaOverloadResolutionTests(CompilationMode mode)
 
     #endregion
 
-    #region Complex expressions — chi-squared pattern (the original MCP use case)
+    #region Complex expressions — chi-squared pattern
 
     [Test]
     public void ChiSquared_IntBuckets_DoubleExpected()

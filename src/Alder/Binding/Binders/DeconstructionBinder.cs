@@ -12,7 +12,7 @@ internal static class DeconstructionBinder
     {
         var valueExpression = binder.Bind(expr.ValueExpression, context);
 
-        // §12.21.3: implicitly-typed deconstruction requires each variable to have an inferable
+        // §12.7: implicitly-typed deconstruction requires each variable to have an inferable
         // source. When the source is a tuple of known arity, extra variables cannot be inferred
         // and Roslyn reports CS8130.
         var sourceType = valueExpression.StaticType.ClrType;

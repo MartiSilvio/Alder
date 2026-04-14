@@ -123,11 +123,6 @@ public sealed partial class AlderEngine : IDisposable
 
         var modules = new Dictionary<string, ModuleInfo>(options.StringComparer);
 
-        var mathMembers = ModuleMemberMetadata.GetBuiltInMathMembers(options.StringComparer);
-        var convertMembers = ModuleMemberMetadata.GetBuiltInConvertMembers(options.StringComparer);
-        modules["Math"] = new ModuleInfo(typeof(Math), null, mathMembers);
-        modules["Convert"] = new ModuleInfo(typeof(Convert), null, convertMembers);
-
         foreach (var reg in options.Modules.RegisteredTypes)
         {
             var moduleName = reg.ModuleName ?? reg.Type.GetCustomAttribute<AlderModuleAttribute>()?.Name;

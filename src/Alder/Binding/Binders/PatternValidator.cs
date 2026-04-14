@@ -25,7 +25,7 @@ internal static class PatternValidator
         switch (pattern)
         {
             case RelationalPattern:
-                // §11.2.3: relational patterns require a type that has the corresponding predefined relational operators.
+                // Relational patterns require a type that has the corresponding predefined relational operators.
                 // The built-in set is sbyte, byte, short, ushort, int, uint, long, ulong, char, float, double, decimal
                 // (plus nint/nuint via TypeHelpers.IsArithmetic).
                 var effective = Nullable.GetUnderlyingType(subjectType) ?? subjectType;
@@ -104,7 +104,7 @@ internal static class PatternValidator
 
     private static void ValidateListPattern(Type subjectType)
     {
-        // §11.2.5: list patterns require a countable + indexable subject. The runtime matcher
+        // List patterns require a countable + indexable subject. The runtime matcher
         // (PatternRuntime.GetCountableLength/GetIndexedElement) handles IList and string, so the
         // binder validates against the same contract — anything else is guaranteed to fail.
         var effective = Nullable.GetUnderlyingType(subjectType) ?? subjectType;

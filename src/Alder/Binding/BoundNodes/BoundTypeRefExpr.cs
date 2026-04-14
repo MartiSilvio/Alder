@@ -1,6 +1,6 @@
 namespace Alder.Binding.BoundNodes;
 
-// ECMA-334 §12.7.3: a type name used in expression position — e.g. `int.Parse("5")`, where
+// ECMA-334 §12.8.7.2: a type name used in expression position — e.g. `int.Parse("5")`, where
 // `int` is the target of a static member lookup. This is *not* a runtime value; it is a
 // compile-time binding context that directs member access at the wrapped CLR type.
 //

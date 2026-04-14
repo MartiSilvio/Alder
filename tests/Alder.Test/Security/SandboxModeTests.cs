@@ -7,7 +7,6 @@ namespace Alder.Test.Security;
 [TestFixture(CompilationMode.Compiled)]
 public class SandboxModeTests(CompilationMode mode)
 {
-
     [Test]
     public void Trusted_AllowsMethodCalls()
     {
@@ -121,19 +120,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("sandbox"));
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0103));
     }
-
-
-
-    [Test]
-    public void Safe_AllowsModuleMethods()
-    {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe());
-
-        var result = engine.Evaluate("Math.Abs(-5)");
-
-        Assert.That(result, Is.EqualTo(5));
-    }
-
+    
     [Test]
     public void Safe_AllowsModuleProperties()
     {
@@ -605,16 +592,6 @@ public class SandboxModeTests(CompilationMode mode)
     }
 
     [Test]
-    public void Strict_AllowsModuleMethods()
-    {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Strict());
-
-        var result = engine.Evaluate("Math.Abs(-5)");
-
-        Assert.That(result, Is.EqualTo(5));
-    }
-
-    [Test]
     public void Strict_AllowsLinq()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Strict());
@@ -756,17 +733,6 @@ public class SandboxModeTests(CompilationMode mode)
         ");
 
         Assert.That(result, Is.EqualTo(42));
-    }
-
-    [Test]
-    public void DenyAll_DefaultSandbox_AllowsModuleMethods()
-    {
-        // Modules are always allowed even in deny-all mode
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = new SandboxOptions());
-
-        var result = engine.Evaluate("Math.Abs(-5)");
-
-        Assert.That(result, Is.EqualTo(5));
     }
 
     [Test]

@@ -463,7 +463,7 @@ internal static class MemberAccess
                 return property;
         }
 
-        // §12.8.12.3: if an indexer with the right arity exists but the argument type doesn't
+        // §12.8.11.3: if an indexer with the right arity exists but the argument type doesn't
         // match, Roslyn reports CS1503 rather than CS0021. Detect that case and throw the more
         // precise diagnostic so the argument-type-mismatch path surfaces to the caller.
         if (indexType != null)

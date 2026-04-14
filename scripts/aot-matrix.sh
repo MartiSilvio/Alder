@@ -20,16 +20,30 @@ case "$uname_s/$uname_m" in
     ;;
 esac
 
-echo "[aot-matrix] Publishing NativeAOT binary (RID: $RID)..."
-
-dotnet publish "$ROOT_DIR/tests/Alder.AotMatrix/Alder.AotMatrix.csproj" \
-  -c Release \
-  -r "$RID" \
-  -p:SelfContained=true \
-  --nologo \
-  -v quiet > /dev/null 2>&1
-
 BIN_PATH="$ROOT_DIR/tests/Alder.AotMatrix/bin/Release/net8.0/$RID/publish/Alder.AotMatrix"
+
+if [[ -x "$BIN_PATH" ]]; then
+  echo "[aot-matrix] Using existing NativeAOT binary (RID: $RID)..."
+else
+  echo "[aot-matrix] Publishing NativeAOT binary (RID: $RID)..."
+
+  if ! dotnet publish "$ROOT_DIR/tests/Alder.AotMatrix/Alder.AotMatrix.csproj" \
+    -c Release \
+    -r "$RID" \
+    -p:SelfContained=true \
+    --nologo \
+    -v quiet > /dev/null 2>&1; then
+    echo "[aot-matrix] NativeAOT publish failed. Re-running with visible output..." >&2
+    dotnet publish "$ROOT_DIR/tests/Alder.AotMatrix/Alder.AotMatrix.csproj" \
+      -c Release \
+      -r "$RID" \
+      -p:SelfContained=true \
+      --nologo \
+      -v minimal
+    exit 1
+  fi
+fi
+
 if [[ ! -x "$BIN_PATH" ]]; then
   echo "AOT binary not found at $BIN_PATH" >&2
   exit 3

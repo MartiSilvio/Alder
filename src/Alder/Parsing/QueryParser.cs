@@ -388,7 +388,7 @@ internal sealed class QueryParser : ParserBase
     /// Parses: group elementExpr by keyExpr
     /// Desugars to: source.GroupBy(param => keyExpr) for identity projection,
     /// or source.GroupBy(param => keyExpr, param => elementExpr) for custom projection.
-    /// ECMA-334 §12.20.3.9
+    /// ECMA-334 §12.20.3.7
     /// </summary>
     private Expr ParseGroupByClause(Expr source, QueryScope scope)
     {

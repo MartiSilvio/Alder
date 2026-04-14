@@ -61,19 +61,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         engine.SetVariable("inc", (Func<int, int>)(x => x + 100));
         Assert.That(engine.Evaluate("inc(5)"), Is.EqualTo(6));
     }
-
-    [Test]
-    public void IdentifierCall_ModuleShadowsVariable()
-    {
-        var engine = TestEngineFactory.Create(mode, LanguageMode.Extended);
-        engine.SetVariable("Math", (Func<int, int>)(x => x + 1));
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Math(5)"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1955));
-        Assert.That(ex.Message, Does.Contain("ModuleInfo"));
-    }
-
-
-
+    
     [Test]
     public void Range_ReversedRange_ReturnsEmpty()
     {
@@ -483,17 +471,6 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         engine.SetVariable("inc", (Func<int, int>)(x => x + 100));
         Assert.That(engine.Evaluate("inc(5)"), Is.EqualTo(6));
     }
-
-    [Test]
-    public void StandardMode_IdentifierCall_ModuleShadowsVariable()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("Math", (Func<int, int>)(x => x + 1));
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Math(5)"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1955));
-        Assert.That(ex.Message, Does.Contain("ModuleInfo"));
-    }
-
 
     [Test]
     public void StandardMode_Range_ProducesSystemRange()

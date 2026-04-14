@@ -65,7 +65,6 @@ var symbol = "+";
 ## Boundaries
 
 **Never modify:**
-- `docs/ECMA-334_7th_edition_december_2023.md` — the C# spec reference, read-only
 - Generated files in `obj/` or `bin/`
 - `.env` files or anything containing credentials
 

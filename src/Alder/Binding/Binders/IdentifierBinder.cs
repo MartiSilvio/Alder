@@ -21,7 +21,7 @@ internal static class IdentifierBinder
 
         context.TryGetVariableType(name, out var staticType);
 
-        // ECMA-334 §12.7.3: an identifier that resolves to a type in expression position (e.g.
+        // ECMA-334 §12.8.7.2: an identifier that resolves to a type in expression position (e.g.
         // `DayOfWeek.Wednesday`, `Task.FromResult(...)`, `Math.PI`) is a type reference targeting
         // static-member access on the wrapped type. Distinct from a runtime `Type` value — see
         // BoundTypeRefExpr for the rationale.
