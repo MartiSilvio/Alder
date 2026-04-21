@@ -269,7 +269,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
         var compiled = SelectRootLambda(capturingCompiler);
         Assert.That(compiled, Is.Not.Null);
 
-        Assert.That(expression.GetCompiledInfo()!.Pipeline, Is.EqualTo(CompiledPipeline.Bound));
+        Assert.That(engine.GetCompiledInfo(expression)!.Pipeline, Is.EqualTo(CompiledPipeline.Bound));
     }
 
     [Test]

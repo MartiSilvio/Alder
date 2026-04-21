@@ -84,44 +84,44 @@ public class SwitchStatementTests(CompilationMode mode)
                 default:
                     return ""other"";
             }
-        }", out var expr, out var error);
+        }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.True);
         Assert.That(expr, Is.Not.Null);
-        Assert.That(error, Is.Null);
+        Assert.That(diagnostics, Is.Empty);
     }
 
     [Test]
     public void Switch_TryParse_MissingParenthesis_Fails()
     {
         var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("{ switch x { case 1: break; } }", out var expr, out var error);
+        var success = engine.TryParse("{ switch x { case 1: break; } }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.False);
         Assert.That(expr, Is.Null);
-        Assert.That(error, Is.Not.Null);
+        Assert.That(diagnostics, Is.Not.Empty);
     }
 
     [Test]
     public void Switch_TryParse_MissingBrace_Fails()
     {
         var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("{ switch (x) case 1: break; }", out var expr, out var error);
+        var success = engine.TryParse("{ switch (x) case 1: break; }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.False);
         Assert.That(expr, Is.Null);
-        Assert.That(error, Is.Not.Null);
+        Assert.That(diagnostics, Is.Not.Empty);
     }
 
     [Test]
     public void Switch_TryParse_MissingColon_Fails()
     {
         var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("{ switch (x) { case 1 break; } }", out var expr, out var error);
+        var success = engine.TryParse("{ switch (x) { case 1 break; } }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.False);
         Assert.That(expr, Is.Null);
-        Assert.That(error, Is.Not.Null);
+        Assert.That(diagnostics, Is.Not.Empty);
     }
 
     // Engine-only: tests pre-parsed expression reuse with SetVariable

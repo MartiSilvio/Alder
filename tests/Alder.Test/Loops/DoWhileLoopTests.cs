@@ -213,11 +213,11 @@ public class DoWhileLoopTests(CompilationMode mode)
     public void DoWhileLoop_TryParse_ValidExpression_Succeeds()
     {
         var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("{ var i = 0; do { i = i + 1; } while (i < 5); return i; }", out var expr, out var error);
+        var success = engine.TryParse("{ var i = 0; do { i = i + 1; } while (i < 5); return i; }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.True);
         Assert.That(expr, Is.Not.Null);
-        Assert.That(error, Is.Null);
+        Assert.That(diagnostics, Is.Empty);
     }
 
     // Engine-only: TryParse API (Alder-specific)
@@ -225,10 +225,11 @@ public class DoWhileLoopTests(CompilationMode mode)
     public void DoWhileLoop_TryParse_WithoutSemicolon_StillWorks()
     {
         var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("{ var i = 0; do { i = i + 1; } while (i < 5) return i; }", out var expr, out var error);
+        var success = engine.TryParse("{ var i = 0; do { i = i + 1; } while (i < 5) return i; }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.True);
         Assert.That(expr, Is.Not.Null);
+        Assert.That(diagnostics, Is.Empty);
     }
 
     // Engine-only: Parse/SetVariable API (Alder-specific), pre-parsed expression reuse

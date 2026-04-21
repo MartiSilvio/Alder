@@ -93,22 +93,22 @@ public class WhileLoopTests(CompilationMode mode)
     public void WhileLoop_TryParse_ValidExpression_Succeeds()
     {
         var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("{ var i = 0; while (i < 5) { i = i + 1; } return i; }", out var expr, out var error);
+        var success = engine.TryParse("{ var i = 0; while (i < 5) { i = i + 1; } return i; }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.True);
         Assert.That(expr, Is.Not.Null);
-        Assert.That(error, Is.Null);
+        Assert.That(diagnostics, Is.Empty);
     }
 
     [Test]
     public void WhileLoop_TryParse_MissingParenthesis_Fails()
     {
         var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("{ while i < 5 { } }", out var expr, out var error);
+        var success = engine.TryParse("{ while i < 5 { } }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.False);
         Assert.That(expr, Is.Null);
-        Assert.That(error, Is.Not.Null);
+        Assert.That(diagnostics, Is.Not.Empty);
     }
 
     [Test]
@@ -140,22 +140,22 @@ public class WhileLoopTests(CompilationMode mode)
     public void WhileLoop_Break_TryParse_Succeeds()
     {
         var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("{ var i = 0; while (true) { break; } return i; }", out var expr, out var error);
+        var success = engine.TryParse("{ var i = 0; while (true) { break; } return i; }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.True);
         Assert.That(expr, Is.Not.Null);
-        Assert.That(error, Is.Null);
+        Assert.That(diagnostics, Is.Empty);
     }
 
     [Test]
     public void WhileLoop_Continue_TryParse_Succeeds()
     {
         var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("{ var i = 0; while (i < 5) { i = i + 1; continue; } return i; }", out var expr, out var error);
+        var success = engine.TryParse("{ var i = 0; while (i < 5) { i = i + 1; continue; } return i; }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.True);
         Assert.That(expr, Is.Not.Null);
-        Assert.That(error, Is.Null);
+        Assert.That(diagnostics, Is.Empty);
     }
 
     [Test]

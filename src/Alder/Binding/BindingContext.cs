@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Alder.Runtime;
 
 namespace Alder.Binding;
@@ -76,40 +75,6 @@ internal sealed class BindingContext
 
         type = BoundType.Unknown;
         localId = -1;
-        return false;
-    }
-
-    public bool TryGetVariableType(string name, out BoundType type)
-    {
-        if (TryGetLocal(name, out type, out _))
-            return true;
-
-        if (RuntimeContext.TryGetVariableType(name, out var declaredType) && declaredType != null)
-        {
-            type = new BoundType(declaredType);
-            return true;
-        }
-
-        if (RuntimeContext.TryGet(name, out var fallbackValue) && fallbackValue != null)
-        {
-            if (fallbackValue is StructuralObjectValue structural)
-            {
-                var members = ImmutableDictionary.CreateBuilder<string, Type>();
-                foreach (var member in structural.TypeInfo.Members)
-                    members[member.Name] = member.Type;
-
-                type = new BoundStructuralType(
-                    structural.GetType(),
-                    members.ToImmutable(),
-                    structuralInfo: structural.TypeInfo);
-                return true;
-            }
-
-            type = new BoundType(fallbackValue.GetType());
-            return true;
-        }
-
-        type = BoundType.Unknown;
         return false;
     }
 

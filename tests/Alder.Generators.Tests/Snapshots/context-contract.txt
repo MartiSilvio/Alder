@@ -1,0 +1,12 @@
+Context: TestContext
+Default singleton: True
+Metadata entries:
+- TestTypes_MyModelMetadata
+- System_Threading_Tasks_Task_int_Metadata
+Generic static dispatch:
+- TaskFromResultDispatch
+Overrides:
+- GetTypeMetadata
+- GetGenericStaticDispatch
+Task.FromResult roots:
+- int

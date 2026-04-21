@@ -48,7 +48,11 @@ internal static class MemberAccessBinder
             target.Span = link.Span;
 
             if (callAfter[i] is { } callExpr)
-                target = CallBinder.BindCallWithBoundCallee(target, callExpr, context, binder);
+            {
+                target = CallBinder.TryBindStaticModuleCall(callExpr, context, binder, out var staticModuleCall)
+                    ? staticModuleCall
+                    : CallBinder.BindCallWithBoundCallee(target, callExpr, context, binder);
+            }
         }
 
         var outer = memberChain[0];

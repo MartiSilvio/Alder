@@ -9,7 +9,7 @@ namespace Alder.Binding;
 internal sealed partial class Binder
 {
     private readonly SourceText? _sourceText;
-    private List<AlderDiagnostic>? _diagnostics;
+    private AlderDiagnosticBag? _diagnostics;
     internal readonly BinderContext _binderCtx;
 
     public Binder()
@@ -24,7 +24,7 @@ internal sealed partial class Binder
     }
 
     internal IReadOnlyList<AlderDiagnostic> GetAccumulatedDiagnostics()
-        => _diagnostics ?? (IReadOnlyList<AlderDiagnostic>)[];
+        => _diagnostics?.ToReadOnly() ?? (IReadOnlyList<AlderDiagnostic>)[];
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public BoundExpr Bind(Expr expr, BindingContext context)
@@ -50,8 +50,7 @@ internal sealed partial class Binder
         catch (AlderException ex)
         {
             var diagnostic = NormalizeDiagnostic(ex, expr);
-            _diagnostics ??= new List<AlderDiagnostic>();
-            _diagnostics.Add(diagnostic);
+            (_diagnostics ??= new AlderDiagnosticBag()).Add(diagnostic);
             return new BoundLiteralExpr(null, BoundType.Unknown)
             {
                 HasErrors = true,
@@ -72,8 +71,7 @@ internal sealed partial class Binder
         }
         catch (Exception ex)
         {
-            _diagnostics ??= new List<AlderDiagnostic>();
-            _diagnostics.Add(NormalizeDiagnostic(ex, expr));
+            (_diagnostics ??= new AlderDiagnosticBag()).Add(NormalizeDiagnostic(ex, expr));
         }
 
         return GetAccumulatedDiagnostics();

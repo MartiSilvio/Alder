@@ -20,8 +20,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(9));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -38,8 +38,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.True);
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -56,8 +56,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(42));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -73,8 +73,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(3));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -88,8 +88,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(5));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -104,8 +104,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo("abc"));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -120,8 +120,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo("fallback"));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -136,8 +136,8 @@ public sealed class BoundExecutionTests
 
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(1L));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -155,8 +155,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(2));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -183,8 +183,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(7));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -209,8 +209,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(4));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -237,8 +237,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(9));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -265,8 +265,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(9));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -294,8 +294,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(8));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -323,8 +323,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(4));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -347,8 +347,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(10));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -367,8 +367,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(13));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -386,8 +386,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo("fallback"));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -408,8 +408,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(7));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -429,8 +429,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(16));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -450,8 +450,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo("member:index"));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -477,8 +477,8 @@ public sealed class BoundExecutionTests
 
         Assert.That(result, Is.EqualTo(42));
         Assert.That(probe.DisposeCount, Is.EqualTo(1));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -502,8 +502,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(10));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -523,8 +523,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo("String:Int32:0:4"));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -541,8 +541,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.True);
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -569,8 +569,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(6));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -603,8 +603,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(2));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -637,8 +637,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo("boom"));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -655,8 +655,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo("bad"));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -676,8 +676,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(2));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -693,8 +693,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo("alpha-007"));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -708,8 +708,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(30));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -724,8 +724,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.True);
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -740,8 +740,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.TypeOf<Alder.Runtime.InclusiveRange>());
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -755,8 +755,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo("pos"));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -774,8 +774,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(3));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -802,8 +802,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(2));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -818,8 +818,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo("ell"));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -833,8 +833,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo("el"));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -851,8 +851,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(42));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -870,8 +870,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(42));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -888,8 +888,8 @@ public sealed class BoundExecutionTests
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(3));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0));
     }
 
     [Test]
@@ -901,9 +901,9 @@ public sealed class BoundExecutionTests
 
         var expression = new AlderExpression("unsupported", new UnsupportedExpr());
         Assert.That(() => engine.Evaluate(expression), Throws.InstanceOf<Exception>());
-        Assert.That(expression.BoundExecutionCount, Is.EqualTo(0));
-        Assert.That(expression.BoundFallbackCount, Is.GreaterThan(0));
-        Assert.That(expression.LastBoundFallbackReason, Is.Not.Null.And.Not.Empty);
+        Assert.That(engine.GetBoundExecutionCount(expression), Is.EqualTo(0));
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.GreaterThan(0));
+        Assert.That(engine.GetLastBoundFallbackReason(expression), Is.Not.Null.And.Not.Empty);
     }
 
     private sealed class MutableBox

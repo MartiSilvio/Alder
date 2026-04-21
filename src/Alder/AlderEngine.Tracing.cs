@@ -43,10 +43,10 @@ public sealed partial class AlderEngine
         ThrowIfDisposed();
         using var state = CreateEvaluationState(variables, cancellationToken);
 
-        if (!expression.TryGetOrCreateBoundExpression(state.BindingContext, out var boundExpression, out var failureReason) ||
+        if (!TryGetOrCreateBoundExpression(expression, state.BindingContext, out var boundExpression, out var failureReason) ||
             boundExpression == null)
         {
-            expression.RecordBoundFallback(failureReason);
+            RecordBoundFallback(expression, failureReason);
             throw new AlderException(DiagnosticDescriptors.BindingFailed, failureReason ?? "Binding failed for expression.");
         }
 
@@ -58,7 +58,7 @@ public sealed partial class AlderEngine
         try
         {
             var result = evaluator.Evaluate(boundExpression, cancellationToken);
-            expression.RecordBoundExecution();
+            RecordBoundExecution(expression);
             return new EvaluationTraceResult(UnwrapControlFlowSignal(result), tracer.Root!, null);
         }
         catch (Exception ex)

@@ -1,4 +1,5 @@
 using Alder.Binding.BoundNodes;
+using Alder.Binding.Services;
 using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
@@ -10,10 +11,7 @@ internal static class NullCoalesceAssignBinder
     {
         AssignBinder.EnsureVariableIsAssignable(expr.Name.Lexeme, context);
         var value = binder.Bind(expr.Value, context);
-        var staticType = context.TryGetVariableType(expr.Name.Lexeme, out var variableType)
-            ? variableType
-            : value.StaticType;
-        var isNcaLocal = context.TryGetLocal(expr.Name.Lexeme, out _, out var ncaLocalId);
-        return new BoundNullCoalesceAssignExpr(expr.Name.Lexeme, value, staticType, isNcaLocal ? ncaLocalId : null);
+        var target = NamedTargetBindingService.Resolve(expr.Name.Lexeme, context, value.StaticType);
+        return new BoundNullCoalesceAssignExpr(expr.Name.Lexeme, value, target.StaticType, target.LocalId);
     }
 }

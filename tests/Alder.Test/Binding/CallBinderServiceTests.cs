@@ -21,6 +21,7 @@ public sealed class CallBinderServiceTests
                 ArgumentDescriptor.FromTypes([typeof(int), typeof(long)]),
                 isStaticCall: true,
                 isCaseSensitive: true,
+                typeArgs: null,
                 out var plan),
             Is.True);
         Assert.That(plan, Is.Not.Null);
@@ -66,6 +67,7 @@ public sealed class CallBinderServiceTests
                 ArgumentDescriptor.FromTypes([typeof(int)]),
                 isStaticCall: false,
                 isCaseSensitive: true,
+                typeArgs: null,
                 out var plan),
             Is.True);
 
@@ -90,6 +92,7 @@ public sealed class CallBinderServiceTests
                 ArgumentDescriptor.FromTypes([typeof(int), typeof(int), typeof(int), typeof(int)]),
                 isStaticCall: false,
                 isCaseSensitive: true,
+                typeArgs: null,
                 out var plan),
             Is.True);
 
@@ -113,6 +116,7 @@ public sealed class CallBinderServiceTests
             ArgumentDescriptor.FromTypes([typeof(object)]),
             isStaticCall: true,
             isCaseSensitive: true,
+            typeArgs: null,
             out _);
 
         Assert.That(result, Is.False);
@@ -135,6 +139,7 @@ public sealed class CallBinderServiceTests
             "Where",
             descriptors,
             isCaseSensitive: true,
+            typeArgs: null,
             out var plan);
 
         Assert.That(result, Is.True);

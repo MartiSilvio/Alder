@@ -270,6 +270,52 @@ public class ArchitectureVerificationTests
     }
 
     [Test]
+    public void BindingContext_DoesNotOwnRuntimeTypeProbeLogic()
+    {
+        var root = FindRepositoryRoot();
+        var bindingContext = File.ReadAllText(Path.Combine(root, "src", "Alder", "Binding", "BindingContext.cs"));
+
+        Assert.That(bindingContext, Does.Not.Contain("public bool TryGetVariableType("));
+        Assert.That(bindingContext, Does.Not.Contain("if (RuntimeContext.TryGetVariableType("));
+        Assert.That(bindingContext, Does.Not.Contain("if (RuntimeContext.TryGet(name, out var fallbackValue)"));
+    }
+
+    [Test]
+    public void AlderExpression_DoesNotOwnRuntimeOrCompilationState()
+    {
+        var root = FindRepositoryRoot();
+        var expression = File.ReadAllText(Path.Combine(root, "src", "Alder", "AlderExpression.cs"));
+
+        Assert.That(expression, Does.Not.Contain("ConditionalWeakTable<AlderContext, CachedBoundExpression>"));
+        Assert.That(expression, Does.Not.Contain("_bindingUnavailable"));
+        Assert.That(expression, Does.Not.Contain("_bindingUnavailableReason"));
+        Assert.That(expression, Does.Not.Contain("internal volatile CompiledExpressionInfo? CompiledInfo"));
+        Assert.That(expression, Does.Not.Contain("public bool IsCompiled =>"));
+        Assert.That(expression, Does.Not.Contain("public bool? IsCompilable =>"));
+        Assert.That(expression, Does.Not.Contain("public string? CompilationFailureReason =>"));
+        Assert.That(expression, Does.Not.Contain("GetOrCreateBoundExpression("));
+        Assert.That(expression, Does.Not.Contain("TryGetOrCreateBoundExpression("));
+        Assert.That(expression, Does.Not.Contain("RecordBoundExecution("));
+        Assert.That(expression, Does.Not.Contain("RecordBoundFallback("));
+    }
+
+    [Test]
+    public void AlderEngine_CentralizesExpressionRuntimeState()
+    {
+        var root = FindRepositoryRoot();
+        var stateFile = Path.Combine(root, "src", "Alder", "ExpressionRuntimeState.cs");
+        var engineFile = Path.Combine(root, "src", "Alder", "AlderEngine.ExpressionState.cs");
+
+        Assert.That(File.Exists(stateFile), Is.True);
+        Assert.That(File.Exists(engineFile), Is.True);
+
+        var engine = File.ReadAllText(engineFile);
+        Assert.That(engine, Does.Contain("ConditionalWeakTable<AlderExpression, ExpressionRuntimeState>"));
+        Assert.That(engine, Does.Contain("GetOrCreateBoundExpression("));
+        Assert.That(engine, Does.Contain("GetCompiledInfo("));
+    }
+
+    [Test]
     public void CompiledConvenienceWrappers_AreRemoved()
     {
         var root = FindRepositoryRoot();

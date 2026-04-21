@@ -17,7 +17,9 @@ public sealed class PlannedCallInvokerTests
             nameof(PlannedInvocationTarget.WithOptional),
             ArgumentDescriptor.FromTypes([typeof(int)]),
             isStaticCall: false,
-            isCaseSensitive: true, out var plan);
+            isCaseSensitive: true,
+            typeArgs: null,
+            out var plan);
 
         var resolved = plan!.Resolution;
         Assert.That(ArgumentPreparer.IsDirectMapping(resolved, [7], MethodDispatchCache.GetParameters(resolved.Method)), Is.False);
@@ -40,7 +42,9 @@ public sealed class PlannedCallInvokerTests
             nameof(PlannedInvocationTarget.Sum),
             ArgumentDescriptor.FromTypes([typeof(int), typeof(int), typeof(int), typeof(int)]),
             isStaticCall: false,
-            isCaseSensitive: true, out var plan);
+            isCaseSensitive: true,
+            typeArgs: null,
+            out var plan);
 
         var resolved = plan!.Resolution;
         object?[] args = [1, 2, 3, 4];
@@ -64,7 +68,9 @@ public sealed class PlannedCallInvokerTests
             nameof(PlannedInvocationTarget.Echo),
             ArgumentDescriptor.FromTypes([typeof(int)]),
             isStaticCall: false,
-            isCaseSensitive: true, out var plan);
+            isCaseSensitive: true,
+            typeArgs: null,
+            out var plan);
 
         var resolved = plan!.Resolution;
         object?[] args = [7];

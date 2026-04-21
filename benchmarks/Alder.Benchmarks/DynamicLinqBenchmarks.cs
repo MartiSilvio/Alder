@@ -84,7 +84,7 @@ public class DynamicLinqBenchmarks : BenchmarkBase
 
     [Benchmark]
     [BenchmarkCategory("Operational/DynamicLinq/Warm")]
-    public object SystemLinqDynamicCore() => Query.DynLinqCore(_productsQuery)!;
+    public object SystemDynamicLinqCore() => Query.DynLinqCore(_productsQuery)!;
 
     [Benchmark]
     [BenchmarkCategory("Operational/DynamicLinq/PreParsed")]
@@ -92,7 +92,7 @@ public class DynamicLinqBenchmarks : BenchmarkBase
 
     [Benchmark]
     [BenchmarkCategory("Operational/DynamicLinq/PreParsed")]
-    public object SystemLinqDynamicCore_CachedLambda() => _dynLinqCoreCached(_productsQuery)!;
+    public object SystemDynamicLinqCore_CachedLambda() => _dynLinqCoreCached(_productsQuery)!;
 
     private static Expression<Func<Product, TResult>> ParseProductLambda<TResult>(string expression) =>
         DynamicExpressionParser.ParseLambda<Product, TResult>(
@@ -112,6 +112,7 @@ public class DynamicLinqBenchmarks : BenchmarkBase
             "Filter+Count" => BuildAlderFilterCountCached(engine),
             "Filter+Project+Sum" => BuildAlderFilterProjectSumCached(engine),
             "Projection+DistinctCategoryCount" => BuildAlderProjectionDistinctCategoryCountCached(engine),
+            "Projection+Contains" => BuildAlderProjectionContainsCached(engine),
             "Projection+AnonymousMaterialization" => BuildAlderProjectionAnonymousMaterializationCached(engine),
             "ComplexPredicate" => BuildAlderComplexPredicateCached(engine),
             "Sort+Take+Sum" => BuildAlderSortTakeSumCached(engine),
@@ -137,6 +138,12 @@ public class DynamicLinqBenchmarks : BenchmarkBase
     {
         var selector = ParseAlderSelector<string>(engine, "Category");
         return ps => ps.SelectDynamic(selector).Distinct().Count();
+    }
+
+    private static Func<IQueryable<Product>, object?> BuildAlderProjectionContainsCached(AlderEngine engine)
+    {
+        var selector = ParseAlderSelector<string>(engine, "Category");
+        return ps => ps.SelectDynamic(selector).ContainsDynamic("Electronics");
     }
 
     private static Func<IQueryable<Product>, object?> BuildAlderProjectionAnonymousMaterializationCached(AlderEngine engine)
@@ -178,6 +185,7 @@ public class DynamicLinqBenchmarks : BenchmarkBase
             "Filter+Count" => BuildFilterCountCached(),
             "Filter+Project+Sum" => BuildFilterProjectSumCached(),
             "Projection+DistinctCategoryCount" => BuildProjectionDistinctCategoryCountCached(),
+            "Projection+Contains" => BuildProjectionContainsCached(),
             "Projection+AnonymousMaterialization" => BuildProjectionAnonymousMaterializationCached(),
             "ComplexPredicate" => BuildComplexPredicateCached(),
             "Sort+Take+Sum" => BuildSortTakeSumCached(),
@@ -203,6 +211,12 @@ public class DynamicLinqBenchmarks : BenchmarkBase
     {
         var selector = ParseProductLambda<string>("Category");
         return ps => ps.Select(selector).Distinct().Count();
+    }
+
+    private static Func<IQueryable<Product>, object?> BuildProjectionContainsCached()
+    {
+        var selector = ParseProductLambda<string>("Category");
+        return ps => ps.Select(selector).Contains("Electronics");
     }
 
     private static Func<IQueryable<Product>, object?> BuildProjectionAnonymousMaterializationCached()
@@ -262,6 +276,12 @@ public class DynamicLinqBenchmarks : BenchmarkBase
             (ps, engine) => ps.SelectDynamic<Product, string>(engine, "Category").Distinct().Count(),
             (ps, engine) => ps.SelectDynamic(ParseAlderSelector<string>(engine, "Category")).Distinct().Count(),
             ps => ps.Select("Category").Cast<string>().Distinct().Count()),
+
+        new("Projection+Contains",
+            ps => ps.Select(p => p.Category).Contains("Electronics"),
+            (ps, engine) => ps.SelectDynamic<Product, string>(engine, "Category").ContainsDynamic("Electronics"),
+            (ps, engine) => ps.SelectDynamic(ParseAlderSelector<string>(engine, "Category")).ContainsDynamic("Electronics"),
+            ps => ps.Select("Category").Cast<string>().Contains("Electronics")),
 
         new("Projection+AnonymousMaterialization",
             ps => ps.Select(p => new { p.Category, p.Price }).Take(256).Count(),
@@ -355,7 +375,7 @@ public class DynamicLinqBenchmarksColdStart
 
     [Benchmark]
     [BenchmarkCategory("Operational/DynamicLinq/Cold")]
-    public object SystemLinqDynamicCore()
+    public object SystemDynamicLinqCore()
     {
         var data = BenchmarkData.Create(productCount: ScaleFactor);
         return Query.DynLinqCore(data.Products.AsQueryable())!;

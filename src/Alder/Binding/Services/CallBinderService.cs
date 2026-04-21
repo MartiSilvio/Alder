@@ -27,10 +27,11 @@ internal sealed class CallBinderService
         ReadOnlySpan<ArgumentDescriptor> arguments,
         bool isStaticCall,
         bool isCaseSensitive,
+        IReadOnlyList<string>? typeArgs,
         out CallBindResult? plan)
     {
         var flags = BindingFlags.Public | (isStaticCall ? BindingFlags.Static : BindingFlags.Instance);
-        return TryBindCallCore(declaringType, methodName, flags, arguments, isStaticCall, isCaseSensitive, out plan);
+        return TryBindCallCore(declaringType, methodName, flags, arguments, isStaticCall, isCaseSensitive, typeArgs, out plan);
     }
 
     public bool TryBindExtensionCall(
@@ -38,6 +39,7 @@ internal sealed class CallBinderService
         string methodName,
         ReadOnlySpan<ArgumentDescriptor> userArguments,
         bool isCaseSensitive,
+        IReadOnlyList<string>? typeArgs,
         out CallBindResult? plan)
     {
         plan = null;
@@ -59,6 +61,7 @@ internal sealed class CallBinderService
             isCaseSensitive,
             invocationArgCount,
             receiverAndArgs,
+            typeArgs,
             out plan);
     }
 
@@ -69,6 +72,7 @@ internal sealed class CallBinderService
         ReadOnlySpan<ArgumentDescriptor> arguments,
         bool isStaticCall,
         bool isCaseSensitive,
+        IReadOnlyList<string>? typeArgs,
         out CallBindResult? plan)
     {
         plan = null;
@@ -83,7 +87,7 @@ internal sealed class CallBinderService
         if (methods.Length > 1 && HasOpaqueObjectArgument(arguments))
             return false;
 
-        if (!OverloadResolver.TryResolve(methods, arguments, context: _context, out var resolved, out _))
+        if (!OverloadResolver.TryResolve(methods, arguments, context: _context, out var resolved, out _, typeArgs))
             return false;
 
         if (resolved.Method.ContainsGenericParameters)
@@ -104,6 +108,7 @@ internal sealed class CallBinderService
         bool isCaseSensitive,
         int invocationArgCount,
         ArgumentDescriptor[] receiverAndArgs,
+        IReadOnlyList<string>? typeArgs,
         out CallBindResult? plan)
     {
         plan = null;
@@ -117,7 +122,7 @@ internal sealed class CallBinderService
 
             if (!OverloadResolver.TryResolveExtension(
                     methods, targetType, receiverAndArgs, _context,
-                    out var resolved, out _))
+                    out var resolved, out _, typeArgs))
                 continue;
 
             if (resolved.Method.ContainsGenericParameters)

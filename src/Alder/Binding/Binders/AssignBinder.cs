@@ -1,4 +1,5 @@
 using Alder.Binding.BoundNodes;
+using Alder.Binding.Services;
 using Alder.Diagnostics;
 using Alder.Parsing;
 
@@ -18,11 +19,8 @@ internal static class AssignBinder
             return value;
 
         EnsureVariableIsAssignable(expr.Name.Lexeme, context);
-        var staticType = context.TryGetVariableType(expr.Name.Lexeme, out var variableType)
-            ? variableType
-            : value.StaticType;
-        var isAssignLocal = context.TryGetLocal(expr.Name.Lexeme, out _, out var assignLocalId);
-        return new BoundAssignExpr(expr.Name.Lexeme, value, staticType, isAssignLocal ? assignLocalId : null);
+        var target = NamedTargetBindingService.Resolve(expr.Name.Lexeme, context, value.StaticType);
+        return new BoundAssignExpr(expr.Name.Lexeme, value, target.StaticType, target.LocalId);
     }
 
     internal static void EnsureVariableIsAssignable(string variableName, BindingContext context)

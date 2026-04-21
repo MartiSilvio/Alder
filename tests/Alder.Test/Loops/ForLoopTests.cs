@@ -83,22 +83,22 @@ public class ForLoopTests(CompilationMode mode)
     public void ForLoop_TryParse_ValidExpression_Succeeds()
     {
         var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("for (var i = 0; i < 5; i++) { } return 0;", out var expr, out var error);
+        var success = engine.TryParse("for (var i = 0; i < 5; i++) { } return 0;", out var expr, out var diagnostics);
 
         Assert.That(success, Is.True);
         Assert.That(expr, Is.Not.Null);
-        Assert.That(error, Is.Null);
+        Assert.That(diagnostics, Is.Empty);
     }
 
     [Test]
     public void ForLoop_TryParse_MissingParenthesis_Fails()
     {
         var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("for var i = 0; i < 5; i++ { }", out var expr, out var error);
+        var success = engine.TryParse("for var i = 0; i < 5; i++ { }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.False);
         Assert.That(expr, Is.Null);
-        Assert.That(error, Is.Not.Null);
+        Assert.That(diagnostics, Is.Not.Empty);
     }
 
     [Test]

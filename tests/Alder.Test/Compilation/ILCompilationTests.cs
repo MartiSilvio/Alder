@@ -326,7 +326,7 @@ public class ILCompilationTests
         }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(499500)); // Sum of 0..999
@@ -381,7 +381,7 @@ public class ILCompilationTests
         }");
 
         Assert.That(engine.TryCompile(expr), Is.True, "Switch should be compilable");
-        Assert.That(expr.IsCompiled, Is.True, "Switch should be compiled");
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True, "Switch should be compiled");
         Assert.That(engine.Evaluate(expr), Is.EqualTo("two"));
     }
 

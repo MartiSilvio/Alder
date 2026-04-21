@@ -27,23 +27,23 @@ internal static class CallBinder
             .ToImmutableArray();
         var typeArguments = call.TypeArguments?.ToImmutableArray() ?? ImmutableArray<string>.Empty;
         var descriptors = BuildArgumentDescriptors(arguments);
-
         var hasSpecialArgs = arguments.Any(static argument =>
             argument is BoundNamedArgumentExpr or BoundOutArgExpr);
+        var service = hasSpecialArgs ? null : new CallBinderService(context.RuntimeContext);
 
         if (callee is BoundMethodGroupExpr methodGroup && !hasSpecialArgs)
         {
-            var service = new CallBinderService(context.RuntimeContext);
             var result = TryBindResolvedCall(
                 callee,
                 methodGroup.DeclaringType,
                 methodGroup.MethodName,
                 methodGroup.IsStatic,
                 arguments,
+                typeArguments,
                 descriptors,
                 context,
                 binder,
-                service);
+                service!);
             if (result != null)
                 return result;
 
@@ -51,7 +51,7 @@ internal static class CallBinder
             {
                 var ext = TryBindExtensionCall(
                     methodGroup.Target, methodGroup.DeclaringType, methodGroup.MethodName,
-                    methodGroup.NullSafe, arguments, descriptors, context, binder, service);
+                    methodGroup.NullSafe, arguments, typeArguments, descriptors, context, binder, service!);
                 if (ext != null) return ext;
             }
         }
@@ -59,17 +59,17 @@ internal static class CallBinder
         if (callee is BoundDynamicMemberAccessExpr dynAccess && !hasSpecialArgs &&
             dynAccess.Target.StaticType is not BoundUnknownType)
         {
-            var service = new CallBinderService(context.RuntimeContext);
             var ext = TryBindExtensionCall(
                 dynAccess.Target,
                 dynAccess.Target.StaticType.ClrType,
                 dynAccess.MemberName,
                 dynAccess.NullSafe,
                 arguments,
+                typeArguments,
                 descriptors,
                 context,
                 binder,
-                service);
+                service!);
             if (ext != null) return ext;
         }
 
@@ -96,12 +96,13 @@ internal static class CallBinder
         string methodName,
         bool nullSafe,
         ImmutableArray<BoundExpr> arguments,
+        ImmutableArray<string> typeArguments,
         ArgumentDescriptor[] descriptors,
         BindingContext context,
         BinderContext binder,
         CallBinderService service)
     {
-        if (!service.TryBindExtensionCall(targetType, methodName, descriptors, context.IsCaseSensitive, out var plan))
+        if (!service.TryBindExtensionCall(targetType, methodName, descriptors, context.IsCaseSensitive, typeArguments, out var plan))
             return null;
 
         var extensionType = plan!.SelectedMethod.DeclaringType ?? targetType;
@@ -130,6 +131,7 @@ internal static class CallBinder
         string methodName,
         bool isStaticCall,
         ImmutableArray<BoundExpr> arguments,
+        ImmutableArray<string> typeArguments,
         ArgumentDescriptor[] descriptors,
         BindingContext context,
         BinderContext binder,
@@ -141,6 +143,7 @@ internal static class CallBinder
                 descriptors,
                 isStaticCall,
                 context.IsCaseSensitive,
+                typeArguments,
                 out var callPlan))
             return null;
 
@@ -350,7 +353,7 @@ internal static class CallBinder
         return arguments;
     }
 
-    private static bool TryBindStaticModuleCall(CallExpr call, BindingContext context, BinderContext binder, out BoundExpr boundCall)
+    internal static bool TryBindStaticModuleCall(CallExpr call, BindingContext context, BinderContext binder, out BoundExpr boundCall)
     {
         boundCall = null!;
         if (call.Callee is not MemberAccessExpr { Object: IdentifierExpr moduleIdentifier } memberAccess)
@@ -392,6 +395,7 @@ internal static class CallBinder
                 descriptors,
                 isStaticCall: true,
                 context.IsCaseSensitive,
+                call.TypeArguments,
                 out var moduleCallPlan))
         {
             return false;

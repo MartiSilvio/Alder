@@ -43,7 +43,7 @@ public class ParityTests(CompilationMode mode)
             // ReSharper disable once MethodHasAsyncOverload
             var syncResult = engine.Evaluate(expression);
             var asyncResult = await engine.EvaluateAsync(expression);
-            AssertNoFallbackInCompiledMode(expression, alderExpr);
+            AssertNoFallbackInCompiledMode(engine, expression, alderExpr);
 
             AssertResultEqual(syncResult, csharpResult, exprInfo);
             AssertResultEqual(asyncResult, csharpResult, $"[async] {exprInfo}");
@@ -246,13 +246,13 @@ public class ParityTests(CompilationMode mode)
         type != null && Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute)) &&
         type.Name.Contains("AnonymousType");
 
-    private void AssertNoFallbackInCompiledMode(AlderExpression expression, string source)
+    private void AssertNoFallbackInCompiledMode(AlderEngine engine, AlderExpression expression, string source)
     {
         if (mode != CompilationMode.Compiled)
             return;
 
-        Assert.That(expression.IsCompiled, Is.True, $"Compiled mode did not produce IL delegate for: {source}");
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0), $"Compiled mode used fallback for: {source}");
+        Assert.That(engine.HasCompiledDelegate(expression), Is.True, $"Compiled mode did not produce IL delegate for: {source}");
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0), $"Compiled mode used fallback for: {source}");
     }
 
     private static void AssertResultEqual(object? result, object? expected, string exprInfo)

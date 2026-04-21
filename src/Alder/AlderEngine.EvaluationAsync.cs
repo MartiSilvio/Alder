@@ -191,7 +191,7 @@ public sealed partial class AlderEngine
         EvaluationStateLease state,
         CancellationToken cancellationToken)
     {
-        if (expression.TryGetOrCreateBoundExpression(state.BindingContext, out var boundExpression, out var boundFailureReason))
+        if (TryGetOrCreateBoundExpression(expression, state.BindingContext, out var boundExpression, out var boundFailureReason))
         {
             if (boundExpression != null)
             {
@@ -206,18 +206,18 @@ public sealed partial class AlderEngine
                         sourceText: new SourceText(expression.Source));
 
                     var boundResult = await boundEvaluator.EvaluateAsync(processed, cancellationToken);
-                    expression.RecordBoundExecution();
+                    RecordBoundExecution(expression);
                     return UnwrapControlFlowSignal(boundResult);
                 }
                 catch (BindingNotSupportedException ex)
                 {
-                    expression.RecordBoundFallback(ex.Message);
+                    RecordBoundFallback(expression, ex.Message);
                     throw new AlderException(DiagnosticDescriptors.BindingFailed, ex, ex.Message);
                 }
             }
         }
 
-        expression.RecordBoundFallback(boundFailureReason);
+        RecordBoundFallback(expression, boundFailureReason);
         throw new AlderException(DiagnosticDescriptors.BindingFailed, boundFailureReason ?? "Binding failed for expression.");
     }
 }

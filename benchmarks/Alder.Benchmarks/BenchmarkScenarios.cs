@@ -310,6 +310,11 @@ public static class BenchmarkScenarios
             g => g.Orders.AsQueryable().OrderByDescending(o => o.UnitPrice).First(),
             g => g.Orders.AsQueryable().OrderByDescendingDynamic<Order, decimal>("UnitPrice").First(),
             g => g.Orders.AsQueryable().OrderBy("UnitPrice descending").First()),
+
+        new("DynLINQ/ProjectionContains",
+            g => g.Products.AsQueryable().Select(p => p.Category).Contains("Electronics"),
+            g => g.Products.AsQueryable().SelectDynamic<Product, string>("Category").ContainsDynamic("Electronics"),
+            g => g.Products.AsQueryable().Select("Category").Cast<string>().Contains("Electronics")),
     ];
 
     public static IReadOnlyList<ExtendedScenario> GetExtendedScenarios() =>

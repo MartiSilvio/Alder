@@ -11,7 +11,7 @@ internal static class UnaryEmitter
 {
     public static LinqExpression Emit(BoundUnaryExpr node, EmissionContext ctx)
     {
-        if (node.PromotedType is { } promoted && !ctx.IsChecked)
+        if (node.PromotedType is { } promoted)
         {
             var operand = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Operand), node.Operand.StaticType.ClrType);
             if (operand.Type != promoted)
@@ -21,7 +21,7 @@ internal static class UnaryEmitter
             {
                 TokenType.Bang => LinqExpression.Not(operand),
                 TokenType.Tilde => LinqExpression.Not(operand),
-                TokenType.Minus => LinqExpression.Negate(operand),
+                TokenType.Minus => ctx.IsChecked ? LinqExpression.NegateChecked(operand) : LinqExpression.Negate(operand),
                 TokenType.Plus => operand,
                 _ => throw new BindingNotSupportedException($"Unsupported bound unary operator '{node.Operator}'")
             };

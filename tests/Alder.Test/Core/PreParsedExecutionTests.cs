@@ -29,11 +29,11 @@ public class PreParsedExecutionTests
     public void TryParse_ValidExpression_Succeeds()
     {
         var engine = new AlderEngine();
-        var success = engine.TryParse("{ foreach (var item in new[] {1,2,3}) { } return 0; }", out var expr, out var error);
+        var success = engine.TryParse("{ foreach (var item in new[] {1,2,3}) { } return 0; }", out var expr, out var diagnostics);
 
         Assert.That(success, Is.True);
         Assert.That(expr, Is.Not.Null);
-        Assert.That(error, Is.Null);
+        Assert.That(diagnostics, Is.Empty);
     }
 
     [Test]

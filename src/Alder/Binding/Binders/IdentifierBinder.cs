@@ -1,4 +1,5 @@
 using Alder.Binding.BoundNodes;
+using Alder.Binding.Services;
 using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
@@ -36,7 +37,8 @@ internal static class IdentifierBinder
             return new BoundIdentifierExpr(name, BoundType.Unknown);
         }
 
-        context.TryGetVariableType(name, out var staticType);
+        var runtimeProbe = new RuntimeBindingProbeService(context.RuntimeContext);
+        runtimeProbe.TryGetValueType(name, out var staticType);
 
         // ECMA-334 §12.8.7.2: an identifier that resolves to a type in expression position (e.g.
         // `DayOfWeek.Wednesday`, `Task.FromResult(...)`, `Math.PI`) is a type reference targeting

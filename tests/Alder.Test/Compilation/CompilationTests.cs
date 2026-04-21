@@ -16,8 +16,8 @@ public class CompilationTests
         var expr = engine.Parse("42");
 
         Assert.That(engine.TryCompile(expr), Is.True);
-        Assert.That(expr.IsCompiled, Is.True);
-        Assert.That(expr.IsCompilable, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
+        Assert.That(engine.GetIsCompilable(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(42));
@@ -196,6 +196,23 @@ public class CompilationTests
 
         // Compiled expression should use new value
         Assert.That(engine.Evaluate(expr), Is.EqualTo(10));
+    }
+
+    [Test]
+    public void CompileState_IsOwnedPerEngine_NotByExpressionInstance()
+    {
+        var first = new AlderEngine(new AlderOptions().UseCompiler());
+        first.SetVariable("x", 5);
+        var expression = first.Parse("x / 2");
+
+        Assert.That(first.TryCompile(expression), Is.True);
+        Assert.That(first.Evaluate(expression), Is.EqualTo(2));
+
+        var second = new AlderEngine(new AlderOptions().UseCompiler());
+        second.SetVariable("x", 5.0);
+
+        var result = second.Evaluate(expression);
+        Assert.That(result, Is.EqualTo(2.5d));
     }
 
     #endregion
@@ -428,7 +445,7 @@ public class CompilationTests
         var expr = engine.Parse("{ var x = 1; return x; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(1));
@@ -510,14 +527,14 @@ public class CompilationTests
         var expr = engine.Parse("x * 2");
 
         // Parse() should NOT compile automatically - compilation is lazy
-        Assert.That(expr.IsCompiled, Is.False);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.False);
 
         // But Evaluate() should trigger lazy compilation and work
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(20));
 
         // After evaluation, it should be compiled (if CompileExpressions is true)
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
     }
 
     [Test]
@@ -527,11 +544,11 @@ public class CompilationTests
 
         var expr = engine.Parse("new { a = 1, b = 2 }");
 
-        Assert.That(expr.IsCompiled, Is.False);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.False);
 
         var result = engine.Evaluate(expr);
 
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
         Assert.That(result, Is.Not.Null);
         Assert.That(TestHelpers.ReadProjectedMember(result, "a"), Is.EqualTo(1));
         Assert.That(TestHelpers.ReadProjectedMember(result, "b"), Is.EqualTo(2));
@@ -549,7 +566,7 @@ public class CompilationTests
 
         // Should work but NOT compile (tree-walking only)
         Assert.That(result, Is.EqualTo(20));
-        Assert.That(expr.IsCompiled, Is.False);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.False);
     }
 
     [Test]
@@ -562,13 +579,13 @@ public class CompilationTests
         var expr = engine.Parse("x * 2");
 
         // Not compiled after Parse
-        Assert.That(expr.IsCompiled, Is.False);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.False);
 
         var result = engine.Evaluate(expr);
 
         // Should work AND be compiled after first evaluation
         Assert.That(result, Is.EqualTo(20));
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
     }
 
     [Test]
@@ -582,7 +599,7 @@ public class CompilationTests
 
         engine.TryCompile(expr);
 
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(20));
@@ -623,7 +640,7 @@ public class CompilationTests
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(expr));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0163));
         Assert.That(ex.Message, Does.Contain("CS0163"));
-        Assert.That(expr.IsCompiled, Is.False);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.False);
     }
 
     [Test]
@@ -636,7 +653,7 @@ public class CompilationTests
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(expr));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0001));
         Assert.That(ex.Message, Does.Contain("Forced compile failure"));
-        Assert.That(expr.IsCompiled, Is.False);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.False);
     }
 
     #endregion
@@ -656,7 +673,7 @@ public class CompilationTests
         var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.ParseAndCompile("1 + 2");
 
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
     }
 
     [Test]
@@ -666,7 +683,7 @@ public class CompilationTests
         var expr = engine.ParseAndCompile("{ var x = 1; return x; }");
 
         // Blocks are now IL-compilable
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(1));
@@ -680,7 +697,7 @@ public class CompilationTests
         var expr = engine.ParseAndCompile("str.Substring(startIndex: 0, length: 3)");
 
         // Named arguments are now IL-compilable
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo("hel"));
@@ -703,7 +720,7 @@ public class CompilationTests
             engine.TryCompile(expr);
         });
 
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
         Assert.That(engine.Evaluate(expr), Is.EqualTo(20));
     }
 
@@ -715,11 +732,11 @@ public class CompilationTests
         var expr = engine.Parse("x + x");
 
         // Expression is NOT compiled after Parse()
-        Assert.That(expr.IsCompiled, Is.False);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.False);
 
         // Explicitly compile before parallel evaluations
         engine.TryCompile(expr);
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
 
         var results = new System.Collections.Concurrent.ConcurrentBag<object?>();
 

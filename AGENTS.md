@@ -1,6 +1,6 @@
 # Alder
 
-C# runtime engine for .NET with AOT-first dispatch. ECMA-334 semantics, full compiler pipeline, two execution backends (interpreter + IL compiler), security sandbox, AOT source generators for NativeAOT and IL2CPP.
+C# runtime expression engine for .NET. ECMA-334 semantics, full compiler pipeline, two execution backends (interpreter + IL compiler), security sandbox, AOT source generators for NativeAOT and IL2CPP.
 
 ## Instruction Precedence
 
@@ -81,15 +81,18 @@ var symbol = "+";
 ## Boundaries
 
 **Never modify:**
+
 - Generated files in `obj/` or `bin/`
 - `.env` files or anything containing credentials
 
 **Always verify:**
+
 - Every runtime change must work with both execution backends (interpreter and compiler)
 - Every runtime change must account for the AOT source generator path (`Alder.Generators`)
 - If you change method dispatch, verify the generated `TryInvoke`/`TryInvokeStatic` code still integrates
 
 **Design rules:**
+
 - The ECMA-334 spec is the authority for language semantics — read the spec, don't go from memory
 - C# and .NET are the source of truth — delegate to .NET, don't reimplement what it already provides
 - Extended-mode features are syntactic sugar over .NET APIs, not reimplementations

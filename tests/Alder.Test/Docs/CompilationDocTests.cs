@@ -33,7 +33,7 @@ public class CompilationDocTests
         engine.SetVariable<double>("y", 4.0);
 
         var expr = engine.ParseAndCompile("Math.Sqrt(x * x + y * y)");
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
 
         var result = engine.Evaluate<double>(expr);
         Assert.That(result, Is.EqualTo(5.0));
@@ -81,7 +81,7 @@ public class CompilationDocTests
     }
 
     [Test]
-    public void LinqDynamic_IEnumerable()
+    public void DynamicLinq_IEnumerable()
     {
         AlderEval.Reset();
         AlderEval.Configure(o => o.UseCompiler());

@@ -17,4 +17,9 @@
     <ProjectReference Include="..\..\src\Alder.Generators\Alder.Generators.csproj" />
     <ProjectReference Include="..\..\src\Alder\Alder.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Snapshots\**\*.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

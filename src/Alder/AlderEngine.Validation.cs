@@ -16,17 +16,10 @@ public sealed partial class AlderEngine
     public bool TryValidate(string expression, out IReadOnlyList<AlderDiagnostic> diagnostics)
     {
         ThrowIfDisposed();
-        Expr ast;
-        try
+        var parseAttempt = ParseCore(expression);
+        if (!parseAttempt.Success)
         {
-            var lexer = new Lexer(expression);
-            var tokens = lexer.Tokenize();
-            var parser = ExpressionParser.CreateForSubExpression(tokens, _config.LanguageMode);
-            ast = parser.Parse();
-        }
-        catch (Exception ex) when (!ShouldRethrowTryApiException(ex))
-        {
-            diagnostics = [AlderDiagnostic.FromException(ex)];
+            diagnostics = parseAttempt.Diagnostics;
             return false;
         }
 
@@ -35,10 +28,11 @@ public sealed partial class AlderEngine
             var context = GetOrCreateContext();
             var binder = new Binder(new Text.SourceText(expression));
             var bindingContext = new BindingContext(context);
-            var validationDiagnostics = new List<AlderDiagnostic>(binder.CollectDiagnostics(ast, bindingContext));
+            var validationDiagnostics = new AlderDiagnosticBag();
+            validationDiagnostics.AddRange(binder.CollectDiagnostics(parseAttempt.Expression!.Ast, bindingContext));
 
             var collector = new IdentifierOccurrenceCollector();
-            collector.Collect(ast);
+            collector.Collect(parseAttempt.Expression!.Ast);
             foreach (var identifier in collector.GetUnboundTokens(_config.Comparer))
             {
                 var name = identifier.Lexeme;
@@ -54,7 +48,7 @@ public sealed partial class AlderEngine
                     identifier.Span, identifier.Line, identifier.Column));
             }
 
-            var deduplicated = DeduplicateDiagnostics(validationDiagnostics);
+            var deduplicated = DeduplicateDiagnostics(validationDiagnostics.ToReadOnly());
             if (deduplicated.Count > 0)
             {
                 diagnostics = deduplicated;
@@ -71,7 +65,7 @@ public sealed partial class AlderEngine
         return true;
     }
 
-    private static IReadOnlyList<AlderDiagnostic> DeduplicateDiagnostics(List<AlderDiagnostic> diagnostics)
+    private static IReadOnlyList<AlderDiagnostic> DeduplicateDiagnostics(IReadOnlyList<AlderDiagnostic> diagnostics)
     {
         if (diagnostics.Count <= 1)
             return diagnostics;

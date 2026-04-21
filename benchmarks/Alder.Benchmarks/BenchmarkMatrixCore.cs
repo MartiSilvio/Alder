@@ -462,9 +462,9 @@ public static class BenchmarkManifestWriter
         var rows = new List<BenchmarkMatrixRow>();
         var scaleFactors = new[] { 100, 1_000, 10_000, 100_000 };
         var cases = DynamicLinqBenchmarks.GetDynamicLinqQueries();
-        var dynamicPreParsedEvaluators = new[] { "SystemLinqDynamicCore_CachedLambda" };
-        var dynamicWarmEvaluators = new[] { "Native", "Alder_DynamicLinq", "SystemLinqDynamicCore" };
-        var dynamicColdEvaluators = new[] { "Native", "Alder_DynamicLinq", "SystemLinqDynamicCore" };
+        var dynamicPreParsedEvaluators = new[] { "SystemDynamicLinqCore_CachedLambda" };
+        var dynamicWarmEvaluators = new[] { "Native", "Alder_DynamicLinq", "SystemDynamicLinqCore" };
+        var dynamicColdEvaluators = new[] { "Native", "Alder_DynamicLinq", "SystemDynamicLinqCore" };
 
         foreach (var scale in scaleFactors)
         {

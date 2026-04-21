@@ -479,7 +479,7 @@ public class BenchmarkTests
         var expr = engine.ParseAndCompile(expression);
 
         // Verify it's compiled
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
 
         Warmup(() => engine.Evaluate(expr));
 
@@ -504,7 +504,7 @@ public class BenchmarkTests
             .SetVariable("z", 30L);
         var expr = engine.ParseAndCompile(expression);
 
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
 
         Warmup(() => engine.Evaluate(expr));
 
@@ -527,7 +527,7 @@ public class BenchmarkTests
             .SetVariable("x", 10L);
         var expr = engine.ParseAndCompile(expression);
 
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
 
         Warmup(() => engine.Evaluate(expr));
 
@@ -550,7 +550,7 @@ public class BenchmarkTests
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
         var expr = engine.ParseAndCompile(expression);
 
-        Assert.That(expr.IsCompiled, Is.True);
+        Assert.That(engine.HasCompiledDelegate(expr), Is.True);
 
         Warmup(() => engine.Evaluate(expr));
 

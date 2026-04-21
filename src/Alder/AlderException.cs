@@ -89,6 +89,20 @@ public class AlderException : Exception
 
     internal void SetDiagnostics(IReadOnlyList<AlderDiagnostic> diagnostics) => Diagnostics = diagnostics;
 
+    internal static AlderException FromDiagnostics(IReadOnlyList<AlderDiagnostic> diagnostics)
+    {
+        if (diagnostics.Count == 0)
+            return new AlderException(DiagnosticDescriptors.ExpressionExpected);
+
+        return new AlderException(diagnostics);
+    }
+
+    private AlderException(IReadOnlyList<AlderDiagnostic> diagnostics)
+        : base(diagnostics[0].Message)
+    {
+        Diagnostics = diagnostics;
+    }
+
     private static string FormatMessage(DiagnosticDescriptor descriptor, object?[] args)
     {
         var message = descriptor.FormatMessage(args);

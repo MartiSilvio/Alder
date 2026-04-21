@@ -16,6 +16,7 @@ internal static class ResolvedCallEmitter
     {
         var chain = PostfixChain.TryCollect(node);
         if (chain != null) return EmitPostfixChain(chain.Value, ctx);
+
         return EmitWithTarget(node, null, ctx);
     }
 
@@ -53,9 +54,11 @@ internal static class ResolvedCallEmitter
                     result = EmitWithTarget(call, result, ctx);
             }
             else if (seg.CallOrInvoke is BoundDynamicCallExpr invoke)
+            {
                 result = EmitCollectionSizeCheck(
                     DynamicCallEmitter.EmitInvokeCore(invoke.Callee, invoke.Arguments, invoke.TypeArguments, result, ctx),
                     ctx);
+            }
             else
                 result = MemberAccessEmitter.EmitWithTarget(seg.MemberAccess, result, ctx);
         }
@@ -331,5 +334,4 @@ internal static class ResolvedCallEmitter
 
         return LinqExpression.Convert(emittedArgument, targetType);
     }
-
 }

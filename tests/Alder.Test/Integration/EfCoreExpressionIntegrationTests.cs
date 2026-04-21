@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Reflection;
 using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 using Microsoft.Data.Sqlite;
@@ -72,6 +73,44 @@ public sealed class EfCoreExpressionIntegrationTests(CompilationMode mode)
     }
 
     [Test]
+    public void ParseAsExpression_EfPropertyPredicate_TranslatesAndExecutes()
+    {
+        Expression<Func<EfOrder, bool>> predicate =
+            _engine.ParseAsExpression<Func<EfOrder, bool>>("""o => EF.Property<decimal>(o, "Total") >= 80m""");
+
+        using var db = new EfOrdersDbContext(_dbOptions);
+        var sql = db.Orders.Where(predicate).ToQueryString();
+        var ids = db.Orders.Where(predicate).OrderBy(o => o.Id).Select(o => o.Id).ToList();
+
+        Assert.That(sql, Does.Contain("Total"));
+        Assert.That(ids, Is.EqualTo(new[] { 2, 3 }));
+    }
+
+    [Test]
+    public void ParseAsExpression_NullCoalesceOnNullableProperty_TranslatesAndExecutes()
+    {
+        Expression<Func<EfOrder, bool>> predicate =
+            _engine.ParseAsExpression<Func<EfOrder, bool>>("o => (o.Discount ?? 0m) >= 10m");
+
+        using var db = new EfOrdersDbContext(_dbOptions);
+        var sql = db.Orders.Where(predicate).ToQueryString();
+        var ids = db.Orders.Where(predicate).OrderBy(o => o.Id).Select(o => o.Id).ToList();
+
+        Assert.That(sql, Does.Contain("Discount"));
+        Assert.That(ids, Is.EqualTo(new[] { 2 }));
+    }
+
+    [Test]
+    public void ParseAsExpression_ReflectionAssemblyAccess_IsRejected()
+    {
+        var ex = Assert.Throws<AlderException>(
+            () => _engine.ParseAsExpression<Func<EfOrder, Assembly>>("o => typeof(DateTime).Assembly"));
+
+        Assert.That(ex, Is.Not.Null);
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+    }
+
+    [Test]
     public void ParseAsExpression_UnsupportedBlockLambda_Throws()
     {
         var ex = Assert.Throws<AlderException>(
@@ -84,10 +123,10 @@ public sealed class EfCoreExpressionIntegrationTests(CompilationMode mode)
     private static void Seed(EfOrdersDbContext db)
     {
         db.Orders.AddRange(
-            new EfOrder { Id = 1, Customer = "Alice", Total = 20m, IsActive = true },
-            new EfOrder { Id = 2, Customer = "Bob", Total = 80m, IsActive = true },
-            new EfOrder { Id = 3, Customer = "Cara", Total = 120m, IsActive = false },
-            new EfOrder { Id = 4, Customer = "Ari", Total = 55m, IsActive = true });
+            new EfOrder { Id = 1, Customer = "Alice", Total = 20m, IsActive = true, Discount = null, Notes = "vip" },
+            new EfOrder { Id = 2, Customer = "Bob", Total = 80m, IsActive = true, Discount = 10m, Notes = null },
+            new EfOrder { Id = 3, Customer = "Cara", Total = 120m, IsActive = false, Discount = null, Notes = "vip" },
+            new EfOrder { Id = 4, Customer = "Ari", Total = 55m, IsActive = true, Discount = 5m, Notes = null });
         db.SaveChanges();
     }
 }
@@ -103,4 +142,6 @@ internal sealed class EfOrder
     public string Customer { get; init; } = string.Empty;
     public decimal Total { get; init; }
     public bool IsActive { get; init; }
+    public decimal? Discount { get; init; }
+    public string? Notes { get; init; }
 }
