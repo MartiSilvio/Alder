@@ -99,7 +99,7 @@ internal static class MemberAccessEmitter
         LinqExpression emittedTarget,
         Type memberType, EmissionContext ctx)
     {
-        if (ctx.PreferResolvedRuntimeDispatch)
+        if (ctx.ResolvedDispatchMode == ResolvedDispatchMode.RuntimeDispatch)
         {
             var runtimeCall = LinqExpression.Call(
                 GetResolvedMemberMethod,

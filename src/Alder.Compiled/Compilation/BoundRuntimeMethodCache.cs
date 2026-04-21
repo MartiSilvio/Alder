@@ -116,8 +116,8 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo InvokeMemberCallMethod =
         typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeMemberCall))!;
 
-    internal static readonly MethodInfo InvokeResolvedMethodMethod =
-        typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeResolvedMethod), BindingFlags.NonPublic | BindingFlags.Static)!;
+    internal static readonly MethodInfo InvokePreparedMethodMethod =
+        typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokePreparedMethod), BindingFlags.NonPublic | BindingFlags.Static)!;
 
     internal static readonly MethodInfo InvokeIdentifierCallMethod =
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.InvokeIdentifierCall))!;
@@ -201,6 +201,16 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo CreateNamedTupleMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateNamedTuple))!;
+
+    internal static readonly MethodInfo CreateStructuralObjectMethod =
+        typeof(StructuralObjectTypeFactory).GetMethod(
+            nameof(StructuralObjectTypeFactory.Create),
+            [typeof(string[]), typeof(Type[]), typeof(object?[])])!;
+
+    internal static readonly MethodInfo CreateUntypedStructuralObjectMethod =
+        typeof(StructuralObjectTypeFactory).GetMethod(
+            nameof(StructuralObjectTypeFactory.CreateUntyped),
+            [typeof(string[]), typeof(object?[])])!;
 
     internal static readonly MethodInfo DeconstructTupleMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.DeconstructTuple))!;
@@ -287,10 +297,6 @@ internal static class BoundRuntimeMethodCache
     internal static readonly ConstructorInfo AlderExceptionCtor =
         typeof(AlderException).GetConstructor([typeof(Diagnostics.DiagnosticDescriptor), typeof(object[])])!;
 
-    internal static readonly MethodInfo ApplyWithMethod =
-        typeof(WithRuntime).GetMethod(nameof(WithRuntime.ApplyWith),
-            [typeof(object), typeof(string[]), typeof(object?[]), typeof(AlderContext)])!;
-
     internal static readonly FieldInfo SwitchExpressionNonExhaustiveDescriptor =
         typeof(Diagnostics.DiagnosticDescriptors).GetField(nameof(Diagnostics.DiagnosticDescriptors.SwitchExpressionNonExhaustive))!;
 
@@ -325,7 +331,7 @@ internal static class BoundRuntimeMethodCache
         typeof(Operators).GetMethod(nameof(Operators.BitwiseNot), [typeof(object)])!;
 
     internal static readonly MethodInfo AddMethod =
-        typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(AlderConfig), typeof(AlderContext), typeof(bool), typeof(bool)])!;
+        typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(AlderConfig), typeof(bool), typeof(bool)])!;
 
     internal static readonly MethodInfo SubtractMethod =
         typeof(Operators).GetMethod(nameof(Operators.Subtract), [typeof(object), typeof(object), typeof(bool)])!;
@@ -424,12 +430,6 @@ internal static class BoundRuntimeMethodCache
         typeof(CollectionFactory).GetMethod(nameof(CollectionFactory.Create),
             BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public,
             null, [typeof(Type), typeof(Type), typeof(List<object?>), typeof(AlderConfig)], null)!;
-
-    internal static readonly ConstructorInfo ExpandoObjectCtor =
-        typeof(ExpandoObject).GetConstructor(Type.EmptyTypes)!;
-
-    internal static readonly MethodInfo SpreadIntoDictMethod =
-        typeof(CollectionFactory).GetMethod(nameof(CollectionFactory.SpreadIntoDict))!;
 
     internal static readonly ConstructorInfo StringBuilderCtor =
         typeof(StringBuilder).GetConstructor(Type.EmptyTypes)!;

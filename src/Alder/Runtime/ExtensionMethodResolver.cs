@@ -1,8 +1,10 @@
-using System.Collections.Immutable;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Alder.Diagnostics;
+using Alder.Runtime.Collections;
+using Alder.Runtime.OverloadResolution;
 
 namespace Alder.Runtime;
 
@@ -70,49 +72,37 @@ internal static class ExtensionMethodResolver
 
     private static readonly ConcurrentDictionary<(Type ExtensionType, string MethodNameKey, bool IsCaseSensitive), MethodInfo[]> ExtensionMethodsByNameCache = new();
     private static readonly ConcurrentDictionary<(Type ExtensionType, string MethodNameKey, bool IsCaseSensitive, int InvocationArgCount), MethodInfo[]> ExtensionMethodsByArityCache = new();
-    private static readonly ConcurrentDictionary<InvocationCacheKey, ResolvedCall?> ResolvedCallCache = new();
-    private static readonly ConcurrentQueue<InvocationCacheKey> _resolvedCallInsertionOrder = new();
-    private const int MaxResolvedCallCacheSize = 4096;
+    private static readonly BoundedConcurrentCache<InvocationCacheKey, ResolvedCall?> ResolvedCallCache = new(4096);
 
-    private static void CacheResolvedCall(InvocationCacheKey key, ResolvedCall? resolved)
-    {
-        if (ResolvedCallCache.TryAdd(key, resolved))
-        {
-            _resolvedCallInsertionOrder.Enqueue(key);
-            while (ResolvedCallCache.Count > MaxResolvedCallCacheSize &&
-                   _resolvedCallInsertionOrder.TryDequeue(out var oldest))
-            {
-                ResolvedCallCache.TryRemove(oldest, out _);
-            }
-        }
-    }
-
-    internal static string NormalizeMethodName(string methodName, bool isCaseSensitive) =>
+    private static string GetMethodNameCacheKey(string methodName, bool isCaseSensitive) =>
         isCaseSensitive ? methodName : methodName.ToUpperInvariant();
 
-    private static object?[] BuildInvocationArgs(object target, object?[] args)
-    {
-        var invocationArgs = new object?[args.Length + 1];
-        invocationArgs[0] = target;
-        Array.Copy(args, 0, invocationArgs, 1, args.Length);
-        return invocationArgs;
-    }
-
-    internal static (bool Success, object? Value) TryInvokeExtensionMethod(
+    internal static (bool Success, object? Value) TryInvoke(
         object target,
         string methodName,
         object?[] args,
-        ImmutableArray<Type> extensionTypes,
-        bool isCaseSensitive,
+        AlderContext context,
         IReadOnlyList<string>? typeArgs = null,
-        AlderContext? runtimeContext = null,
         CancellationToken ct = default)
     {
+        if (!MethodDispatchCache.DynamicCodeSupported)
+            return (false, null);
+
+        var extensionTypes = context.ExtensionTypes;
+        if (extensionTypes.IsDefaultOrEmpty)
+            return (false, null);
+
         var targetType = target.GetType();
+        var invocationArgs = new object?[args.Length + 1];
+        invocationArgs[0] = target;
+        Array.Copy(args, 0, invocationArgs, 1, args.Length);
+        invocationArgs = TryResolveLambdaArgs(invocationArgs, targetType, context) ?? invocationArgs;
 
         foreach (var extType in extensionTypes)
         {
-            var result = TryInvokeFromType(target, targetType, methodName, args, extType, isCaseSensitive, typeArgs, runtimeContext, ct);
+            var result = TryInvokeFromType(
+                targetType, methodName, invocationArgs, extType,
+                context.Config.IsCaseSensitive, typeArgs, context, ct);
             if (result.Success)
                 return result;
         }
@@ -120,22 +110,21 @@ internal static class ExtensionMethodResolver
         return (false, null);
     }
 
-    internal static (bool Success, object? Value) TryInvokeFromType(
-        object target,
+    private static (bool Success, object? Value) TryInvokeFromType(
         Type targetType,
         string methodName,
-        object?[] args,
+        object?[] invocationArgs,
         Type extensionType,
         bool isCaseSensitive,
         IReadOnlyList<string>? typeArgs = null,
         AlderContext? runtimeContext = null,
         CancellationToken ct = default)
     {
-        var methodNameKey = NormalizeMethodName(methodName, isCaseSensitive);
+        var methodNameKey = GetMethodNameCacheKey(methodName, isCaseSensitive);
 
         InvocationCacheKey? invocationCacheKey = null;
         if (TryCreateInvocationCacheKey(
-                extensionType, targetType, methodNameKey, args,
+                extensionType, targetType, methodNameKey, invocationArgs.AsSpan(1),
                 isCaseSensitive, typeArgs, out var cacheKey))
         {
             invocationCacheKey = cacheKey;
@@ -144,12 +133,11 @@ internal static class ExtensionMethodResolver
                 if (cached == null)
                     return (false, null);
 
-                return InvokeWithResolved(cached.Value, BuildInvocationArgs(target, args), ct);
+                return InvokeWithResolved(cached.Value, invocationArgs, runtimeContext, ct);
             }
         }
 
-        var invocationArgs = BuildInvocationArgs(target, args);
-        var methods = GetExtensionMethodsForArity(extensionType, methodNameKey, isCaseSensitive, invocationArgs.Length);
+        var methods = GetExtensionMethodsForArity(extensionType, methodName, isCaseSensitive, invocationArgs.Length);
         var descriptors = ArgumentDescriptor.FromArgs(invocationArgs);
 
         if (!OverloadResolver.TryResolveExtension(
@@ -160,38 +148,42 @@ internal static class ExtensionMethodResolver
                 throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
             if (invocationCacheKey is { } missingCacheKey)
-                CacheResolvedCall(missingCacheKey, null);
+                ResolvedCallCache.TryAdd(missingCacheKey, null);
             return (false, null);
         }
 
         if (invocationCacheKey is { } resolvedCacheKey)
-            CacheResolvedCall(resolvedCacheKey, resolved);
+            ResolvedCallCache.TryAdd(resolvedCacheKey, resolved);
 
-        return InvokeWithResolved(resolved, invocationArgs, ct);
+        return InvokeWithResolved(resolved, invocationArgs, runtimeContext, ct);
     }
 
     private static (bool Success, object? Value) InvokeWithResolved(
         ResolvedCall resolved,
         object?[] args,
+        AlderContext? runtimeContext,
         CancellationToken ct)
     {
-        var parameters = MethodDispatchCache.GetParameters(resolved.Method);
-        var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, ct);
-        var result = MethodInvoker.InvokeMethodCore(resolved.Method, null, prepared);
+        if (runtimeContext == null)
+            throw new InvalidOperationException("Resolved extension invocation requires an AlderContext.");
+
+        var result = MethodInvoker.InvokeResolvedCall(resolved, null, args, runtimeContext, ct);
         return (true, result);
     }
 
-    private static MethodInfo[] GetExtensionMethodsByNormalizedName(
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] Type extensionType,
-        string methodNameKey, bool isCaseSensitive)
+    private static MethodInfo[] GetExtensionMethodsByName(
+        Type extensionType,
+        string methodName,
+        bool isCaseSensitive)
     {
+        var methodNameKey = GetMethodNameCacheKey(methodName, isCaseSensitive);
         return ExtensionMethodsByNameCache.GetOrAdd(
             (extensionType, methodNameKey, isCaseSensitive),
             static key =>
             {
                 var comparison = key.IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
-                return ReflectionRuntime
+                return RuntimeTypeIntrospection
                     .GetMethods(key.ExtensionType, BindingFlags.Public | BindingFlags.Static)
                     .Where(m => m.Name.Equals(key.MethodNameKey, comparison) &&
                                 m.IsDefined(typeof(ExtensionAttribute), false))
@@ -201,15 +193,16 @@ internal static class ExtensionMethodResolver
 
     internal static MethodInfo[] GetExtensionMethodsForArity(
         Type extensionType,
-        string methodNameKey,
+        string methodName,
         bool isCaseSensitive,
         int invocationArgCount)
     {
+        var methodNameKey = GetMethodNameCacheKey(methodName, isCaseSensitive);
         return ExtensionMethodsByArityCache.GetOrAdd(
             (extensionType, methodNameKey, isCaseSensitive, invocationArgCount),
             static key =>
             {
-                var methods = GetExtensionMethodsByNormalizedName(key.ExtensionType, key.MethodNameKey, key.IsCaseSensitive);
+                var methods = GetExtensionMethodsByName(key.ExtensionType, key.MethodNameKey, key.IsCaseSensitive);
                 var filtered = new List<MethodInfo>(methods.Length);
                 foreach (var method in methods)
                 {
@@ -248,7 +241,7 @@ internal static class ExtensionMethodResolver
         Type extensionType,
         Type targetType,
         string methodNameKey,
-        object?[] args,
+        ReadOnlySpan<object?> args,
         bool isCaseSensitive,
         IReadOnlyList<string>? typeArgs,
         out InvocationCacheKey key)
@@ -288,6 +281,97 @@ internal static class ExtensionMethodResolver
         return true;
     }
 
+    private static object?[]? TryResolveLambdaArgs(object?[] invocationArgs, Type targetType, AlderContext context)
+    {
+        var elementType = TypeHelpers.GetEnumerableElementType(targetType);
+        if (elementType == null)
+            return null;
+
+        var hasConvertible = false;
+        for (var i = 1; i < invocationArgs.Length; i++)
+        {
+            if (invocationArgs[i] is LambdaValue or CompiledLambdaValue or MethodRef or ModuleMethodRef)
+            {
+                hasConvertible = true;
+                break;
+            }
+        }
+
+        if (!hasConvertible)
+            return null;
+
+        var resolved = new object?[invocationArgs.Length];
+        resolved[0] = invocationArgs[0];
+
+        var inputTypes = new[] { CreateEnumerableInputType(invocationArgs[0], elementType) };
+        for (var i = 1; i < invocationArgs.Length; i++)
+        {
+            var arg = invocationArgs[i];
+
+            if (arg is not (LambdaValue or CompiledLambdaValue or MethodRef or ModuleMethodRef))
+            {
+                resolved[i] = arg;
+                continue;
+            }
+
+            var returnType = InferLambdaReturnType(arg, inputTypes, context);
+            if (returnType == null || returnType == typeof(object))
+            {
+                resolved[i] = arg;
+                continue;
+            }
+
+            if (!RuntimeGenericClosure.TryCloseType(
+                    typeof(Func<,>),
+                    [elementType, returnType],
+                    context.Config.ClosedDelegateTypes,
+                    out var delegateType))
+            {
+                resolved[i] = arg;
+                continue;
+            }
+
+            resolved[i] = LambdaDelegateConverter.TryConvert(arg, delegateType!) ?? arg;
+        }
+
+        return resolved;
+    }
+
+    private static Binding.BoundType CreateEnumerableInputType(object? enumerable, Type elementType)
+    {
+        if (enumerable is not IEnumerable sequence)
+            return new Binding.BoundType(elementType);
+
+        var enumerator = sequence.GetEnumerator();
+        try
+        {
+            if (!enumerator.MoveNext())
+                return new Binding.BoundType(elementType);
+
+            if (enumerator.Current is StructuralObjectValue structural)
+            {
+                var members = ImmutableDictionary.CreateBuilder<string, Type>();
+                foreach (var member in structural.TypeInfo.Members)
+                    members[member.Name] = member.Type;
+                return new Binding.BoundStructuralType(elementType, members.ToImmutable());
+            }
+
+            if (enumerator.Current is IDictionary<string, object?> dict)
+            {
+                var members = ImmutableDictionary.CreateBuilder<string, Type>();
+                foreach (var (name, value) in dict)
+                    members[name] = value?.GetType() ?? typeof(object);
+                return new Binding.BoundStructuralType(elementType, members.ToImmutable());
+            }
+
+            return new Binding.BoundType(elementType);
+        }
+        finally
+        {
+            (enumerator as IDisposable)?.Dispose();
+        }
+    }
+
     internal static Type? InferLambdaReturnType(object? arg, Binding.BoundType[] inputTypes, AlderContext? runtimeContext)
     {
         if (runtimeContext == null)
@@ -310,7 +394,7 @@ internal static class ExtensionMethodResolver
                 parameters = boundLambda.Parameters;
                 body = boundLambda.Body;
                 break;
-            case StaticMethodRef or MethodRef or ModuleMethodRef:
+            case MethodRef or ModuleMethodRef:
             {
                 var paramTypes = new Type[inputTypes.Length];
                 for (var i = 0; i < inputTypes.Length; i++)

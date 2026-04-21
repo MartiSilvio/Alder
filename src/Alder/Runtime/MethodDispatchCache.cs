@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using Alder.Runtime.Introspection;
 
 namespace Alder.Runtime;
 
@@ -17,13 +19,7 @@ internal static partial class MethodDispatchCache
     private static readonly MethodInfo[] StaticFactories = BuildFactoryArray("CreateStaticInvoker", MaxFastInvokerArity + 1);
     private static readonly MethodInfo[] InstanceVoidFactories = BuildFactoryArray("CreateInstanceVoidInvoker", MaxFastInvokerArity + 1);
     private static readonly MethodInfo[] InstanceFactories = BuildFactoryArray("CreateInstanceInvoker", MaxFastInvokerArity + 1);
-
-    internal static readonly bool DynamicCodeSupported =
-#if NET7_0_OR_GREATER
-        RuntimeFeature.IsDynamicCodeSupported;
-#else
-        true;
-#endif
+    internal static bool DynamicCodeSupported => RuntimeGenericClosure.DynamicCodeSupported;
 
     internal static ParameterInfo[] GetParameters(MethodInfo method) =>
         ParameterCache.GetOrAdd(method, static m => m.GetParameters());
@@ -53,6 +49,9 @@ internal static partial class MethodDispatchCache
         if (declaringType == null)
             return null;
 
+        if (!declaringType.IsVisible)
+            return null;
+
         if (!method.IsStatic && declaringType.IsValueType)
             return null;
 
@@ -66,6 +65,15 @@ internal static partial class MethodDispatchCache
         foreach (var parameter in parameters)
         {
             if (parameter.ParameterType.IsByRef || parameter.IsDefined(typeof(ParamArrayAttribute), false))
+                return null;
+        }
+
+        if (!method.ReturnType.IsVisible)
+            return null;
+
+        foreach (var parameter in parameters)
+        {
+            if (!parameter.ParameterType.IsVisible)
                 return null;
         }
 
@@ -118,7 +126,7 @@ internal static partial class MethodDispatchCache
 
     private static FastInvoker CloseFactory(MethodInfo factoryMethod, Type[] genericArgs, MethodInfo targetMethod)
     {
-        var closedFactory = RuntimeGenericFactory.CloseGenericMethod(factoryMethod, genericArgs);
+        var closedFactory = RuntimeGenericClosure.CloseMethod(factoryMethod, genericArgs);
         return (FastInvoker)closedFactory.Invoke(null, [targetMethod])!;
     }
 

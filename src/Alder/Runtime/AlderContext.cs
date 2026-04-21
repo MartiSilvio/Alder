@@ -16,9 +16,8 @@ namespace Alder.Runtime;
 /// </summary>
 internal sealed class AlderContext
 {
-    private readonly IDictionary<string, VariableSlot> _variables;
+    private IDictionary<string, VariableSlot>? _variables;
     private readonly AlderContext? _parent;
-    private readonly AlderConfig _config;
     private int _variableTypeVersion;
 
     private static readonly IReadOnlyDictionary<string, object?> EmptyVariables =
@@ -36,12 +35,13 @@ internal sealed class AlderContext
 
     private AlderContext(AlderConfig config, AlderContext? parent, IServiceProvider? serviceProvider, bool useConcurrentStore)
     {
-        _config = config;
+        Config = config;
         _parent = parent;
         ServiceProvider = serviceProvider ?? parent?.ServiceProvider;
-        _variables = useConcurrentStore
-            ? new ConcurrentDictionary<string, VariableSlot>(_config.Comparer)
-            : new Dictionary<string, VariableSlot>(_config.Comparer);
+        if (useConcurrentStore)
+        {
+            _variables = new ConcurrentDictionary<string, VariableSlot>(Config.Comparer);
+        }
     }
 
     internal CancellationToken ActiveCancellationToken;
@@ -56,22 +56,24 @@ internal sealed class AlderContext
         return default;
     }
 
-    public AlderConfig Config => _config;
-    public StringComparer Comparer => _config.Comparer;
+    public AlderConfig Config { get; }
+
+    public StringComparer Comparer => Config.Comparer;
     public IServiceProvider? ServiceProvider { get; }
-    internal TypeMetadataProvider TypeMetadata => _config.TypeMetadata;
-    internal TypeResolver TypeResolver => _config.TypeResolver;
-    internal FixedDictionary<string, Func<object?[], object?>> Functions => _config.Functions;
-    internal FixedDictionary<string, ModuleInfo> Modules => _config.Modules;
-    internal ImmutableArray<Type> ExtensionTypes => _config.ExtensionTypes;
+    internal TypeMetadataProvider TypeMetadata => Config.TypeMetadata;
+    internal TypeResolver TypeResolver => Config.TypeResolver;
+    internal FixedDictionary<string, Func<object?[], object?>> Functions => Config.Functions;
+    internal FixedDictionary<string, ModuleInfo> Modules => Config.Modules;
+    internal ImmutableArray<Type> ExtensionTypes => Config.ExtensionTypes;
 
     public void Define(string name, object? value) =>
-        _variables[name] = new VariableSlot(value, null, false);
+        GetOrCreateVariablesForWrite()[name] = new VariableSlot(value, null, false);
 
     public void Define(string name, object? value, Type inferredType, bool isReadOnly = false)
     {
-        var typeChanged = !_variables.TryGetValue(name, out var existing) || existing.DeclaredType != inferredType;
-        _variables[name] = new VariableSlot(value, inferredType, isReadOnly);
+        var variables = GetOrCreateVariablesForWrite();
+        var typeChanged = !variables.TryGetValue(name, out var existing) || existing.DeclaredType != inferredType;
+        variables[name] = new VariableSlot(value, inferredType, isReadOnly);
         if (typeChanged)
             Interlocked.Increment(ref _variableTypeVersion);
     }
@@ -83,16 +85,17 @@ internal sealed class AlderContext
     /// </summary>
     public void DefineNew(string name, object? value, Type inferredType, bool isReadOnly = false)
     {
-        if (_variables.ContainsKey(name))
+        var variables = GetOrCreateVariablesForWrite();
+        if (variables.ContainsKey(name))
             throw new AlderException(DiagnosticDescriptors.DuplicateLocalVariable, name);
 
-        _variables[name] = new VariableSlot(value, inferredType, isReadOnly);
+        variables[name] = new VariableSlot(value, inferredType, isReadOnly);
         Interlocked.Increment(ref _variableTypeVersion);
     }
 
     public bool TryGetVariableType(string name, out Type? type)
     {
-        if (_variables.TryGetValue(name, out var slot) && slot.DeclaredType != null)
+        if (_variables != null && _variables.TryGetValue(name, out var slot) && slot.DeclaredType != null)
         {
             type = slot.DeclaredType;
             return true;
@@ -108,7 +111,7 @@ internal sealed class AlderContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryGet(string name, out object? value)
     {
-        if (_variables.TryGetValue(name, out var slot))
+        if (_variables != null && _variables.TryGetValue(name, out var slot))
         {
             value = slot.Value;
             return true;
@@ -134,7 +137,7 @@ internal sealed class AlderContext
         object? value;
         if (_parent == null)
         {
-            if (!_variables.TryGetValue(name, out var slot))
+            if (_variables == null || !_variables.TryGetValue(name, out var slot))
                 throw new AlderException(DiagnosticDescriptors.NameNotInContext, name);
             value = slot.Value;
         }
@@ -148,7 +151,7 @@ internal sealed class AlderContext
 
     public void Set(string name, object? value)
     {
-        if (_variables.TryGetValue(name, out var slot))
+        if (_variables != null && _variables.TryGetValue(name, out var slot))
         {
             if (slot.IsReadOnly)
                 throw new AlderException(DiagnosticDescriptors.ReadonlyAssignment);
@@ -167,34 +170,42 @@ internal sealed class AlderContext
 
     private bool Contains(string name)
     {
-        if (_variables.ContainsKey(name))
+        if (_variables != null && _variables.ContainsKey(name))
             return true;
         return _parent?.Contains(name) ?? false;
     }
 
     public AlderContext CreateChild()
     {
-        return new AlderContext(_config, this, null, useConcurrentStore: false);
+        return new AlderContext(Config, this, null, useConcurrentStore: false);
     }
 
     internal void ClearScope()
     {
-        _variables.Clear();
+        _variables?.Clear();
         Interlocked.Increment(ref _variableTypeVersion);
     }
 
     public IReadOnlyDictionary<string, object?> GetAllVisible()
     {
-        var result = new Dictionary<string, object?>(_config.Comparer);
+        var result = new Dictionary<string, object?>(Config.Comparer);
         if (_parent != null)
         {
             foreach (var (name, value) in _parent.GetAllVisible())
                 result[name] = value;
         }
 
-        foreach (var kvp in _variables)
-            result[kvp.Key] = kvp.Value.Value;
+        if (_variables != null)
+        {
+            foreach (var kvp in _variables)
+                result[kvp.Key] = kvp.Value.Value;
+        }
         return result;
+    }
+
+    private IDictionary<string, VariableSlot> GetOrCreateVariablesForWrite()
+    {
+        return _variables ??= new Dictionary<string, VariableSlot>(Config.Comparer);
     }
 
     internal int GetTypeInferenceVersion()

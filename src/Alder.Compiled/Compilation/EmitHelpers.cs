@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
+using Alder.Runtime.OverloadResolution;
 
 namespace Alder.Compiled.Compilation;
 

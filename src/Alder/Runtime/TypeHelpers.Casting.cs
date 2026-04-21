@@ -186,10 +186,11 @@ internal static partial class TypeHelpers
         if (isConstantExpression && sourceType == typeof(int) && value is int intValue && IsIntegerType(underlyingType) && !underlyingType.IsEnum)
         {
             try { return Convert.ChangeType(intValue, underlyingType); }
-            catch (OverflowException)
+            catch (OverflowException ex)
             {
                 throw new AlderException(
                     DiagnosticDescriptors.ConstantValueCannotConvert,
+                    ex,
                     intValue,
                     underlyingType.Name);
             }
@@ -233,8 +234,7 @@ internal static partial class TypeHelpers
         if (!typeof(Delegate).IsAssignableFrom(underlyingType))
             throw new AlderException(DiagnosticDescriptors.LambdaToNonDelegate, underlyingType.Name);
 
-        var invoke = underlyingType.GetMethod("Invoke");
-        if (invoke != null)
+        if (DelegateShapeInspector.TryGetInvoke(underlyingType, out var invoke))
         {
             var delegateArity = invoke.GetParameters().Length;
             var lambdaArity = value switch
@@ -306,10 +306,11 @@ internal static partial class TypeHelpers
         if (isConstantExpression && sourceType == typeof(int) && value is int intValue && IsConstantIntConversionTarget(targetType))
         {
             try { return Convert.ChangeType(intValue, targetType); }
-            catch (OverflowException)
+            catch (OverflowException ex)
             {
                 throw new AlderException(
                     DiagnosticDescriptors.ConstantValueCannotConvert,
+                    ex,
                     intValue,
                     targetType.Name);
             }

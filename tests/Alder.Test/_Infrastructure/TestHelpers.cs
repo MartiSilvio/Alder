@@ -1,5 +1,6 @@
 using System.Dynamic;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis.CSharp;
@@ -76,6 +77,24 @@ public static class TestHelpers
         item["Name"] = name;
         item["Price"] = price;
         return item;
+    }
+
+    public static object? ReadProjectedMember(object? value, string name)
+    {
+        if (value == null)
+            throw new AssertionException($"Cannot read projected member '{name}' from null.");
+
+        if (value is IReadOnlyDictionary<string, object?> readOnlyDict &&
+            readOnlyDict.TryGetValue(name, out var dictValue))
+        {
+            return dictValue;
+        }
+
+        var property = value.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+        if (property == null)
+            throw new AssertionException($"Projected member '{name}' was not found on '{value.GetType().Name}'.");
+
+        return property.GetValue(value);
     }
 
     public static async Task<object?> EvaluateCSharpAsync(string code)

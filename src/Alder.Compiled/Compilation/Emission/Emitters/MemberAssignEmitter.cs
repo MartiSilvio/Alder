@@ -33,7 +33,7 @@ internal static class MemberAssignEmitter
 
     private static LinqExpression EmitResolved(BoundMemberAssignExpr node, MemberInfo member, Type valueType, EmissionContext ctx)
     {
-        if (ctx.PreferResolvedRuntimeDispatch)
+        if (ctx.ResolvedDispatchMode == ResolvedDispatchMode.RuntimeDispatch)
         {
             var runtimeCall = LinqExpression.Call(
                 SetResolvedMemberMethod,

@@ -42,49 +42,34 @@ public sealed partial class AlderEngine
     {
         if (expression is null) throw new ArgumentNullException(nameof(expression));
         ThrowIfDisposed();
-
-        var target = this;
-        if (variables != null)
-        {
-            target = CreateChild();
-            target.SetVariables(variables);
-        }
-
-        var context = target.GetOrCreateContext();
-        context.ActiveCancellationToken = cancellationToken;
-        var constraintState = new ExecutionConstraintState();
-        constraintState.Reset(_config.Constraints);
-
-        if (_config.Compiler != null)
-        {
-            return ExecuteCompiledExpression(
-                expression,
-                context,
-                context,
-                constraintState,
-                cancellationToken);
-        }
-
-        var executionContext = context.CreateChild();
+        using var state = CreateEvaluationState(variables, cancellationToken);
 
         try
         {
-            return EvaluateCore(expression, context, executionContext, constraintState, cancellationToken);
+            if (_config.Compiler != null)
+            {
+                return ExecuteCompiledExpression(
+                    expression,
+                    state.BindingContext,
+                    state.ExecutionContext,
+                    state.ConstraintState,
+                    cancellationToken);
+            }
+
+            return EvaluateCore(expression, state, cancellationToken);
         }
-        catch (InsufficientExecutionStackException)
+        catch (InsufficientExecutionStackException ex)
         {
-            throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
+            throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded, ex);
         }
     }
 
     private object? EvaluateCore(
         AlderExpression expression,
-        AlderContext bindingContext,
-        AlderContext executionContext,
-        ExecutionConstraintState constraintState,
+        EvaluationStateLease state,
         CancellationToken cancellationToken)
     {
-        if (expression.TryGetOrCreateBoundExpression(bindingContext, out var boundExpression, out var boundFailureReason))
+        if (expression.TryGetOrCreateBoundExpression(state.BindingContext, out var boundExpression, out var boundFailureReason))
         {
             if (boundExpression != null)
             {
@@ -93,7 +78,11 @@ public sealed partial class AlderEngine
                     var processed = _pipelineCache.GetValue(boundExpression,
                         b => RunPipeline(b, cancellationToken));
 
-                    var boundEvaluator = new BoundEvaluator(executionContext, constraintState, sourceText: new Text.SourceText(expression.Source));
+                    var boundEvaluator = new BoundEvaluator(
+                        state.ExecutionContext,
+                        state.ConstraintState,
+                        sourceText: new Text.SourceText(expression.Source));
+
                     var boundResult = boundEvaluator.Evaluate(processed, cancellationToken);
                     expression.RecordBoundExecution();
                     return UnwrapControlFlowSignal(boundResult);
@@ -101,7 +90,7 @@ public sealed partial class AlderEngine
                 catch (BindingNotSupportedException ex)
                 {
                     expression.RecordBoundFallback(ex.Message);
-                    throw new AlderException(DiagnosticDescriptors.BindingFailed, ex.Message);
+                    throw new AlderException(DiagnosticDescriptors.BindingFailed, ex, ex.Message);
                 }
             }
         }
@@ -122,9 +111,9 @@ public sealed partial class AlderEngine
         object variables,
         CancellationToken cancellationToken = default)
     {
-        var child = CreateChild();
-        child.SetTypedVariablesFromObject(variables);
-        return child.Evaluate(expression, cancellationToken: cancellationToken);
+        ThrowIfDisposed();
+        var parsed = Parse(expression);
+        return Evaluate(parsed, variables, cancellationToken);
     }
 
     /// <summary>
@@ -139,9 +128,28 @@ public sealed partial class AlderEngine
         object variables,
         CancellationToken cancellationToken = default)
     {
-        var child = CreateChild();
-        child.SetTypedVariablesFromObject(variables);
-        return child.Evaluate(expression, cancellationToken: cancellationToken);
+        if (expression is null) throw new ArgumentNullException(nameof(expression));
+        ThrowIfDisposed();
+        using var state = CreateEvaluationState(VariableBindingProjector.ProjectTypedVariables(variables), cancellationToken);
+
+        try
+        {
+            if (_config.Compiler != null)
+            {
+                return ExecuteCompiledExpression(
+                    expression,
+                    state.BindingContext,
+                    state.ExecutionContext,
+                    state.ConstraintState,
+                    cancellationToken);
+            }
+
+            return EvaluateCore(expression, state, cancellationToken);
+        }
+        catch (InsufficientExecutionStackException ex)
+        {
+            throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded, ex);
+        }
     }
 
     /// <summary>
@@ -190,11 +198,9 @@ public sealed partial class AlderEngine
         string expression,
         object variables,
         CancellationToken cancellationToken = default)
-
     {
-        var child = CreateChild();
-        child.SetTypedVariablesFromObject(variables);
-        return child.Evaluate<T>(expression, cancellationToken: cancellationToken);
+        var result = Evaluate(expression, variables, cancellationToken);
+        return ConvertResult<T>(result);
     }
 
     /// <summary>
@@ -210,9 +216,8 @@ public sealed partial class AlderEngine
         object variables,
         CancellationToken cancellationToken = default)
     {
-        var child = CreateChild();
-        child.SetTypedVariablesFromObject(variables);
-        return child.Evaluate<T>(expression, cancellationToken: cancellationToken);
+        var result = Evaluate(expression, variables, cancellationToken);
+        return ConvertResult<T>(result);
     }
 
     /// <summary>
@@ -228,7 +233,7 @@ public sealed partial class AlderEngine
         if (variables.Length == 0)
             return Evaluate(expression, (IDictionary<string, object?>?)null);
 
-        return Evaluate(expression, BuildPositionalVariables(variables));
+        return Evaluate(expression, VariableBindingProjector.BuildPositionalVariables(variables));
     }
 
     /// <summary>
@@ -241,6 +246,37 @@ public sealed partial class AlderEngine
     /// <param name="variables">Variables accessible within the expression.</param>
     /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
     public T? Evaluate<T>(string expression, params object?[] variables)
+    {
+        var result = Evaluate(expression, variables);
+        return ConvertResult<T>(result);
+    }
+
+    /// <summary>
+    /// Evaluates a pre-parsed expression with inline variables.
+    /// Variables are accessible as <c>@0</c>, <c>@1</c>, etc. by position.
+    /// Dictionaries and objects are also destructured into named variables.
+    /// </summary>
+    /// <param name="expression">The pre-parsed expression to evaluate.</param>
+    /// <param name="variables">Variables accessible within the expression.</param>
+    /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
+    public object? Evaluate(AlderExpression expression, params object?[] variables)
+    {
+        if (variables.Length == 0)
+            return Evaluate(expression, (IDictionary<string, object?>?)null);
+
+        return Evaluate(expression, VariableBindingProjector.BuildPositionalVariables(variables));
+    }
+
+    /// <summary>
+    /// Evaluates a pre-parsed expression with inline variables and converts the result to <typeparamref name="T"/>.
+    /// Variables are accessible as <c>@0</c>, <c>@1</c>, etc. by position.
+    /// Dictionaries and objects are also destructured into named variables.
+    /// </summary>
+    /// <typeparam name="T">The expected return type.</typeparam>
+    /// <param name="expression">The pre-parsed expression to evaluate.</param>
+    /// <param name="variables">Variables accessible within the expression.</param>
+    /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
+    public T? Evaluate<T>(AlderExpression expression, params object?[] variables)
     {
         var result = Evaluate(expression, variables);
         return ConvertResult<T>(result);
@@ -274,6 +310,33 @@ public sealed partial class AlderEngine
     }
 
     /// <summary>
+    /// Attempts to evaluate a pre-parsed expression without throwing on failure.
+    /// </summary>
+    /// <param name="expression">The pre-parsed expression to evaluate.</param>
+    /// <param name="result">When successful, the evaluation result; otherwise, <c>null</c>.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns><c>true</c> if evaluation succeeded; otherwise, <c>false</c>.</returns>
+    public bool TryEvaluate(
+        AlderExpression expression,
+        out object? result,
+        IDictionary<string, object?>? variables = null,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        try
+        {
+            result = Evaluate(expression, variables, cancellationToken);
+            return true;
+        }
+        catch (Exception ex) when (!ShouldRethrowTryApiException(ex))
+        {
+            result = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Attempts to evaluate a C# expression and convert the result to <typeparamref name="T"/> without throwing on failure.
     /// </summary>
     /// <typeparam name="T">The expected return type.</typeparam>
@@ -284,6 +347,34 @@ public sealed partial class AlderEngine
     /// <returns><c>true</c> if evaluation and conversion succeeded; otherwise, <c>false</c>.</returns>
     public bool TryEvaluate<T>(
         string expression,
+        out T? result,
+        IDictionary<string, object?>? variables = null,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        try
+        {
+            result = Evaluate<T>(expression, variables, cancellationToken);
+            return true;
+        }
+        catch (Exception ex) when (!ShouldRethrowTryApiException(ex))
+        {
+            result = default;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to evaluate a pre-parsed expression and convert the result to <typeparamref name="T"/> without throwing on failure.
+    /// </summary>
+    /// <typeparam name="T">The expected return type.</typeparam>
+    /// <param name="expression">The pre-parsed expression to evaluate.</param>
+    /// <param name="result">When successful, the result converted to <typeparamref name="T"/>; otherwise, <c>default</c>.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns><c>true</c> if evaluation and conversion succeeded; otherwise, <c>false</c>.</returns>
+    public bool TryEvaluate<T>(
+        AlderExpression expression,
         out T? result,
         IDictionary<string, object?>? variables = null,
         CancellationToken cancellationToken = default)

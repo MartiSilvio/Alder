@@ -93,6 +93,17 @@ public class ApiFeatureTests(CompilationMode mode)
             engine.TryEvaluate<int>("{ while (true) { } }", out _, cancellationToken: cts.Token));
     }
 
+    [Test]
+    public void Evaluate_DelegateInvocation_DoesNotWrapCancelledTokenInTargetInvocationException()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            engine.Evaluate("((Func<int>)(() => 1))()", cancellationToken: cts.Token));
+    }
+
     #endregion
 
     #region TryValidate

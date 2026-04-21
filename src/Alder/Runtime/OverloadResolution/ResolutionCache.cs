@@ -1,7 +1,7 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using Alder.Runtime.Collections;
 
-namespace Alder.Runtime;
+namespace Alder.Runtime.OverloadResolution;
 
 /// <summary>
 /// Caches overload resolution results for instance and static method calls.
@@ -51,9 +51,7 @@ internal static class ResolutionCache
         }
     }
 
-    private static readonly ConcurrentDictionary<ResolutionKey, ResolvedCall> Cache = new();
-    private static readonly ConcurrentQueue<ResolutionKey> InsertionOrder = new();
-    private const int MaxSize = 4096;
+    private static readonly BoundedConcurrentCache<ResolutionKey, ResolvedCall> Cache = new(4096);
 
     public static bool TryGet(
         Type type,
@@ -78,12 +76,7 @@ internal static class ResolutionCache
         if (!TryBuildKey(type, methodName, args, out var key))
             return;
 
-        if (Cache.TryAdd(key, resolved))
-        {
-            InsertionOrder.Enqueue(key);
-            while (Cache.Count > MaxSize && InsertionOrder.TryDequeue(out var oldest))
-                Cache.TryRemove(oldest, out _);
-        }
+        Cache.TryAdd(key, resolved);
     }
 
     private static bool TryBuildKey(

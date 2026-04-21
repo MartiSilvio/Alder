@@ -168,7 +168,7 @@ public class MethodDispatchGenerationTests
     }
 
     [Test]
-    public void GenericMethod_Skipped()
+    public void GenericMethod_IsNotExpandedIntoAotDispatch()
     {
         var source = """
             using Alder.Aot;
@@ -192,16 +192,12 @@ public class MethodDispatchGenerationTests
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
         var tryInvoke = ExtractMethod(generated, "TryInvoke");
-        Assert.That(tryInvoke, Does.Contain("\"Identity\""),
-            "Generic methods should be expanded to closed instantiations");
-        Assert.That(tryInvoke, Does.Contain("Identity<int>"),
-            "Generic method should have int instantiation");
-        Assert.That(tryInvoke, Does.Contain("Identity<double>"),
-            "Generic method should have double instantiation");
+        Assert.That(tryInvoke, Does.Not.Contain("\"Identity\""),
+            "Generic methods are outside the bounded AOT dispatch surface.");
     }
 
     [Test]
-    public void RefOutParameter_Skipped()
+    public void OutParameter_GeneratesDispatchAndCopiesBack()
     {
         var source = """
             using Alder.Aot;
@@ -225,7 +221,123 @@ public class MethodDispatchGenerationTests
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
         var tryInvoke = ExtractMethod(generated, "TryInvoke");
-        Assert.That(tryInvoke, Does.Not.Contain("\"TryParse\""));
+        Assert.That(tryInvoke, Does.Contain("\"TryParse\""));
+        Assert.That(tryInvoke, Does.Contain("int __out1 = default;"));
+        Assert.That(tryInvoke, Does.Contain("out __out1"));
+        Assert.That(tryInvoke, Does.Contain("args[1] = __out1;"));
+    }
+
+    [Test]
+    public void NullableReferenceOutParameter_UsesNullableLocal()
+    {
+        var source = """
+            using Alder.Aot;
+
+            namespace TestTypes
+            {
+                public class MyModel
+                {
+                    public bool TryRead(out string? value) { value = null; return false; }
+                }
+
+                [AlderRegistered(typeof(MyModel))]
+                public partial class TestContext : AlderTypeContext { }
+            }
+            """;
+
+        var (diagnostics, outputCompilation, generatedTrees) = GeneratorTestHelper.RunGenerator(source);
+        var errors = GetCompilationErrors(outputCompilation);
+        var generated = GetAllGeneratedSource(generatedTrees);
+
+        Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
+
+        var tryInvoke = ExtractMethod(generated, "TryInvoke");
+        Assert.That(tryInvoke, Does.Contain("string? __out0 = default;"));
+        Assert.That(tryInvoke, Does.Contain("result = typed.TryRead(out __out0);"));
+    }
+
+    [Test]
+    public void MaybeNullOutParameter_UsesNullableLocal()
+    {
+        var source = """
+            using Alder.Aot;
+            using System.Diagnostics.CodeAnalysis;
+
+            namespace TestTypes
+            {
+                public class MyModel
+                {
+                    public bool TryRead([MaybeNullWhen(false)] out string value) { value = null!; return false; }
+                }
+
+                [AlderRegistered(typeof(MyModel))]
+                public partial class TestContext : AlderTypeContext { }
+            }
+            """;
+
+        var (diagnostics, outputCompilation, generatedTrees) = GeneratorTestHelper.RunGenerator(source);
+        var errors = GetCompilationErrors(outputCompilation);
+        var generated = GetAllGeneratedSource(generatedTrees);
+
+        Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
+
+        var tryInvoke = ExtractMethod(generated, "TryInvoke");
+        Assert.That(tryInvoke, Does.Contain("string? __out0 = default;"));
+    }
+
+    [Test]
+    public void RefParameter_RemainsOutsideBoundedAotSurface()
+    {
+        var source = """
+            using Alder.Aot;
+
+            namespace TestTypes
+            {
+                public class MyModel
+                {
+                    public void Bump(ref int value) { value++; }
+                }
+
+                [AlderRegistered(typeof(MyModel))]
+                public partial class TestContext : AlderTypeContext { }
+            }
+            """;
+
+        var (diagnostics, outputCompilation, generatedTrees) = GeneratorTestHelper.RunGenerator(source);
+        var errors = GetCompilationErrors(outputCompilation);
+        var generated = GetAllGeneratedSource(generatedTrees);
+
+        Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
+
+        var tryInvoke = ExtractMethod(generated, "TryInvoke");
+        Assert.That(tryInvoke, Does.Not.Contain("\"Bump\""));
+    }
+
+    [Test]
+    public void RootedTaskOfT_GeneratesExplicitGenericStaticDispatch()
+    {
+        var source = """
+            using Alder.Aot;
+            using System.Threading.Tasks;
+
+            namespace TestTypes
+            {
+                [AlderRegistered(typeof(Task<int>))]
+                [AlderRegistered(typeof(Task<string>))]
+                public partial class TestContext : AlderTypeContext { }
+            }
+            """;
+
+        var (diagnostics, outputCompilation, generatedTrees) = GeneratorTestHelper.RunGenerator(source);
+        var errors = GetCompilationErrors(outputCompilation);
+        var generated = GetAllGeneratedSource(generatedTrees);
+
+        Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
+        Assert.That(generated, Does.Contain("GetGenericStaticDispatch()"));
+        Assert.That(generated, Does.Contain("TaskFromResultDispatch"));
+        Assert.That(generated, Does.Contain("nameof(global::System.Threading.Tasks.Task.FromResult)"));
+        Assert.That(generated, Does.Contain("requestedType == typeof(int)"));
+        Assert.That(generated, Does.Contain("requestedType == typeof(string)"));
     }
 
     [Test]
@@ -257,6 +369,36 @@ public class MethodDispatchGenerationTests
         Assert.That(tryInvoke, Does.Contain("case \"Sum\":"));
         Assert.That(tryInvoke, Does.Contain("args[0] is int[]"), "Normal form: caller passes the array directly");
         Assert.That(tryInvoke, Does.Contain("__paramsArr"), "Expanded form: individual elements collected into array");
+    }
+
+    [Test]
+    public void DelegateParameters_DoNotEmitGeneratedDelegateFactoryMachinery()
+    {
+        var source = """
+            using Alder.Aot;
+            using System;
+
+            namespace TestTypes
+            {
+                public class MyModel
+                {
+                    public int Apply(Func<int, int> selector, int value) => selector(value);
+                }
+
+                [AlderRegistered(typeof(MyModel))]
+                public partial class TestContext : AlderTypeContext { }
+            }
+            """;
+
+        var (diagnostics, outputCompilation, generatedTrees) = GeneratorTestHelper.RunGenerator(source);
+        var errors = GetCompilationErrors(outputCompilation);
+        var generated = GetAllGeneratedSource(generatedTrees);
+
+        Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
+        Assert.That(generated, Does.Not.Contain("AotDelegateFactories"),
+            "AOT generator should not synthesize delegate factory breadth for registered delegate parameters.");
+        Assert.That(generated, Does.Not.Contain("GetDelegateFactories()"),
+            "Generated contexts should stay focused on explicit typed dispatch.");
     }
 
     [Test]

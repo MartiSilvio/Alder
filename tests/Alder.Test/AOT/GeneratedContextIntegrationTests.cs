@@ -1,4 +1,5 @@
 using Alder.Test._Infrastructure;
+using Alder.Runtime.Introspection;
 
 namespace Alder.Test.AOT;
 
@@ -223,8 +224,69 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
     }
 
     [Test]
-    public void CaseInsensitiveGeneratedDispatch_GetMember_UsesAotDispatch()
+    public void CaseInsensitiveGeneratedContext_GetMember_UsesReflectionUnderJit()
     {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.IsCaseSensitive = false;
+            o.Aot.UseGeneratedContext(new CaseSensitivitySentinelContext());
+        });
+        engine.SetVariable("m", new CaseSensitivitySentinelType { Name = "reflection-name" });
+
+        var result = engine.Evaluate("m.name");
+
+        Assert.That(result, Is.EqualTo("reflection-name"));
+    }
+
+    [Test]
+    public void GeneratedContext_ExactCase_GetMember_UsesReflectionUnderJit()
+    {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.Aot.UseGeneratedContext(new CaseSensitivitySentinelContext());
+        });
+        engine.SetVariable("m", new CaseSensitivitySentinelType { Name = "reflection-name" });
+
+        var result = engine.Evaluate("m.Name");
+
+        Assert.That(result, Is.EqualTo("reflection-name"));
+    }
+
+    [Test]
+    public void CaseInsensitiveGeneratedContext_SetMember_UsesReflectionUnderJit()
+    {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.IsCaseSensitive = false;
+            o.Aot.UseGeneratedContext(new CaseSensitivitySentinelContext());
+        });
+        var model = new CaseSensitivitySentinelType { Name = "before" };
+        engine.SetVariable("m", model);
+
+        engine.Evaluate("""m.name = "after" """);
+
+        Assert.That(model.Name, Is.EqualTo("after"));
+    }
+
+    [Test]
+    public void CaseInsensitiveGeneratedContext_InvokeMethod_UsesReflectionUnderJit()
+    {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.IsCaseSensitive = false;
+            o.Aot.UseGeneratedContext(new CaseSensitivitySentinelContext());
+        });
+        engine.SetVariable("m", new CaseSensitivitySentinelType());
+
+        var result = engine.Evaluate("""m.echo("ping")""");
+
+        Assert.That(result, Is.EqualTo("reflection:ping"));
+    }
+
+    [Test]
+    public void SimulatedAot_CaseInsensitiveGeneratedContext_GetMember_UsesGeneratedDispatch()
+    {
+        using var _ = RuntimeGenericClosure.OverrideDynamicCodeSupportForTesting(false);
         var engine = TestEngineFactory.Create(mode, o =>
         {
             o.IsCaseSensitive = false;
@@ -238,8 +300,9 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
     }
 
     [Test]
-    public void CustomGeneratedDispatch_ExactCase_UsesAotDispatch()
+    public void SimulatedAot_GeneratedContext_ExactCase_GetMember_UsesGeneratedDispatch()
     {
+        using var _ = RuntimeGenericClosure.OverrideDynamicCodeSupportForTesting(false);
         var engine = TestEngineFactory.Create(mode, o =>
         {
             o.Aot.UseGeneratedContext(new CaseSensitivitySentinelContext());
@@ -252,8 +315,9 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
     }
 
     [Test]
-    public void CaseInsensitiveGeneratedDispatch_SetMember_UsesAotDispatch()
+    public void SimulatedAot_CaseInsensitiveGeneratedContext_SetMember_UsesGeneratedDispatch()
     {
+        using var _ = RuntimeGenericClosure.OverrideDynamicCodeSupportForTesting(false);
         var engine = TestEngineFactory.Create(mode, o =>
         {
             o.IsCaseSensitive = false;
@@ -268,8 +332,9 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
     }
 
     [Test]
-    public void CaseInsensitiveGeneratedDispatch_InvokeMethod_UsesAotDispatch()
+    public void SimulatedAot_CaseInsensitiveGeneratedContext_InvokeMethod_UsesGeneratedDispatch()
     {
+        using var _ = RuntimeGenericClosure.OverrideDynamicCodeSupportForTesting(false);
         var engine = TestEngineFactory.Create(mode, o =>
         {
             o.IsCaseSensitive = false;

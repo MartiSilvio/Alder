@@ -29,40 +29,10 @@ internal static class IdentifierRuntime
         IReadOnlyList<string>? typeArgs,
         CancellationToken ct = default)
     {
-        if (context.Functions.TryGetValue(name, out var function))
-            return function(args);
+        if (TryInvokeDirectIdentifierCallable(name, args, context, out var result))
+            return result;
 
-        var hasVariable = context.TryGet(name, out var variableValue);
-
-        if (context.Config.LanguageMode == LanguageMode.Extended &&
-            !hasVariable &&
-            BareMathNames.TryGetFunction(name, args.Length, out var mathFunc))
-        {
-            return mathFunc(args);
-        }
-
-        if (context.Config.LanguageMode == LanguageMode.Extended &&
-            !hasVariable &&
-            DateArithmeticSugar.TryInvokeClockFunction(name, args, context.Config.IsCaseSensitive, out var clockValue))
-        {
-            return clockValue;
-        }
-
-        if (context.Config.LanguageMode == LanguageMode.Extended &&
-            !hasVariable &&
-            AggregateBuiltins.TryInvoke(name, args, context.Config.IsCaseSensitive, out var aggregateResult))
-        {
-            return aggregateResult;
-        }
-
-        if (context.Modules.TryGetValue(name, out var module))
-            return MethodInvoker.InvokeCall(module, args, context, typeArgs, ct);
-
-        if (hasVariable || context.TryGet(name, out variableValue))
-            return MethodInvoker.InvokeCall(variableValue, args, context, typeArgs, ct);
-
-        var callee = ResolveIdentifier(name, context);
-        return MethodInvoker.InvokeCall(callee, args, context, typeArgs, ct);
+        return MethodInvoker.InvokeCall(ResolveIdentifierCallable(name, context), args, context, typeArgs, ct);
     }
 
     public static object? InvokePipelineIdentifier(
@@ -73,66 +43,11 @@ internal static class IdentifierRuntime
     {
         var args = new object?[] { leftValue };
 
-        if (context.Functions.TryGetValue(rightIdentifier, out var function))
-            return function(args);
+        if (TryInvokeDirectIdentifierCallable(rightIdentifier, args, context, out var result))
+            return result;
 
-        var hasVariable = context.TryGet(rightIdentifier, out var variableValue);
-
-        if (context.Config.LanguageMode == LanguageMode.Extended &&
-            !hasVariable &&
-            BareMathNames.TryGetFunction(rightIdentifier, args.Length, out var mathFunc))
-        {
-            return mathFunc(args);
-        }
-
-        if (context.Config.LanguageMode == LanguageMode.Extended &&
-            !hasVariable &&
-            DateArithmeticSugar.TryInvokeClockFunction(rightIdentifier, args, context.Config.IsCaseSensitive, out var clockValue))
-        {
-            return clockValue;
-        }
-
-        if (context.Config.LanguageMode == LanguageMode.Extended &&
-            !hasVariable &&
-            AggregateBuiltins.TryInvoke(rightIdentifier, args, context.Config.IsCaseSensitive, out var aggregateResult))
-        {
-            return aggregateResult;
-        }
-
-        if (context.Modules.TryGetValue(rightIdentifier, out var module))
-        {
-            throw new AlderException(
-                DiagnosticDescriptors.BadBinaryOps,
-                TokenLexemes.GetCanonical(TokenType.PipeGreater),
-                TypeNameFormatter.Of(leftValue),
-                module.GetType().Name);
-        }
-
-        if (hasVariable || context.TryGet(rightIdentifier, out variableValue))
-        {
-            if (!IsPipelineCallable(variableValue))
-            {
-                throw new AlderException(
-                    DiagnosticDescriptors.BadBinaryOps,
-                    TokenLexemes.GetCanonical(TokenType.PipeGreater),
-                    TypeNameFormatter.Of(leftValue),
-                    TypeNameFormatter.Of(variableValue));
-            }
-
-            return MethodInvoker.InvokeCall(variableValue, args, context, null, ct);
-        }
-
-        var callee = ResolveIdentifier(rightIdentifier, context);
-        if (!IsPipelineCallable(callee))
-        {
-            throw new AlderException(
-                DiagnosticDescriptors.BadBinaryOps,
-                TokenLexemes.GetCanonical(TokenType.PipeGreater),
-                TypeNameFormatter.Of(leftValue),
-                TypeNameFormatter.Of(callee));
-        }
-
-        return MethodInvoker.InvokeCall(callee, args, context, null, ct);
+        var callee = ResolveIdentifierCallable(rightIdentifier, context);
+        return InvokeResolvedPipelineCallable(leftValue, callee, args, context, ct);
     }
 
     public static void DefineOutVariables(
@@ -201,12 +116,87 @@ internal static class IdentifierRuntime
         return context.Get(name);
     }
 
-    private static bool IsPipelineCallable(object? value) => value is
-        LambdaValue or
-        CompiledLambdaValue or
-        FunctionRef or
-        Delegate or
-        ModuleMethodRef or
-        StaticMethodRef or
-        MethodRef;
+    private static bool TryInvokeDirectIdentifierCallable(
+        string name,
+        object?[] args,
+        AlderContext context,
+        out object? result)
+    {
+        if (context.Functions.TryGetValue(name, out var function))
+        {
+            result = function(args);
+            return true;
+        }
+
+        var hasVariable = context.TryGet(name, out _);
+        if (!hasVariable &&
+            TryInvokeExtendedBuiltIn(name, args, context, out result))
+        {
+            return true;
+        }
+
+        result = null;
+        return false;
+    }
+
+    private static bool TryInvokeExtendedBuiltIn(
+        string name,
+        object?[] args,
+        AlderContext context,
+        out object? result)
+    {
+        if (context.Config.LanguageMode == LanguageMode.Extended &&
+            BareMathNames.TryGetFunction(name, args.Length, out var mathFunc))
+        {
+            result = mathFunc(args);
+            return true;
+        }
+
+        if (context.Config.LanguageMode == LanguageMode.Extended &&
+            DateArithmeticSugar.TryInvokeClockFunction(name, args, context.Config.IsCaseSensitive, out var clockValue))
+        {
+            result = clockValue;
+            return true;
+        }
+
+        if (context.Config.LanguageMode == LanguageMode.Extended &&
+            AggregateBuiltins.TryInvoke(name, args, context.Config.IsCaseSensitive, out var aggregateResult))
+        {
+            result = aggregateResult;
+            return true;
+        }
+
+        result = null;
+        return false;
+    }
+
+    private static object? ResolveIdentifierCallable(string name, AlderContext context)
+    {
+        if (context.Modules.TryGetValue(name, out var module))
+            return module;
+
+        if (context.TryGet(name, out var value))
+            return value;
+
+        return ResolveIdentifier(name, context);
+    }
+
+    private static object? InvokeResolvedPipelineCallable(
+        object? leftValue,
+        object? callee,
+        object?[] args,
+        AlderContext context,
+        CancellationToken ct)
+    {
+        if (!MethodInvoker.IsCallable(callee))
+        {
+            throw new AlderException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.PipeGreater),
+                TypeNameFormatter.Of(leftValue),
+                TypeNameFormatter.Of(callee));
+        }
+
+        return MethodInvoker.InvokeCall(callee, args, context, null, ct);
+    }
 }

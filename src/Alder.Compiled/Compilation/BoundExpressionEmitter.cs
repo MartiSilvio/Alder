@@ -23,16 +23,16 @@ internal sealed partial class BoundExpressionEmitter
         ParameterExpression contextParam,
         ParameterExpression configParam,
         ParameterExpression constraintStateParam,
-        ParameterExpression ctParam,
-        bool preferResolvedRuntimeDispatch)
+        ResolvedDispatchMode resolvedDispatchMode,
+        ParameterExpression ctParam)
     {
         _contextParam = contextParam;
         _emissionCtx = new EmissionContext(
             contextParam,
             configParam,
             constraintStateParam,
-            ctParam,
-            preferResolvedRuntimeDispatch);
+            resolvedDispatchMode,
+            ctParam);
     }
 
     public LinqExpression EmitRoot(BoundExpr expr)

@@ -378,9 +378,9 @@ public class SandboxModeTests(CompilationMode mode)
     public void Safe_AllowsPropertySetByDefault()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe());
+        engine.SetVariable("obj", new MutableSandboxValue { Value = 1 });
 
         var result = engine.Evaluate(@"
-            var obj = new { Value = 1 };
             obj.Value = 42;
             return obj.Value;
         ");
@@ -392,9 +392,9 @@ public class SandboxModeTests(CompilationMode mode)
     public void Safe_AllowPropertySetFalse_BlocksPropertyAssignment()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false });
+        engine.SetVariable("obj", new MutableSandboxValue { Value = 1 });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
-            var obj = new { Value = 1 };
             obj.Value = 42;
             return obj.Value;
         "));
@@ -406,9 +406,9 @@ public class SandboxModeTests(CompilationMode mode)
     public void Safe_AllowPropertySetFalse_AllowsPropertyRead()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false });
+        engine.SetVariable("obj", new MutableSandboxValue { Value = 42 });
 
         var result = engine.Evaluate(@"
-            var obj = new { Value = 42 };
             return obj.Value;
         ");
 
@@ -419,9 +419,9 @@ public class SandboxModeTests(CompilationMode mode)
     public void Safe_AllowPropertySetFalse_BlocksNestedPropertySet()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false });
+        engine.SetVariable("obj", new MutableSandboxContainer { Inner = new MutableSandboxValue { Value = 1 } });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
-            var obj = new { Inner = new { Value = 1 } };
             obj.Inner.Value = 42;
             return obj.Inner.Value;
         "));
@@ -499,9 +499,9 @@ public class SandboxModeTests(CompilationMode mode)
     public void Safe_AllowIndexSetFalse_AllowsDictionaryRead()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false });
+        engine.SetVariable("dict", new Dictionary<string, object?> { ["key"] = "value" });
 
         var result = engine.Evaluate(@"
-            var dict = new { key = ""value"" };
             return dict[""key""];
         ");
 
@@ -564,9 +564,9 @@ public class SandboxModeTests(CompilationMode mode)
     public void Strict_BlocksPropertySet()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Strict());
+        engine.SetVariable("obj", new MutableSandboxValue { Value = 1 });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
-            var obj = new { Value = 1 };
             obj.Value = 42;
             return obj.Value;
         "));
@@ -694,9 +694,9 @@ public class SandboxModeTests(CompilationMode mode)
                 AllowPropertyRead = true
             };
         });
+        engine.SetVariable("obj", new MutableSandboxValue { Value = 1 });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
-            var obj = new { Value = 1 };
             obj.Value = 42;
             return obj.Value;
         "));
@@ -839,14 +839,24 @@ public class SandboxModeTests(CompilationMode mode)
         // Member assignment (obj.Prop = val) should only check AllowPropertySet,
         // NOT AllowAssignment. This verifies the CompileMemberAssign fix.
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Trusted() with { AllowAssignment = false });
+        engine.SetVariable("obj", new MutableSandboxValue { Value = 1 });
 
         var result = engine.Evaluate(@"
-            var obj = new { Value = 1 };
             obj.Value = 42;
             return obj.Value;
         ");
 
         Assert.That(result, Is.EqualTo(42));
+    }
+
+    private sealed class MutableSandboxContainer
+    {
+        public MutableSandboxValue Inner { get; set; } = new();
+    }
+
+    private sealed class MutableSandboxValue
+    {
+        public int Value { get; set; }
     }
 
 

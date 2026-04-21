@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Alder.Diagnostics;
 using Alder.Runtime;
 
@@ -5,6 +6,7 @@ namespace Alder;
 
 public sealed partial class AlderEngine
 {
+    private static readonly ConcurrentBag<ExecutionConstraintState> ConstraintStatePool = new();
 
     /// <summary>
     /// Attempts to compile the expression to IL. Returns <c>true</c> if successful.
@@ -156,7 +158,36 @@ public sealed partial class AlderEngine
     /// Exposes the engine's evaluation context for use by <see cref="AlderCompiledExpression{T}"/>.
     /// The context is captured by reference so that variable changes after compilation are visible.
     /// </summary>
-    internal AlderContext GetContextForCompiled() => GetOrCreateContext();
+    internal AlderContext GetContextForCompiled()
+    {
+        ThrowIfDisposed();
+        return GetOrCreateContext();
+    }
+
+    internal AlderContext CreateCompiledInvocationContext(int expectedTypeVersion, CancellationToken cancellationToken)
+    {
+        var parentContext = GetContextForCompiled();
+        if (parentContext.GetTypeInferenceVersion() != expectedTypeVersion)
+            throw new AlderException(DiagnosticDescriptors.CompiledExpressionStale);
+
+        var executionContext = parentContext.CreateChild();
+        executionContext.ActiveCancellationToken = cancellationToken;
+        return executionContext;
+    }
+
+    internal ExecutionConstraintState RentExecutionConstraintState()
+    {
+        if (!ConstraintStatePool.TryTake(out var constraintState))
+            constraintState = new ExecutionConstraintState();
+        constraintState.Reset(_config.Constraints);
+        return constraintState;
+    }
+
+    internal static void ReturnExecutionConstraintState(ExecutionConstraintState constraintState)
+    {
+        constraintState.Reset(null);
+        ConstraintStatePool.Add(constraintState);
+    }
 
     private CompiledExpressionInfo CompileWithAdditionalVariables(
         AlderExpression expression,
@@ -200,5 +231,24 @@ public sealed partial class AlderEngine
             bindingContext.Define(name, null, type);
 
         return bindingContext;
+    }
+
+    private Dictionary<string, object?> CollectEngineVariables()
+    {
+        var variables = new Dictionary<string, object?>(_config.Comparer);
+
+        lock (_contextInitLock)
+        {
+            foreach (var (name, pending) in _pendingVariables)
+                variables[name] = pending.Value;
+        }
+
+        if (_context != null)
+        {
+            foreach (var (name, value) in _context.GetAllVisible())
+                variables[name] = value;
+        }
+
+        return variables;
     }
 }

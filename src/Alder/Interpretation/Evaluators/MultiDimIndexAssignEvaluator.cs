@@ -73,10 +73,10 @@ internal static class MultiDimIndexAssignEvaluator
         return indices;
     }
 
-    private static object[] EvaluateConvertedIndices(ImmutableArray<BoundExpr> indexExprs, PropertyInfo indexer, EvaluationContext ctx, CancellationToken ct)
+    private static object?[] EvaluateConvertedIndices(ImmutableArray<BoundExpr> indexExprs, PropertyInfo indexer, EvaluationContext ctx, CancellationToken ct)
     {
         var indexParams = indexer.GetIndexParameters();
-        var converted = new object[indexExprs.Length];
+        var converted = new object?[indexExprs.Length];
         for (var i = 0; i < indexExprs.Length; i++)
         {
             var value = ctx.Evaluate(indexExprs[i], ct);
@@ -93,10 +93,10 @@ internal static class MultiDimIndexAssignEvaluator
         return indices;
     }
 
-    private static async ValueTask<object[]> EvaluateConvertedIndicesAsync(ImmutableArray<BoundExpr> indexExprs, PropertyInfo indexer, EvaluationContext ctx, CancellationToken ct)
+    private static async ValueTask<object?[]> EvaluateConvertedIndicesAsync(ImmutableArray<BoundExpr> indexExprs, PropertyInfo indexer, EvaluationContext ctx, CancellationToken ct)
     {
         var indexParams = indexer.GetIndexParameters();
-        var converted = new object[indexExprs.Length];
+        var converted = new object?[indexExprs.Length];
         for (var i = 0; i < indexExprs.Length; i++)
         {
             var value = await ctx.EvaluateAsync(indexExprs[i], ct);

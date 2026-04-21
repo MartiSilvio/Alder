@@ -52,7 +52,7 @@ internal static class ForEachBinder
         if (collectionType.IsArray)
             return collectionType.GetElementType()!;
 
-        foreach (var iface in collectionType.GetInterfaces())
+        foreach (var iface in RuntimeTypeIntrospection.GetInterfaces(collectionType))
         {
             if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IEnumerable<>))
                 return iface.GetGenericArguments()[0];

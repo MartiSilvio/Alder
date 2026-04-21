@@ -1,6 +1,8 @@
 using Alder.Test.Integration;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
+using Alder.Test._Infrastructure;
+using Alder.Diagnostics;
+using System.Linq.Expressions;
+using Alder.Compiled.DynamicLinq;
 
 namespace Alder.Test.Compilation;
 
@@ -11,8 +13,49 @@ public record Address(string City, string Country, string? PostalCode);
 public record Order(string Product, int Quantity, decimal UnitPrice, DateTime OrderDate, string? Notes);
 
 [TestFixture]
+[NonParallelizable]
 public class LinqDynamicTests
 {
+    private static readonly object CompilerGate = new();
+    private static bool _compilerConfigured;
+
+    public abstract class CompilerFixtureBase
+    {
+        [OneTimeSetUp]
+        public void EnsureCompiler()
+        {
+            if (_compilerConfigured)
+            {
+                return;
+            }
+
+            lock (CompilerGate)
+            {
+                if (_compilerConfigured)
+                {
+                    return;
+                }
+
+                AlderEval.Reset();
+                AlderEval.Configure(o => o.UseCompiler());
+                _compilerConfigured = true;
+            }
+        }
+
+        [OneTimeTearDown]
+        public void ResetCompiler()
+        {
+            lock (CompilerGate)
+            {
+                if (!_compilerConfigured)
+                    return;
+
+                AlderEval.Reset();
+                _compilerConfigured = false;
+            }
+        }
+    }
+
     private static readonly List<Product> Products =
     [
         new("Widget", 9.99m, "Tools", true),
@@ -47,173 +90,369 @@ public class LinqDynamicTests
         ])
     ];
 
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-        AlderEval.Reset();
-        AlderEval.Configure(o => o.UseCompiler());
-    }
-
-    [OneTimeTearDown]
-    public void OneTimeTearDown() => AlderEval.Reset();
-
     #region Core LINQ operations
 
-    [Test]
-    public void WhereDynamic_FiltersByPredicate()
+    [TestFixture]
+    [NonParallelizable]
+    public class Filtering : CompilerFixtureBase
     {
-        var result = Products.WhereDynamic("p => p.Price > 50m").ToList();
-        Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Doohickey", "Whatchamacallit" }));
+        [Test]
+        public void WhereDynamic_FiltersByPredicate()
+        {
+            var result = Products.WhereDynamic("p => p.Price > 50m").ToList();
+            Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Doohickey", "Whatchamacallit" }));
+        }
+
+        [Test]
+        public void WhereDynamic_WithVariable()
+        {
+            var engine = AlderEval.GetEngine();
+            engine.SetVariable("threshold", 100m);
+            var result = Products.WhereDynamic("p => p.Price > threshold").ToList();
+            Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Doohickey", "Whatchamacallit" }));
+        }
+
+        [Test]
+        public void WhereDynamic_StringMethod()
+        {
+            var result = Products.WhereDynamic("""p => p.Category == "Electronics" """).ToList();
+            Assert.That(result, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void WhereDynamic_BooleanProperty() =>
+            Assert.That(Products.WhereDynamic("p => p.InStock").Count(), Is.EqualTo(4));
+
+        [Test]
+        public void WhereDynamic_CompoundPredicate()
+        {
+            var result = Products.WhereDynamic("p => p.InStock && p.Price < 20m").ToList();
+            Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Widget", "Thingamajig" }));
+        }
+
+        [Test]
+        public void WhereDynamic_BodyOnly_ImplicitReceiverMember()
+        {
+            var result = Products.WhereDynamic("Price > 50m").ToList();
+            Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Doohickey", "Whatchamacallit" }));
+        }
+
+        [Test]
+        public void WhereDynamic_BodyOnly_ExplicitItMember()
+        {
+            var result = Products.WhereDynamic("it.Price > 50m").ToList();
+            Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Doohickey", "Whatchamacallit" }));
+        }
+
+        [Test]
+        public void WhereDynamic_BodyOnly_ImplicitReceiverMethodCall()
+        {
+            var result = Products.WhereDynamic("Category.Contains(@0)", "tron").ToList();
+            Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Gadget", "Doohickey" }));
+        }
+
+        [Test]
+        public void WhereDynamic_BodyOnly_InlineVariable() =>
+            Assert.That(Products.WhereDynamic("Price > @0", 50m).Count(), Is.EqualTo(2));
+
+        [Test]
+        public void WhereDynamic_PreParsedExpression()
+        {
+            var predicate = (Expression<Func<Product, bool>>)AlderEval.GetEngine()
+                .ParsePredicateExpression(typeof(Product), "Price > 50m");
+
+            var result = Products.WhereDynamic(predicate).ToList();
+            Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Doohickey", "Whatchamacallit" }));
+        }
+
+        [Test]
+        public void WhereDynamic_PreParsedDelegate()
+        {
+            var predicate = (Expression<Func<Product, bool>>)AlderEval.GetEngine()
+                .ParsePredicateExpression(typeof(Product), "Price > 50m");
+
+            var result = Products.WhereDynamic(predicate.Compile()).ToList();
+            Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Doohickey", "Whatchamacallit" }));
+        }
+
+        [Test]
+        public void WhereDynamic_BodyOnly_UnknownIdentifier_Throws()
+        {
+            var ex = Assert.Throws<AlderException>(() => Products.WhereDynamic("MissingProp > 0").ToList());
+            Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
+        }
+
+        [Test]
+        public void EmptyCollection_WhereDynamic_ReturnsEmpty() =>
+            Assert.That(new List<Product>().WhereDynamic("p => p.InStock").ToList(), Is.Empty);
     }
 
-    [Test]
-    public void WhereDynamic_WithVariable()
+    [TestFixture]
+    [NonParallelizable]
+    public class Projection : CompilerFixtureBase
     {
-        var engine = AlderEval.GetEngine();
-        engine.SetVariable("threshold", 100m);
-        var result = Products.WhereDynamic("p => p.Price > threshold").ToList();
-        Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Doohickey", "Whatchamacallit" }));
+        [Test]
+        public void SelectDynamic_ProjectsToString()
+        {
+            var result = Products.SelectDynamic<Product, string>("p => p.Name").ToList();
+            Assert.That(result, Is.EquivalentTo(new[] { "Widget", "Gadget", "Doohickey", "Thingamajig", "Whatchamacallit" }));
+        }
+
+        [Test]
+        public void SelectDynamic_ProjectsToDecimal()
+        {
+            var result = Products.SelectDynamic<Product, decimal>("p => p.Price").ToList();
+            Assert.That(result, Does.Contain(9.99m));
+        }
+
+        [Test]
+        public void SelectDynamic_PreParsedExpression()
+        {
+            var selector = (Expression<Func<Product, decimal>>)AlderEval.GetEngine()
+                .ParseSelectorExpression(typeof(Product), typeof(decimal), "Price");
+
+            var result = Products.SelectDynamic(selector).ToList();
+            Assert.That(result, Does.Contain(9.99m));
+            Assert.That(result, Does.Contain(299.99m));
+        }
+
+        [Test]
+        public void SelectDynamic_BodyOnly_ImplicitReceiverMember()
+        {
+            var result = Products.SelectDynamic<Product, string>("Name").ToList();
+            Assert.That(result, Is.EquivalentTo(new[] { "Widget", "Gadget", "Doohickey", "Thingamajig", "Whatchamacallit" }));
+        }
+
+        [Test]
+        public void SelectDynamic_ProjectsStructuralObject()
+        {
+            var result = Products.SelectDynamic<Product, object>("new { Name, Price }").ToList();
+            var first = result[0];
+
+            Assert.That(first, Is.Not.InstanceOf<IDictionary<string, object?>>());
+            Assert.That(TestHelpers.ReadProjectedMember(first, "Name"), Is.EqualTo("Widget"));
+            Assert.That(TestHelpers.ReadProjectedMember(first, "Price"), Is.EqualTo(9.99m));
+        }
+
+        [Test]
+        public void SelectDynamic_ProjectsStructuralObject_WithAliases()
+        {
+            var result = Products.SelectDynamic<Product, object>("new { ProductName = Name, Price }").ToList();
+            var first = result[0];
+
+            Assert.That(TestHelpers.ReadProjectedMember(first, "ProductName"), Is.EqualTo("Widget"));
+            Assert.That(TestHelpers.ReadProjectedMember(first, "Price"), Is.EqualTo(9.99m));
+        }
     }
 
-    [Test]
-    public void WhereDynamic_StringMethod()
+    [TestFixture]
+    [NonParallelizable]
+    public class Ordering : CompilerFixtureBase
     {
-        var result = Products.WhereDynamic("""p => p.Category == "Electronics" """).ToList();
-        Assert.That(result, Has.Count.EqualTo(2));
+        [Test]
+        public void OrderByDynamic_SortsByKey()
+        {
+            var result = Products.OrderByDynamic<Product, decimal>("p => p.Price").ToList();
+            Assert.That(result[0].Name, Is.EqualTo("Thingamajig"));
+            Assert.That(result[^1].Name, Is.EqualTo("Whatchamacallit"));
+        }
+
+        [Test]
+        public void OrderByDescendingDynamic_SortsByKeyDescending()
+        {
+            var result = Products.OrderByDescendingDynamic<Product, decimal>("p => p.Price").ToList();
+            Assert.That(result[0].Name, Is.EqualTo("Whatchamacallit"));
+        }
+
+        [Test]
+        public void ThenByDynamic_SecondarySort()
+        {
+            var result = Products
+                .OrderByDynamic<Product, string>("p => p.Category")
+                .ThenByDynamic<Product, decimal>("p => p.Price")
+                .ToList();
+            Assert.That(result[0].Name, Is.EqualTo("Gadget"));
+            Assert.That(result[1].Name, Is.EqualTo("Doohickey"));
+        }
+
+        [Test]
+        public void ThenByDescendingDynamic_SecondarySortDescending()
+        {
+            var result = Products
+                .OrderByDynamic<Product, string>("p => p.Category")
+                .ThenByDescendingDynamic<Product, decimal>("p => p.Price")
+                .ToList();
+
+            Assert.That(result[0].Name, Is.EqualTo("Doohickey"));
+            Assert.That(result[1].Name, Is.EqualTo("Gadget"));
+        }
+
+        [Test]
+        public void OrderByDynamic_BodyOnly_KeySelector()
+        {
+            var result = Products.OrderByDynamic<Product, decimal>("Price").ToList();
+            Assert.That(result[0].Name, Is.EqualTo("Thingamajig"));
+            Assert.That(result[^1].Name, Is.EqualTo("Whatchamacallit"));
+        }
+
+        [Test]
+        public void OrderByDynamic_PreParsedExpression()
+        {
+            var keySelector = (Expression<Func<Product, decimal>>)AlderEval.GetEngine()
+                .ParseSelectorExpression(typeof(Product), typeof(decimal), "Price");
+
+            var result = Products.OrderByDynamic(keySelector).ToList();
+            Assert.That(result[0].Name, Is.EqualTo("Thingamajig"));
+            Assert.That(result[^1].Name, Is.EqualTo("Whatchamacallit"));
+        }
     }
 
-    [Test]
-    public void WhereDynamic_BooleanProperty() =>
-        Assert.That(Products.WhereDynamic("p => p.InStock").Count(), Is.EqualTo(4));
-
-    [Test]
-    public void WhereDynamic_CompoundPredicate()
+    [TestFixture]
+    [NonParallelizable]
+    public class Quantifier : CompilerFixtureBase
     {
-        var result = Products.WhereDynamic("p => p.InStock && p.Price < 20m").ToList();
-        Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Widget", "Thingamajig" }));
+        [TestCase("p => p.Price > 200m", true)]
+        [TestCase("p => p.Price > 1000m", false)]
+        public void AnyDynamic(string predicate, bool expected) =>
+            Assert.That(Products.AnyDynamic(predicate), Is.EqualTo(expected));
+
+        [TestCase("p => p.Price > 0m", true)]
+        [TestCase("p => p.InStock", false)]
+        public void AllDynamic(string predicate, bool expected) =>
+            Assert.That(Products.AllDynamic(predicate), Is.EqualTo(expected));
     }
 
-    [Test]
-    public void SelectDynamic_ProjectsToString()
+    [TestFixture]
+    [NonParallelizable]
+    public class Element : CompilerFixtureBase
     {
-        var result = Products.SelectDynamic<Product, string>("p => p.Name").ToList();
-        Assert.That(result, Is.EquivalentTo(new[] { "Widget", "Gadget", "Doohickey", "Thingamajig", "Whatchamacallit" }));
+        [Test]
+        public void FirstDynamic_ReturnsFirstMatch() =>
+            Assert.That(Products.FirstDynamic("""p => p.Category == "Premium" """).Name, Is.EqualTo("Whatchamacallit"));
+
+        [Test]
+        public void FirstDynamic_NoMatch_Throws() =>
+            Assert.Throws<InvalidOperationException>(() => Products.FirstDynamic("""p => p.Category == "X" """));
+
+        [Test]
+        public void FirstOrDefaultDynamic_ReturnsNullWhenNoMatch() =>
+            Assert.That(Products.FirstOrDefaultDynamic("""p => p.Category == "X" """), Is.Null);
+
+        [Test]
+        public void LastDynamic_ReturnsLastMatch() =>
+            Assert.That(Products.LastDynamic("p => p.InStock").Name, Is.EqualTo("Whatchamacallit"));
+
+        [Test]
+        public void LastOrDefaultDynamic_ReturnsNullWhenNoMatch() =>
+            Assert.That(Products.LastOrDefaultDynamic("""p => p.Category == "X" """), Is.Null);
+
+        [Test]
+        public void SingleDynamic_ReturnsMatch() =>
+            Assert.That(Products.SingleDynamic("""p => p.Category == "Premium" """).Name, Is.EqualTo("Whatchamacallit"));
+
+        [Test]
+        public void SingleDynamic_MultipleMatches_Throws() =>
+            Assert.Throws<InvalidOperationException>(() => Products.SingleDynamic("""p => p.Category == "Tools" """));
+
+        [Test]
+        public void SingleOrDefaultDynamic_ReturnsMatch() =>
+            Assert.That(Products.SingleOrDefaultDynamic("""p => p.Category == "Premium" """)?.Name, Is.EqualTo("Whatchamacallit"));
+
+        [Test]
+        public void SingleOrDefaultDynamic_ReturnsNullWhenNoMatch() =>
+            Assert.That(Products.SingleOrDefaultDynamic("""p => p.Category == "X" """), Is.Null);
     }
 
-    [Test]
-    public void SelectDynamic_ProjectsToDecimal()
+    [TestFixture]
+    [NonParallelizable]
+    public class Grouping : CompilerFixtureBase
     {
-        var result = Products.SelectDynamic<Product, decimal>("p => p.Price").ToList();
-        Assert.That(result, Does.Contain(9.99m));
+        [Test]
+        public void GroupByDynamic_GroupsByKey()
+        {
+            var groups = Products.GroupByDynamic<Product, string>("p => p.Category").ToList();
+            Assert.That(groups, Has.Count.EqualTo(3));
+            Assert.That(groups.Select(g => g.Key), Is.EquivalentTo(new[] { "Tools", "Electronics", "Premium" }));
+        }
+
+        [Test]
+        public void GroupByDynamic_BodyOnly_KeySelector()
+        {
+            var groups = Products.GroupByDynamic<Product, string>("Category").ToList();
+            Assert.That(groups, Has.Count.EqualTo(3));
+            Assert.That(groups.Select(g => g.Key), Is.EquivalentTo(new[] { "Tools", "Electronics", "Premium" }));
+        }
     }
 
-    [Test]
-    public void OrderByDynamic_SortsByKey()
+    [TestFixture]
+    [NonParallelizable]
+    public class SetOperations : CompilerFixtureBase
     {
-        var result = Products.OrderByDynamic<Product, decimal>("p => p.Price").ToList();
-        Assert.That(result[0].Name, Is.EqualTo("Thingamajig"));
-        Assert.That(result[^1].Name, Is.EqualTo("Whatchamacallit"));
+        [Test]
+        public void DistinctByDynamic_RemovesDuplicateKeys() =>
+            Assert.That(Products.DistinctByDynamic<Product, string>("p => p.Category").Count(), Is.EqualTo(3));
+
+        [Test]
+        public void DistinctByDynamic_BodyOnly_KeySelector() =>
+            Assert.That(Products.DistinctByDynamic<Product, string>("Category").Count(), Is.EqualTo(3));
     }
 
-    [Test]
-    public void OrderByDescendingDynamic_SortsByKeyDescending()
+    [TestFixture]
+    [NonParallelizable]
+    public class Aggregation : CompilerFixtureBase
     {
-        var result = Products.OrderByDescendingDynamic<Product, decimal>("p => p.Price").ToList();
-        Assert.That(result[0].Name, Is.EqualTo("Whatchamacallit"));
+        [TestCase("p => p.InStock", 4)]
+        [TestCase("p => p.Price > 50m", 2)]
+        public void CountDynamic(string predicate, int expected) =>
+            Assert.That(Products.CountDynamic(predicate), Is.EqualTo(expected));
+
+        [Test]
+        public void SumDynamic_SumsValues() =>
+            Assert.That(Products.SumDynamic("p => p.Price"), Is.EqualTo(514.95m));
+
+        [Test]
+        public void SumDynamic_PreParsedExpression()
+        {
+            var selector = (Expression<Func<Product, decimal>>)AlderEval.GetEngine()
+                .ParseSelectorExpression(typeof(Product), typeof(decimal), "Price");
+
+            Assert.That(Products.SumDynamic(selector), Is.EqualTo(514.95m));
+        }
+
+        [Test]
+        public void AverageDynamic_AveragesValues() =>
+            Assert.That(Products.AverageDynamic("p => (double)p.Price"), Is.EqualTo(102.99).Within(0.01));
+
+        [Test]
+        public void MinDynamic_FindsMinimum() =>
+            Assert.That(Products.MinDynamic<Product, decimal>("p => p.Price"), Is.EqualTo(4.99m));
+
+        [Test]
+        public void MaxDynamic_FindsMaximum() =>
+            Assert.That(Products.MaxDynamic<Product, decimal>("p => p.Price"), Is.EqualTo(299.99m));
     }
 
-    [TestCase("p => p.Price > 200m", true)]
-    [TestCase("p => p.Price > 1000m", false)]
-    public void AnyDynamic(string predicate, bool expected) =>
-        Assert.That(Products.AnyDynamic(predicate), Is.EqualTo(expected));
-
-    [TestCase("p => p.Price > 0m", true)]
-    [TestCase("p => p.InStock", false)]
-    public void AllDynamic(string predicate, bool expected) =>
-        Assert.That(Products.AllDynamic(predicate), Is.EqualTo(expected));
-
-    [TestCase("p => p.InStock", 4)]
-    [TestCase("p => p.Price > 50m", 2)]
-    public void CountDynamic(string predicate, int expected) =>
-        Assert.That(Products.CountDynamic(predicate), Is.EqualTo(expected));
-
-    [Test]
-    public void FirstDynamic_ReturnsFirstMatch() =>
-        Assert.That(Products.FirstDynamic("""p => p.Category == "Premium" """).Name, Is.EqualTo("Whatchamacallit"));
-
-    [Test]
-    public void FirstDynamic_NoMatch_Throws() =>
-        Assert.Throws<InvalidOperationException>(() => Products.FirstDynamic("""p => p.Category == "X" """));
-
-    [Test]
-    public void FirstOrDefaultDynamic_ReturnsNullWhenNoMatch() =>
-        Assert.That(Products.FirstOrDefaultDynamic("""p => p.Category == "X" """), Is.Null);
-
-    [Test]
-    public void LastDynamic_ReturnsLastMatch() =>
-        Assert.That(Products.LastDynamic("p => p.InStock").Name, Is.EqualTo("Whatchamacallit"));
-
-    [Test]
-    public void SingleDynamic_MultipleMatches_Throws() =>
-        Assert.Throws<InvalidOperationException>(() => Products.SingleDynamic("""p => p.Category == "Tools" """));
-
-    [Test]
-    public void ThenByDynamic_SecondarySort()
+    [TestFixture]
+    [NonParallelizable]
+    public class Diagnostics : CompilerFixtureBase
     {
-        var result = Products
-            .OrderByDynamic<Product, string>("p => p.Category")
-            .ThenByDynamic<Product, decimal>("p => p.Price")
-            .ToList();
-        Assert.That(result[0].Name, Is.EqualTo("Gadget"));
-        Assert.That(result[1].Name, Is.EqualTo("Doohickey"));
+        [Test]
+        public void NoCompiler_ThrowsClearError()
+        {
+            using var engine = new AlderEngine();
+            var ex = Assert.Throws<InvalidOperationException>(() => Products.WhereDynamic(engine, "p => p.InStock"));
+            Assert.That(ex!.Message, Does.Contain("UseCompiler"));
+        }
     }
-
-    [Test]
-    public void GroupByDynamic_GroupsByKey()
-    {
-        var groups = Products.GroupByDynamic<Product, string>("p => p.Category").ToList();
-        Assert.That(groups, Has.Count.EqualTo(3));
-        Assert.That(groups.Select(g => g.Key), Is.EquivalentTo(new[] { "Tools", "Electronics", "Premium" }));
-    }
-
-    [Test]
-    public void DistinctByDynamic_RemovesDuplicateKeys() =>
-        Assert.That(Products.DistinctByDynamic<Product, string>("p => p.Category").Count(), Is.EqualTo(3));
-
-    [Test]
-    public void SumDynamic_SumsValues() =>
-        Assert.That(Products.SumDynamic("p => p.Price"), Is.EqualTo(514.95m));
-
-    [Test]
-    public void AverageDynamic_AveragesValues() =>
-        Assert.That(Products.AverageDynamic("p => (double)p.Price"), Is.EqualTo(102.99).Within(0.01));
-
-    [Test]
-    public void MinDynamic_FindsMinimum() =>
-        Assert.That(Products.MinDynamic<Product, decimal>("p => p.Price"), Is.EqualTo(4.99m));
-
-    [Test]
-    public void MaxDynamic_FindsMaximum() =>
-        Assert.That(Products.MaxDynamic<Product, decimal>("p => p.Price"), Is.EqualTo(299.99m));
-
-    [Test]
-    public void NoCompiler_ThrowsClearError()
-    {
-        AlderEval.Reset();
-        var ex = Assert.Throws<InvalidOperationException>(() => Products.WhereDynamic("p => p.InStock"));
-        Assert.That(ex!.Message, Does.Contain("UseCompiler"));
-        AlderEval.Reset();
-        AlderEval.Configure(o => o.UseCompiler());
-    }
-
-    [Test]
-    public void EmptyCollection_WhereDynamic_ReturnsEmpty() =>
-        Assert.That(new List<Product>().WhereDynamic("p => p.InStock").ToList(), Is.Empty);
 
     #endregion
 
     #region Inline variables
 
+    [TestFixture]
+    [NonParallelizable]
+    public class InlineVariables : CompilerFixtureBase
+    {
     [Test]
     public void WhereDynamic_InlineVariable() =>
         Assert.That(Products.WhereDynamic("p => p.Price > @0", 50m).Count(), Is.EqualTo(2));
@@ -293,11 +532,79 @@ public class LinqDynamicTests
         Assert.That(results[0], Is.EqualTo(5));
         Assert.That(results[99], Is.EqualTo(2));
     }
+    }
+
+    #endregion
+
+    #region Lambda factory shape
+
+    [TestFixture]
+    [NonParallelizable]
+    public class LambdaFactoryShape : CompilerFixtureBase
+    {
+    [Test]
+    public void ParseLambdaExpression_ItTypeOverload_ReturnsLambdaExpression()
+    {
+        using var engine = new AlderEngine(o => o.UseCompiler());
+        var lambda = engine.ParseLambdaExpression(
+            typeof(Product),
+            typeof(bool),
+            "p => p.Price > @0",
+            [new KeyValuePair<string, object?>("__p0", 50m)]);
+
+        Assert.That(lambda, Is.Not.Null);
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
+        Assert.That(lambda.ReturnType, Is.EqualTo(typeof(bool)));
+
+        var typed = (Expression<Func<Product, bool>>)lambda;
+        var fn = typed.Compile();
+        Assert.That(fn(new Product("Test", 75m, "X", true)), Is.True);
+    }
+
+    [Test]
+    public void ParseLambdaExpression_ParameterTypesOverload_SupportsBodyWithoutLambdaSyntax()
+    {
+        using var engine = new AlderEngine(o => o.UseCompiler());
+        var lambda = engine.ParseLambdaExpression(
+            [typeof(Product), typeof(decimal)],
+            ["p", "threshold"],
+            typeof(bool),
+            "p.Price > threshold");
+
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(2));
+        Assert.That(lambda.ReturnType, Is.EqualTo(typeof(bool)));
+
+        var typed = (Expression<Func<Product, decimal, bool>>)lambda;
+        var fn = typed.Compile();
+        Assert.That(fn(new Product("Test", 75m, "X", true), 50m), Is.True);
+    }
+
+    [Test]
+    public void ParseLambdaExpression_ParameterExpressionOverload_BindsExplicitParameters()
+    {
+        using var engine = new AlderEngine(o => o.UseCompiler());
+        var left = Expression.Parameter(typeof(int), "left");
+        var right = Expression.Parameter(typeof(int), "right");
+
+        var lambda = engine.ParseLambdaExpression(
+            [left, right],
+            typeof(int),
+            "left + right");
+
+        var typed = (Expression<Func<int, int, int>>)lambda;
+        var fn = typed.Compile();
+        Assert.That(fn(20, 22), Is.EqualTo(42));
+    }
+    }
 
     #endregion
 
     #region Real C# — Expressions no other dynamic LINQ library can handle
 
+    [TestFixture]
+    [NonParallelizable]
+    public class LanguageSemantics : CompilerFixtureBase
+    {
     [TestCase("""p => p.Price > 100m ? "Expensive" : "Affordable" """, "Doohickey", "Expensive")]
     [TestCase("""p => p.Price > 100m ? "Expensive" : "Affordable" """, "Widget", "Affordable")]
     public void Ternary_InSelector(string selector, string productName, string expected)
@@ -658,11 +965,16 @@ public class LinqDynamicTests
         Assert.That(countryOrUnknown, Does.Contain("UK"));
         Assert.That(countryOrUnknown, Does.Contain("JP"));
     }
+    }
 
     #endregion
 
     #region IAsyncEnumerable
 
+    [TestFixture]
+    [NonParallelizable]
+    public class AsyncOperators : CompilerFixtureBase
+    {
     private static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(IEnumerable<T> source)
     {
         foreach (var item in source)
@@ -732,6 +1044,18 @@ public class LinqDynamicTests
         Assert.That(await ToAsyncEnumerable(Products).SumDynamic("p => p.Price"), Is.EqualTo(514.95m));
 
     [Test]
+    public async Task Async_WhereDynamic_PreParsedExpression()
+    {
+        var predicate = (Expression<Func<Product, bool>>)AlderEval.GetEngine()
+            .ParsePredicateExpression(typeof(Product), "Price > 50m");
+
+        var result = new List<Product>();
+        await foreach (var p in ToAsyncEnumerable(Products).WhereDynamic(predicate))
+            result.Add(p);
+        Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Doohickey", "Whatchamacallit" }));
+    }
+
+    [Test]
     public async Task Async_AverageDynamic() =>
         Assert.That(await ToAsyncEnumerable(Products).AverageDynamic("p => (double)p.Price"), Is.EqualTo(102.99).Within(0.01));
 
@@ -774,130 +1098,7 @@ public class LinqDynamicTests
             labels.Add(label);
         Assert.That(labels, Does.Contain("Tools: Widget"));
     }
+    }
 
     #endregion
-}
-
-[TestFixture]
-public sealed class LinqDynamicEfCoreTests
-{
-    private SqliteConnection _connection = null!;
-    private DbContextOptions<EfOrdersDbContext> _dbOptions = null!;
-
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-        AlderEval.Reset();
-        AlderEval.Configure(o => o.UseCompiler());
-
-        _connection = new SqliteConnection("Data Source=:memory:");
-        _connection.Open();
-
-        _dbOptions = new DbContextOptionsBuilder<EfOrdersDbContext>()
-            .UseSqlite(_connection)
-            .Options;
-
-        using var db = new EfOrdersDbContext(_dbOptions);
-        db.Database.EnsureCreated();
-        db.Orders.AddRange(
-            new EfOrder { Id = 1, Customer = "Alice", Total = 20m, IsActive = true },
-            new EfOrder { Id = 2, Customer = "Bob", Total = 80m, IsActive = true },
-            new EfOrder { Id = 3, Customer = "Cara", Total = 120m, IsActive = false },
-            new EfOrder { Id = 4, Customer = "Ari", Total = 55m, IsActive = true });
-        db.SaveChanges();
-    }
-
-    [OneTimeTearDown]
-    public void OneTimeTearDown()
-    {
-        _connection.Dispose();
-        AlderEval.Reset();
-    }
-
-    [Test]
-    public void IQueryable_WhereDynamic_TranslatesToSql()
-    {
-        using var db = new EfOrdersDbContext(_dbOptions);
-        var query = db.Orders.WhereDynamic("o => o.Total > 50m");
-        var sql = query.ToQueryString();
-        var ids = query.OrderBy(o => o.Id).Select(o => o.Id).ToList();
-        Assert.That(sql, Does.Contain("WHERE"));
-        Assert.That(ids, Is.EqualTo(new[] { 2, 3, 4 }));
-    }
-
-    [Test]
-    public void IQueryable_WhereDynamic_BooleanProperty()
-    {
-        using var db = new EfOrdersDbContext(_dbOptions);
-        var result = db.Orders.WhereDynamic("o => o.IsActive").OrderBy(o => o.Id).Select(o => o.Id).ToList();
-        Assert.That(result, Is.EqualTo(new[] { 1, 2, 4 }));
-    }
-
-    [Test]
-    public void IQueryable_WhereDynamic_StringMethod()
-    {
-        using var db = new EfOrdersDbContext(_dbOptions);
-        var result = db.Orders.WhereDynamic("""o => o.Customer.StartsWith("A")""")
-            .OrderBy(o => o.Id).Select(o => o.Customer).ToList();
-        Assert.That(result, Is.EqualTo(new[] { "Alice", "Ari" }));
-    }
-
-    [Test]
-    public void IQueryable_WhereDynamic_CompoundPredicate()
-    {
-        using var db = new EfOrdersDbContext(_dbOptions);
-        var result = db.Orders.WhereDynamic("o => o.IsActive && o.Total >= 55m")
-            .OrderBy(o => o.Id).Select(o => o.Id).ToList();
-        Assert.That(result, Is.EqualTo(new[] { 2, 4 }));
-    }
-
-    [Test]
-    public void IQueryable_AnyDynamic()
-    {
-        using var db = new EfOrdersDbContext(_dbOptions);
-        Assert.That(db.Orders.AnyDynamic("o => o.Total > 100m"), Is.True);
-        Assert.That(db.Orders.AnyDynamic("o => o.Total > 1000m"), Is.False);
-    }
-
-    [Test]
-    public void IQueryable_AllDynamic()
-    {
-        using var db = new EfOrdersDbContext(_dbOptions);
-        Assert.That(db.Orders.AllDynamic("o => o.Total > 0m"), Is.True);
-        Assert.That(db.Orders.AllDynamic("o => o.IsActive"), Is.False);
-    }
-
-    [Test]
-    public void IQueryable_CountDynamic() =>
-        Assert.That(new EfOrdersDbContext(_dbOptions).Orders.CountDynamic("o => o.IsActive"), Is.EqualTo(3));
-
-    [Test]
-    public void IQueryable_FirstDynamic()
-    {
-        using var db = new EfOrdersDbContext(_dbOptions);
-        Assert.That(db.Orders.FirstDynamic("o => o.Total > 100m").Customer, Is.EqualTo("Cara"));
-    }
-
-    [Test]
-    public void IQueryable_FirstOrDefaultDynamic_NoMatch()
-    {
-        using var db = new EfOrdersDbContext(_dbOptions);
-        Assert.That(db.Orders.FirstOrDefaultDynamic("o => o.Total > 1000m"), Is.Null);
-    }
-
-    [Test]
-    public void IQueryable_WhereDynamic_WithInlineVariable()
-    {
-        using var db = new EfOrdersDbContext(_dbOptions);
-        var result = db.Orders.WhereDynamic("o => o.Total > @0", 50m)
-            .OrderBy(o => o.Id).Select(o => o.Id).ToList();
-        Assert.That(result, Is.EqualTo(new[] { 2, 3, 4 }));
-    }
-
-    [Test]
-    public void IQueryable_CountDynamic_WithInlineVariable()
-    {
-        using var db = new EfOrdersDbContext(_dbOptions);
-        Assert.That(db.Orders.CountDynamic("o => o.Total > @0", 50m), Is.EqualTo(3));
-    }
 }

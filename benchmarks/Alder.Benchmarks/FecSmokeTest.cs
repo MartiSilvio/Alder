@@ -25,7 +25,7 @@ public static class FecSmokeTest
             ("Stress/SmallBranching",
                 "((23 > 15 && 3 * 7 == 21) || (25 / 5 > 10 && 6 + 8 == 14)) ? ((2.1 == 2.1) ? ((4 * 3 - x) * (14.0 / 3.0) + y) : 0.0) : ((14.0 / 3.0) + y)",
                 standardFec),
-            ("Stress/BigBoolean", CompetitorExpressionFactory.BuildBigBooleanStress(CompetitorExpressionDialect.CSharp), standardFec),
+            ("Stress/BigBoolean", CrossEngineExpressionFactory.BuildBigBooleanStress(CrossEngineExpressionDialect.CSharp), standardFec),
 
             ("Advanced/NestedMath", "Math.Abs((x - y) * (z + 2)) + Math.Max(x, z)", standardFec),
             ("Advanced/StringPredicate", "text.StartsWith(\"a\") && text.Length > 3", standardFec),

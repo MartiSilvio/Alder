@@ -74,8 +74,8 @@ internal static class ExecutionRuntime
         CancellationToken ct)
     {
         var guardContext = context.CreateChild();
-        if (!string.IsNullOrEmpty(catchVariableName))
-            guardContext.Define(catchVariableName, caughtException);
+        if (catchVariableName is { Length: > 0 } catchName)
+            guardContext.Define(catchName, caughtException);
 
         try
         {

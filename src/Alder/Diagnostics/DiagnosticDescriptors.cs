@@ -98,7 +98,7 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ListPatternRequiresListable =
         new(DiagnosticCode.CS8985, "List patterns may not be used for a value of type '{0}'. No suitable 'Length' or 'Count' property was found");
 
-    public static readonly DiagnosticDescriptor NameofExpressionHasNoName =
+    public static readonly DiagnosticDescriptor ExpressionHasNoName =
         new(DiagnosticCode.CS8081, "Expression does not have a name");
 
     public static readonly DiagnosticDescriptor ThrowOutsideCatch =
@@ -148,6 +148,9 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor NoBestTypeForImplicitArray =
         new(DiagnosticCode.CS0826, "No best type found for an implicitly-typed array");
+
+    public static readonly DiagnosticDescriptor AnonymousTypeDuplicateProperty =
+        new(DiagnosticCode.CS0833, "An anonymous type cannot have multiple properties with the same name");
 
     public static readonly DiagnosticDescriptor SemicolonExpected =
         new(DiagnosticCode.CS1002, "; expected");
@@ -373,6 +376,15 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor CannotResolveModuleInstance =
         new(DiagnosticCode.ALDR0315, "Cannot resolve instance of '{0}'. Either register it in IServiceProvider or ensure it has a parameterless constructor.");
+
+    public static readonly DiagnosticDescriptor GeneratedMemberRequired =
+        new(DiagnosticCode.ALDR0316, "Member '{1}' on type '{0}' is not available in authoritative generated mode.");
+
+    public static readonly DiagnosticDescriptor GeneratedMethodRequired =
+        new(DiagnosticCode.ALDR0317, "Method '{1}' on type '{0}' is not available in authoritative generated mode.");
+
+    public static readonly DiagnosticDescriptor GeneratedConstructorRequired =
+        new(DiagnosticCode.ALDR0318, "Constructor on type '{0}' with {1} arguments is not available in authoritative generated mode.");
 
     public static readonly DiagnosticDescriptor SliceNull =
         new(DiagnosticCode.ALDR0400, "Cannot slice null");

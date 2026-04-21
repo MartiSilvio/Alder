@@ -156,7 +156,7 @@ internal static class CollectionExprBinder
 
         static Type LiftIfNeeded(Type type, bool hasNull) =>
             hasNull && type.IsValueType && Nullable.GetUnderlyingType(type) == null
-                ? typeof(Nullable<>).MakeGenericType(type)
+                ? RuntimeGenericClosure.CloseType(typeof(Nullable<>), [type])
                 : type;
     }
 }

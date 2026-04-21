@@ -46,7 +46,7 @@ public class GettingStartedDocTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<int>("score", 82);
 
-        string grade = engine.Evaluate<string>("""
+        var grade = engine.Evaluate<string>("""
             var letter = score switch
             {
                 >= 90 => "A",

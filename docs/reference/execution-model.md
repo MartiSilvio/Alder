@@ -122,7 +122,7 @@ Trace dispatch (`EvaluateWithTrace`):
 `EvaluateCore` / `EvaluateAsyncCore` executes this sequence:
 
 1. `TryGetOrCreateBoundExpression(...)`
-2. `GetPipelineCachedExpression(...)` (`RunPipeline` on cache miss)
+2. `_pipelineCache.GetValue(...)` (`RunPipeline` on cache miss)
 3. `BoundEvaluator.Evaluate(...)` or `EvaluateAsync(...)`
 4. expression counters update (`RecordBoundExecution`, `RecordBoundFallback`)
 5. boundary unwrapping via `UnwrapControlFlowSignal`
@@ -259,7 +259,7 @@ Try APIs (`TryParse`, `TryEvaluate`, `TryValidate`):
 - `AlderConfig` is captured at engine construction and used by execution contexts.
 - Security validation runs in interpreter and compiled pipelines.
 - Async execution uses interpreter dispatch in current implementation, regardless of compiler configuration.
-- Root-engine disposal clears root-owned caches (`_expressionCache`, `_typeMetadataCache`) and marks engine disposed.
+- Root-engine disposal clears root-owned caches (`_expressionCache`, `_typeMetadata`) and marks engine disposed.
 - Child engines share root disposal state and do not execute once root is disposed.
 - Variable storage in contexts uses concurrent dictionaries, but parent-scope mutation does not provide atomic multi-variable snapshots.
 

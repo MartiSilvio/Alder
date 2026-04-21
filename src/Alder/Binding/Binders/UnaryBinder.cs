@@ -81,7 +81,7 @@ internal static class UnaryBinder
         if (methodName == null)
             return false;
 
-        foreach (var m in type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
+        foreach (var m in RuntimeTypeIntrospection.GetMethods(type, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
         {
             if (m.Name == methodName && m.GetParameters().Length == 1)
                 return true;

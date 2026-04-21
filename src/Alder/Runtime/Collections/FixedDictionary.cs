@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
 #endif
@@ -41,7 +40,17 @@ internal sealed class FixedDictionary<TKey, TValue> : IReadOnlyDictionary<TKey, 
         IEqualityComparer<TKey> comparer)
         => new(source.ToFrozenDictionary(keySelector, valueSelector, comparer));
 
-    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value) => _inner.TryGetValue(key, out value);
+    public bool TryGetValue(TKey key, out TValue value)
+    {
+        if (_inner.TryGetValue(key, out var found))
+        {
+            value = found;
+            return true;
+        }
+
+        value = default!;
+        return false;
+    }
     public bool ContainsKey(TKey key) => _inner.ContainsKey(key);
     public TValue this[TKey key] => _inner[key];
     public IEnumerable<TKey> Keys => _inner.Keys;
@@ -107,7 +116,7 @@ internal sealed class FixedDictionary<TKey, TValue> : IReadOnlyDictionary<TKey, 
         return new(dict);
     }
 
-    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value) => _inner.TryGetValue(key, out value);
+    public bool TryGetValue(TKey key, out TValue value) => _inner.TryGetValue(key, out value);
     public bool ContainsKey(TKey key) => _inner.ContainsKey(key);
     public TValue this[TKey key] => _inner[key];
     public IEnumerable<TKey> Keys => _inner.Keys;

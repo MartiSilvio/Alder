@@ -28,24 +28,15 @@ internal sealed class AlderConfig
     internal TypeResolver TypeResolver { get; }
     public StringComparer Comparer { get; }
     public StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-    public bool PreferResolvedRuntimeDispatch { get; }
     internal FixedDictionary<Type, TypedDispatch>? TypeDispatch { get; }
+    internal FixedDictionary<Type, IReadOnlyList<GenericStaticDispatch>>? GenericStaticDispatch { get; }
     internal IReadOnlyDictionary<Type, Func<object, Delegate>>? DelegateFactories { get; }
-    internal TypedDispatch[]? ExtensionDispatches { get; }
+    internal IReadOnlyCollection<Type>? ClosedDelegateTypes { get; }
 
     internal bool TryGetDispatch(Type type, [NotNullWhen(true)] out TypedDispatch? metadata)
     {
-        if (TypeDispatch is not { } dispatch)
-        {
-            metadata = null;
-            return false;
-        }
-
-        for (var current = type; current != null && current != typeof(object); current = current.BaseType)
-        {
-            if (dispatch.TryGetValue(current, out metadata))
-                return true;
-        }
+        if (TypeDispatch is { } dispatch && dispatch.TryGetValue(type, out metadata))
+            return true;
 
         metadata = null;
         return false;
@@ -59,15 +50,15 @@ internal sealed class AlderConfig
         ICompiledProvider? compiler,
         IExpressionCompiler expressionCompiler,
         IServiceProvider? serviceProvider,
-        bool preferResolvedRuntimeDispatch,
         FixedDictionary<string, Func<object?[], object?>> functions,
         FixedDictionary<string, ModuleInfo> modules,
         ImmutableArray<Type> extensionTypes,
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
         FixedDictionary<Type, TypedDispatch>? typeDispatch,
+        FixedDictionary<Type, IReadOnlyList<GenericStaticDispatch>>? genericStaticDispatch = null,
         IReadOnlyDictionary<Type, Func<object, Delegate>>? delegateFactories = null,
-        TypedDispatch[]? extensionDispatches = null)
+        IReadOnlyCollection<Type>? closedDelegateTypes = null)
     {
         LanguageMode = languageMode;
         Security = security;
@@ -76,7 +67,6 @@ internal sealed class AlderConfig
         Compiler = compiler;
         ExpressionCompiler = expressionCompiler;
         ServiceProvider = serviceProvider;
-        PreferResolvedRuntimeDispatch = preferResolvedRuntimeDispatch;
         Functions = functions;
         Modules = modules;
         ExtensionTypes = extensionTypes;
@@ -84,8 +74,9 @@ internal sealed class AlderConfig
         TypeResolver = typeResolver;
         Comparer = isCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
         TypeDispatch = typeDispatch;
+        GenericStaticDispatch = genericStaticDispatch;
         DelegateFactories = delegateFactories;
-        ExtensionDispatches = extensionDispatches;
+        ClosedDelegateTypes = closedDelegateTypes;
     }
 
     internal static readonly AlderConfig Empty = new(
@@ -96,7 +87,6 @@ internal sealed class AlderConfig
         null,
         DefaultExpressionCompiler.Instance,
         null,
-        false,
         FixedDictionary<string, Func<object?[], object?>>.Empty,
         FixedDictionary<string, ModuleInfo>.Empty,
         [],
@@ -115,7 +105,7 @@ internal sealed class ModuleInfo
     public Type Type { get; }
 
     public object? Instance { get; }
-    public IReadOnlyDictionary<string, MemberInfo> Members { get; }
+    public IReadOnlyDictionary<string, ModuleMemberEntry> Members { get; }
 
     public ModuleInfo(
         [DynamicallyAccessedMembers(
@@ -125,7 +115,7 @@ internal sealed class ModuleInfo
             DynamicallyAccessedMemberTypes.PublicFields)]
         Type type,
         object? instance,
-        IReadOnlyDictionary<string, MemberInfo> members)
+        IReadOnlyDictionary<string, ModuleMemberEntry> members)
     {
         Type = type;
         Instance = instance;

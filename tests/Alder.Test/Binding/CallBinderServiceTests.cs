@@ -1,5 +1,6 @@
 using Alder.Binding.Services;
 using Alder.Runtime;
+using Alder.Runtime.OverloadResolution;
 
 namespace Alder.Test.Binding;
 
@@ -13,15 +14,24 @@ public sealed class CallBinderServiceTests
         var context = engine.GetContextForCompiled();
         var binder = new CallBinderService(context);
 
-        Assert.That(binder.TryBindStaticCall(typeof(Math), "Max", [typeof(int), typeof(long)], isCaseSensitive: true, out var plan), Is.True);
-        var parameters = plan.SelectedMethod.GetParameters();
+        Assert.That(
+            binder.TryBindCall(
+                typeof(Math),
+                "Max",
+                ArgumentDescriptor.FromTypes([typeof(int), typeof(long)]),
+                isStaticCall: true,
+                isCaseSensitive: true,
+                out var plan),
+            Is.True);
+        Assert.That(plan, Is.Not.Null);
+        var parameters = plan!.SelectedMethod.GetParameters();
 
         Assert.That(parameters.Length, Is.EqualTo(2));
         Assert.That(parameters[0].ParameterType, Is.EqualTo(typeof(long)));
         Assert.That(parameters[1].ParameterType, Is.EqualTo(typeof(long)));
 
         var runtimeResult = MethodInvoker.InvokeCall(
-            new StaticMethodRef(typeof(Math), "Max"),
+            new MethodRef(typeof(Math), "Max"),
             [1, 2L],
             context,
             ct: CancellationToken.None);
@@ -49,11 +59,15 @@ public sealed class CallBinderServiceTests
         var context = engine.GetContextForCompiled();
         var binder = new CallBinderService(context);
 
-        Assert.That(binder.TryBindInstanceCall(
-            typeof(InvocationTarget),
-            nameof(InvocationTarget.WithOptional),
-            [typeof(int)],
-            isCaseSensitive: true, out var plan), Is.True);
+        Assert.That(
+            binder.TryBindCall(
+                typeof(InvocationTarget),
+                nameof(InvocationTarget.WithOptional),
+                ArgumentDescriptor.FromTypes([typeof(int)]),
+                isStaticCall: false,
+                isCaseSensitive: true,
+                out var plan),
+            Is.True);
 
         var sources = plan!.Resolution.ArgMap.Sources;
         Assert.That(sources.Length, Is.EqualTo(2));
@@ -69,11 +83,15 @@ public sealed class CallBinderServiceTests
         var context = engine.GetContextForCompiled();
         var binder = new CallBinderService(context);
 
-        Assert.That(binder.TryBindInstanceCall(
-            typeof(InvocationTarget),
-            nameof(InvocationTarget.Sum),
-            [typeof(int), typeof(int), typeof(int), typeof(int)],
-            isCaseSensitive: true, out var plan), Is.True);
+        Assert.That(
+            binder.TryBindCall(
+                typeof(InvocationTarget),
+                nameof(InvocationTarget.Sum),
+                ArgumentDescriptor.FromTypes([typeof(int), typeof(int), typeof(int), typeof(int)]),
+                isStaticCall: false,
+                isCaseSensitive: true,
+                out var plan),
+            Is.True);
 
         var sources = plan!.Resolution.ArgMap.Sources;
         Assert.That(sources.Length, Is.EqualTo(1));
@@ -89,13 +107,40 @@ public sealed class CallBinderServiceTests
         var context = engine.GetContextForCompiled();
         var binder = new CallBinderService(context);
 
-        var result = binder.TryBindStaticCall(
+        var result = binder.TryBindCall(
             typeof(OverloadTarget),
             nameof(OverloadTarget.Pick),
-            [typeof(object)],
-            isCaseSensitive: true, out _);
+            ArgumentDescriptor.FromTypes([typeof(object)]),
+            isStaticCall: true,
+            isCaseSensitive: true,
+            out _);
 
         Assert.That(result, Is.False);
+    }
+
+    [Test]
+    public void ExtensionCallBinder_ShouldResolveLambdaDescriptorThroughUnifiedPath()
+    {
+        var engine = new AlderEngine();
+        var context = engine.GetContextForCompiled();
+        var binder = new CallBinderService(context);
+
+        var descriptors = new[]
+        {
+            ArgumentDescriptor.ForTest(ArgumentKind.Lambda, null, null, lambdaArity: 1)
+        };
+
+        var result = binder.TryBindExtensionCall(
+            typeof(int[]),
+            "Where",
+            descriptors,
+            isCaseSensitive: true,
+            out var plan);
+
+        Assert.That(result, Is.True);
+        Assert.That(plan, Is.Not.Null);
+        Assert.That(plan!.SelectedMethod.Name, Is.EqualTo("Where"));
+        Assert.That(plan.IsExtensionCall, Is.True);
     }
 
     private sealed class InvocationTarget

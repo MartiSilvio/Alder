@@ -208,7 +208,6 @@ internal enum TokenType
     Value,
     When,
     Where,
-    With,
     Yield,
 
     Like,              // like (SQL pattern matching, Extended mode)

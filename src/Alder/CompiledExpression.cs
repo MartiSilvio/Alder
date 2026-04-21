@@ -36,12 +36,7 @@ public sealed class AlderCompiledExpression<T>
     /// <exception cref="AlderException">Thrown when a variable's type has changed since compilation (ALDR0003).</exception>
     public T? Invoke(CancellationToken cancellationToken = default)
     {
-        var baseContext = _engine.GetContextForCompiled();
-        EnsureTypeVersionCurrent(baseContext);
-        var constraintState = new ExecutionConstraintState();
-        constraintState.Reset(_config.Constraints);
-        var result = _delegate(baseContext, _config, constraintState, cancellationToken);
-        return ConvertResult(result);
+        return InvokeCore(null, cancellationToken);
     }
 
     /// <summary>
@@ -54,23 +49,22 @@ public sealed class AlderCompiledExpression<T>
     /// <exception cref="AlderException">Thrown when a variable's type has changed since compilation (ALDR0003).</exception>
     public T? Invoke(IDictionary<string, object?> variables, CancellationToken cancellationToken = default)
     {
-        var parentContext = _engine.GetContextForCompiled();
-        EnsureTypeVersionCurrent(parentContext);
-        var childContext = parentContext.CreateChild();
-        foreach (var (name, value) in variables)
-        {
-            childContext.Define(name, value);
-        }
-        var constraintState = new ExecutionConstraintState();
-        constraintState.Reset(_config.Constraints);
-        var result = _delegate(childContext, _config, constraintState, cancellationToken);
-        return ConvertResult(result);
+        return InvokeCore(variables, cancellationToken);
     }
 
-    private void EnsureTypeVersionCurrent(AlderContext context)
+    private T? InvokeCore(IDictionary<string, object?>? variables, CancellationToken cancellationToken)
     {
-        if (context.GetTypeInferenceVersion() != _compiledTypeVersion)
-            throw new AlderException(DiagnosticDescriptors.CompiledExpressionStale);
+        using var state = _engine.CreateCompiledInvocationState(_compiledTypeVersion, cancellationToken);
+        if (variables != null)
+        {
+            foreach (var (name, value) in variables)
+            {
+                state.ExecutionContext.Define(name, value);
+            }
+        }
+
+        var result = _delegate(state.ExecutionContext, _config, state.ConstraintState, cancellationToken);
+        return ConvertResult(result);
     }
 
     private static T? ConvertResult(object? result)

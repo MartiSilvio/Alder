@@ -411,7 +411,7 @@ public class TypedDelegateCompilationTests
 
         try
         {
-            var fn = AlderEvalCompileExtensions.Compile<Func<int, int>>("x * 3", "x");
+            var fn = AlderEval.GetEngine().Compile<Func<int, int>>("x * 3", "x");
             Assert.That(fn(7), Is.EqualTo(21));
         }
         finally
@@ -428,7 +428,7 @@ public class TypedDelegateCompilationTests
 
         try
         {
-            var fn = AlderEvalCompileExtensions.Compile<Func<int, string>>("""
+            var fn = AlderEval.GetEngine().Compile<Func<int, string>>("""
                 if (n > 0) return "positive";
                 else if (n < 0) return "negative";
                 else return "zero";
@@ -437,27 +437,6 @@ public class TypedDelegateCompilationTests
             Assert.That(fn(5), Is.EqualTo("positive"));
             Assert.That(fn(-3), Is.EqualTo("negative"));
             Assert.That(fn(0), Is.EqualTo("zero"));
-        }
-        finally
-        {
-            AlderEval.Reset();
-        }
-    }
-
-    #endregion
-
-    #region String extension path
-
-    [Test]
-    public void StringCompile_ReturnsWorkingDelegate()
-    {
-        AlderEval.Reset();
-        AlderEval.Configure(o => o.UseCompiler());
-
-        try
-        {
-            var fn = "x + 1".Compile<Func<int, int>>("x");
-            Assert.That(fn(99), Is.EqualTo(100));
         }
         finally
         {

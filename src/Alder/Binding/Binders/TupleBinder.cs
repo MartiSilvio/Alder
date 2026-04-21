@@ -74,7 +74,7 @@ internal static class TupleBinder
             return typeof(ValueTuple);
 
         if (elementTypes.Length <= 7)
-            return RuntimeGenericFactory.CloseGenericType(ConstructionRuntime.GetOpenValueTupleType(elementTypes.Length), elementTypes);
+            return RuntimeGenericClosure.CloseType(ConstructionRuntime.GetOpenValueTupleType(elementTypes.Length), elementTypes);
 
         var headTypes = new Type[8];
         Array.Copy(elementTypes, 0, headTypes, 0, 7);
@@ -82,6 +82,6 @@ internal static class TupleBinder
         Array.Copy(elementTypes, 7, restTypes, 0, restTypes.Length);
         headTypes[7] = CreateTupleStaticType(restTypes);
 
-        return RuntimeGenericFactory.CloseGenericType(ConstructionRuntime.GetOpenValueTupleType(8), headTypes);
+        return RuntimeGenericClosure.CloseType(ConstructionRuntime.GetOpenValueTupleType(8), headTypes);
     }
 }

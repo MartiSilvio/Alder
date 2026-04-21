@@ -2,6 +2,22 @@
 
 C# runtime engine for .NET with AOT-first dispatch. ECMA-334 semantics, full compiler pipeline, two execution backends (interpreter + IL compiler), security sandbox, AOT source generators for NativeAOT and IL2CPP.
 
+## Instruction Precedence
+
+- `CLAUDE.md` is mandatory and authoritative for this repository.
+- `AGENTS.md` complements `CLAUDE.md` and must never be interpreted in ways that conflict with it.
+- For any ambiguity or conflict, follow `CLAUDE.md`.
+- This applies to all agents and workflows, including code simplification/refactoring passes.
+- The `code-simplifier` workflow must preserve behavior and enforce `CLAUDE.md` standards while simplifying code.
+
+## Code-Simplifier Non-Negotiables
+
+- The simplification pass is not complete until touched code has no obvious dead scaffolding, dead branches, or unused adapter paths.
+- If simplification introduces a new abstraction (helper, interface, pipeline, option type), it must either be used by at least one concrete path now or be removed in the same pass.
+- Always run a dead-code verification sweep on touched areas (`rg` for stale symbols and old path names) before concluding.
+- Always run targeted tests for touched behavior after simplification.
+- Never report “simplified” while leaving known unused transitional code behind.
+
 ## Tech Stack
 
 - .NET 8+ / C# 12, nullable reference types enabled

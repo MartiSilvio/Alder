@@ -24,11 +24,11 @@ public sealed partial class AlderEngine
             var parser = ExpressionParser.CreateForSubExpression(tokens, _config.LanguageMode);
             var ast = parser.Parse();
 
-            return new AlderExpression(expression, ast, _expressionCache);
+            return new AlderExpression(expression, ast);
         }
-        catch (InsufficientExecutionStackException)
+        catch (InsufficientExecutionStackException ex)
         {
-            throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
+            throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded, ex);
         }
     }
 

@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 using Alder.Binding.BoundNodes;
+using Alder.Diagnostics;
 using Alder.Parsing;
+using Alder.Runtime;
 
 namespace Alder.Binding.Binders;
 
@@ -13,29 +15,31 @@ internal static class ObjectLiteralBinder
             .Select(property =>
             {
                 var (key, value) = property;
-                if (key.Type == TokenType.DotDot && value is SpreadExpr spread)
-                {
-                    return new BoundObjectLiteralProperty(
-                        PropertyName: null,
-                        Value: binder.Bind(spread.Expression, context),
-                        IsSpread: true);
-                }
-
                 return new BoundObjectLiteralProperty(
                     PropertyName: key.Lexeme,
-                    Value: binder.Bind(value, context),
-                    IsSpread: false);
+                    Value: binder.Bind(value, context));
             })
             .ToImmutableArray();
 
-        var hasSpread = properties.Any(static p => p.IsSpread);
-        var staticType = hasSpread
-            ? new BoundType(typeof(System.Dynamic.ExpandoObject))
-            : new BoundStructuralType(
-                typeof(System.Dynamic.ExpandoObject),
-                properties
-                    .Where(static p => p.PropertyName != null)
-                    .ToImmutableDictionary(static p => p.PropertyName!, static p => p.Value.StaticType.ClrType));
+        var members = ImmutableArray.CreateBuilder<StructuralObjectMember>(properties.Length);
+        var memberTypes = ImmutableDictionary.CreateBuilder<string, Type>(StringComparer.Ordinal);
+        foreach (var property in properties)
+        {
+            var name = property.PropertyName!;
+            if (memberTypes.ContainsKey(name))
+                throw new AlderException(DiagnosticDescriptors.AnonymousTypeDuplicateProperty, name);
+
+            var propertyType = property.Value.StaticType.ClrType;
+            memberTypes.Add(name, propertyType);
+            members.Add(new StructuralObjectMember(name, propertyType));
+        }
+
+        var structuralInfo = StructuralObjectTypeFactory.GetOrCreate(members.ToImmutable());
+        var staticType = new BoundStructuralType(
+            structuralInfo.RuntimeType,
+            memberTypes.ToImmutable(),
+            structuralInfo: structuralInfo);
+
         return new BoundObjectLiteralExpr(properties, staticType);
     }
 }

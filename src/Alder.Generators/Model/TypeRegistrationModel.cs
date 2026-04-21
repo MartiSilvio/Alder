@@ -4,8 +4,10 @@ namespace Alder.Generators.Model;
 
 internal readonly record struct TypeRegistrationModel(
     string TypeFullName,
+    string? OriginalDefinitionNamespace,
+    string? OriginalDefinitionMetadataName,
+    ImmutableArray<TypeArgumentModel> TypeArguments,
     string MetadataClassName,
-    bool IsClosedGeneric,
     bool IsValueType,
     ImmutableArray<PropertyModel> Properties,
     ImmutableArray<FieldModel> Fields,

@@ -50,7 +50,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     public Expr Parse()
     {
-        if (IsStatementKeyword())
+        if (_statement.IsProgramStatementStart())
             return ParseProgram();
 
         var expr = ParseExpression();
@@ -72,21 +72,8 @@ internal sealed partial class ExpressionParser : ParserBase
 
         while (!IsAtEnd())
         {
-            if (IsStatementKeyword())
-            {
+            if (_statement.IsStatementStart())
                 _statement.ParseStatementInto(statements);
-            }
-            else if (Check(TokenType.LeftBrace))
-            {
-                _statement.ParseStatementInto(statements);
-            }
-            else if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
-            {
-                var labelMark = Mark();
-                var label = Advance();
-                Advance(); // consume ':'
-                statements.Add(new LabelExpr(label.Lexeme) { Span = SpanFrom(labelMark) });
-            }
             else
             {
                 var expr = ParseExpression();
@@ -111,72 +98,6 @@ internal sealed partial class ExpressionParser : ParserBase
             return new BlockExpr(statements, null) { Span = SpanFrom(mark) };
 
         throw SyntaxError(DiagnosticDescriptors.ExpressionExpected);
-    }
-
-    private bool IsStatementKeyword()
-    {
-        if (Check(TokenType.If))
-        {
-            if (IsIfExpressionStart())
-                return false;
-            return true;
-        }
-
-        if (Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
-            Check(TokenType.Goto) ||
-            (Check(TokenType.Yield) && PeekNext().Type is TokenType.Return or TokenType.Break) ||
-            (Check(TokenType.Throw) && PeekNext().Type == TokenType.Semicolon) ||
-            Check(TokenType.While) || Check(TokenType.For) ||
-            Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
-            Check(TokenType.Try) || Check(TokenType.Const) ||
-            Check(TokenType.Using) || Check(TokenType.Lock))
-            return true;
-
-        if (CheckVar())
-        {
-            if (State.LanguageMode == LanguageMode.Extended &&
-                Check(TokenType.Let) &&
-                IsLetInExpressionStart())
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        if (State.LanguageMode == LanguageMode.Extended &&
-            (Check(TokenType.Unless) || Check(TokenType.Until)))
-            return true;
-
-        if ((Check(TokenType.Checked) || Check(TokenType.Unchecked)) && PeekNext().Type == TokenType.LeftBrace)
-            return true;
-
-        // Typed declarations and local functions must be recognized before general expression parsing.
-        // Type keywords followed by dot remain ordinary member access, such as double.NaN.
-        if ((IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot)
-            || Check(TokenType.Identifier)
-            || Check(TokenType.LeftParen))
-        {
-            var saved = State.Current;
-            var parsedType = TryParseTypeName();
-            if (parsedType != null && (Check(TokenType.Identifier) || IsContextualKeyword(Peek().Type)))
-            {
-                // Verify that the token after the identifier is compatible with a declaration shape.
-                var namePos = State.Current + 1;
-                if (namePos < State.Tokens.Count)
-                {
-                    var afterName = State.Tokens[namePos].Type;
-                    if (afterName is TokenType.Equal or TokenType.LeftParen or TokenType.Semicolon)
-                    {
-                        State.Current = saved;
-                        return true;
-                    }
-                }
-            }
-            State.Current = saved;
-        }
-
-        return false;
     }
 
     private enum Precedence : byte
@@ -699,11 +620,6 @@ internal sealed partial class ExpressionParser : ParserBase
             {
                 expr = FinishCall(expr, null, mark);
             }
-            else if (Check(TokenType.With) && PeekNext().Type == TokenType.LeftBrace)
-            {
-                Advance(); // consume 'with'
-                expr = ParseWithInitializer(expr, mark);
-            }
             else if (Check(TokenType.PlusPlus) || Check(TokenType.MinusMinus))
             {
                 if (expr is IdentifierExpr identifier)
@@ -737,23 +653,6 @@ internal sealed partial class ExpressionParser : ParserBase
         }
 
         return expr;
-    }
-
-    private WithExpr ParseWithInitializer(Expr obj, int mark)
-    {
-        Consume(TokenType.LeftBrace, "Expected '{' after 'with'");
-        var initializers = new List<(Token Key, Expr Value)>();
-        while (!Check(TokenType.RightBrace) && !IsAtEnd())
-        {
-            var key = ConsumeIdentifierOrContextualKeyword("Expected property name");
-            Consume(TokenType.Equal, "Expected '=' after property name in 'with' initializer");
-            var value = ParseExpression();
-            initializers.Add((key, value));
-            if (!Check(TokenType.RightBrace))
-                Consume(TokenType.Comma, "Expected ',' or '}' in 'with' initializer");
-        }
-        Consume(TokenType.RightBrace, "Expected '}' after 'with' initializer");
-        return new WithExpr(obj, initializers) { Span = SpanFrom(mark) };
     }
 
     private Token? MatchExtendedWordOperator(string keyword, TokenType operatorType)
@@ -865,7 +764,7 @@ internal sealed partial class ExpressionParser : ParserBase
         return parser.ParseExpression();
     }
 
-    private bool IsLetInExpressionStart()
+    internal bool IsLetInExpressionStart()
     {
         if (!Check(TokenType.Let))
             return false;
@@ -971,7 +870,7 @@ internal sealed partial class ExpressionParser : ParserBase
         return new ConditionalExpr(condition, thenBranch, elseBranch) { Span = SpanFrom(mark) };
     }
 
-    private bool IsIfExpressionStart()
+    internal bool IsIfExpressionStart()
     {
         if (!Check(TokenType.If) || !CheckNext(TokenType.LeftParen))
             return false;

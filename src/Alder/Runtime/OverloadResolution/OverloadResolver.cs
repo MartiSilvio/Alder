@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Alder.Runtime;
+namespace Alder.Runtime.OverloadResolution;
 
 /// <summary>ECMA-334 §12.6.4 overload resolution.</summary>
 internal static class OverloadResolver
@@ -217,7 +217,7 @@ internal static class OverloadResolver
 
         foreach (var method in extensionMethods)
         {
-            var concreteMethod = TryCloseGenericMethod(method, receiverAndArgs, context, typeArgs);
+            var concreteMethod = TryCloseMethod(method, receiverAndArgs, context, typeArgs);
             if (concreteMethod == null)
                 continue;
 
@@ -252,7 +252,7 @@ internal static class OverloadResolver
     {
         candidate = default;
 
-        var concreteMethod = TryCloseGenericMethod(method, args, context, typeArgs);
+        var concreteMethod = TryCloseMethod(method, args, context, typeArgs);
         if (concreteMethod == null)
             return false;
 
@@ -302,8 +302,8 @@ internal static class OverloadResolver
                 continue;
 
             var delegateType = parameters[paramIdx].ParameterType;
-            var invoke = delegateType.GetMethod(nameof(Action.Invoke));
-            if (invoke == null || invoke.ReturnType == typeof(void))
+            if (!DelegateShapeInspector.TryGetInvoke(delegateType, out var invoke) ||
+                invoke.ReturnType == typeof(void))
                 continue;
 
             // §10.8: For method groups, resolve the method to infer the return type
@@ -328,7 +328,7 @@ internal static class OverloadResolver
             for (var j = 0; j < inputTypes.Length; j++)
             {
                 var paramType = lambdaInvokeParams[j].ParameterType;
-                inputTypes[j] = elementMemberTypes != null && typeof(IDictionary<string, object?>).IsAssignableFrom(paramType)
+                inputTypes[j] = elementMemberTypes != null
                     ? new Binding.BoundStructuralType(paramType, elementMemberTypes)
                     : new Binding.BoundType(paramType);
             }
@@ -355,13 +355,26 @@ internal static class OverloadResolver
             var enumerator = enumerable.GetEnumerator();
             try
             {
-                if (!enumerator.MoveNext() || enumerator.Current is not IDictionary<string, object?> dict)
+                if (!enumerator.MoveNext())
                     return null;
 
-                var builder = ImmutableDictionary.CreateBuilder<string, Type>();
-                foreach (var kvp in dict)
-                    builder[kvp.Key] = kvp.Value?.GetType() ?? typeof(object);
-                return builder.ToImmutable();
+                if (enumerator.Current is IDictionary<string, object?> dict)
+                {
+                    var builder = ImmutableDictionary.CreateBuilder<string, Type>();
+                    foreach (var kvp in dict)
+                        builder[kvp.Key] = kvp.Value?.GetType() ?? typeof(object);
+                    return builder.ToImmutable();
+                }
+
+                if (enumerator.Current is StructuralObjectValue structural)
+                {
+                    var builder = ImmutableDictionary.CreateBuilder<string, Type>();
+                    foreach (var member in structural.TypeInfo.Members)
+                        builder[member.Name] = member.Type;
+                    return builder.ToImmutable();
+                }
+
+                return null;
             }
             finally
             {
@@ -376,8 +389,7 @@ internal static class OverloadResolver
     {
         var (declaringType, methodName, target) = methodRef switch
         {
-            StaticMethodRef s => (s.Type, s.MethodName, (object?)null),
-            ModuleMethodRef m => (m.Method.DeclaringType, m.Method.Name, m.Module.Instance),
+            ModuleMethodRef m => (m.Module.Type, m.MethodName, m.Module.Instance),
             MethodRef { Target: Type t } m => (t, m.MethodName, (object?)null),
             MethodRef m => (m.Target.GetType(), m.MethodName, m.Target),
             _ => ((Type?)null, (string?)null, (object?)null)
@@ -386,7 +398,7 @@ internal static class OverloadResolver
             return null;
 
         var flags = target != null ? BindingFlags.Public | BindingFlags.Instance : BindingFlags.Public | BindingFlags.Static;
-        var method = declaringType.GetMethod(methodName, flags, null, paramTypes, null);
+        var method = RuntimeTypeIntrospection.FindMethod(declaringType, methodName, flags, paramTypes);
         return method?.ReturnType;
     }
 
@@ -400,7 +412,7 @@ internal static class OverloadResolver
         return -1;
     }
 
-    private static MethodInfo? TryCloseGenericMethod(
+    private static MethodInfo? TryCloseMethod(
         MethodInfo method,
         ReadOnlySpan<ArgumentDescriptor> args,
         AlderContext? context,
@@ -439,7 +451,7 @@ internal static class OverloadResolver
         if (inferred == null)
             return null;
 
-        return RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, inferred, out var closed)
+        return RuntimeGenericClosure.TryCloseMethod(genericMethod, inferred, out var closed)
             ? closed
             : null;
     }
@@ -532,7 +544,7 @@ internal static class OverloadResolver
         if (targetType.IsAssignableFrom(sourceType))
             return true;
 
-        foreach (var iface in ReflectionRuntime.GetInterfaces(sourceType))
+        foreach (var iface in RuntimeTypeIntrospection.GetInterfaces(sourceType))
         {
             if (targetType.IsAssignableFrom(iface))
                 return true;

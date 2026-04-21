@@ -10,14 +10,31 @@ internal static class IdentifierBinder
     {
         var name = expr.Name.Lexeme;
 
+        if (context.TryGetLocal(name, out var localType, out var localId))
+            return new BoundIdentifierExpr(name, localType, localId);
+
+        if (context.TryGetImplicitReceiver(out var receiverName, out var receiverType, out var receiverLocalId))
+        {
+            var receiver = new BoundIdentifierExpr(
+                receiverName,
+                receiverType,
+                receiverLocalId >= 0 ? receiverLocalId : null);
+
+            var implicitMember = MemberAccessBinder.BindSingleMemberAccess(
+                receiver,
+                name,
+                nullSafe: false,
+                context);
+
+            if (implicitMember is not BoundDynamicMemberAccessExpr)
+                return implicitMember;
+        }
+
         if (context.RuntimeContext.Functions.ContainsKey(name) ||
             context.RuntimeContext.Modules.ContainsKey(name))
         {
             return new BoundIdentifierExpr(name, BoundType.Unknown);
         }
-
-        if (context.TryGetLocal(name, out var localType, out var localId))
-            return new BoundIdentifierExpr(name, localType, localId);
 
         context.TryGetVariableType(name, out var staticType);
 

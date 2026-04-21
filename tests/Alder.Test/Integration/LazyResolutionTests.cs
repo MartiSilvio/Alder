@@ -1,5 +1,6 @@
 using System.Reflection;
 using Alder.Diagnostics;
+using Alder.Runtime;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Integration;
@@ -91,9 +92,9 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithExplicitMembers_OnlyExposesSpecifiedMethods()
     {
-        var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
+        var members = new Dictionary<string, IReadOnlyCollection<MemberInfo>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Sum"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!
+            ["Sum"] = [typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!]
         };
         var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Calc", typeof(CalculatorModule), members));
 
@@ -106,10 +107,10 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithExplicitMembers_SupportsAliases()
     {
-        var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
+        var members = new Dictionary<string, IReadOnlyCollection<MemberInfo>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["plus"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!,
-            ["minus"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Subtract))!
+            ["plus"] = [typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!],
+            ["minus"] = [typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Subtract))!]
         };
         var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Calc", typeof(CalculatorModule), members));
 
@@ -133,9 +134,9 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithExplicitMembers_CanExposeProperties()
     {
-        var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
+        var members = new Dictionary<string, IReadOnlyCollection<MemberInfo>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Pi"] = typeof(ConstantsModule).GetProperty(nameof(ConstantsModule.Pi))!
+            ["Pi"] = [typeof(ConstantsModule).GetProperty(nameof(ConstantsModule.Pi))!]
         };
         var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Constants", typeof(ConstantsModule), members));
 
@@ -148,9 +149,9 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_CaseInsensitive_WorksWithExplicitMembers()
     {
-        var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
+        var members = new Dictionary<string, IReadOnlyCollection<MemberInfo>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["sum"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!
+            ["sum"] = [typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!]
         };
         var engine = TestEngineFactory.Create(mode, o =>
         {

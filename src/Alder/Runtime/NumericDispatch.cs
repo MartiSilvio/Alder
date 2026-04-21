@@ -13,8 +13,8 @@ internal static class NumericDispatch
 {
     private static readonly string SpaceshipOperatorLexeme = TokenLexemes.GetCanonical(TokenType.LessEqualGreater);
 
-    public delegate object BinaryOp(object left, object right);
-    public delegate object UnaryOp(object value);
+    public delegate object? BinaryOp(object left, object right);
+    public delegate object? UnaryOp(object value);
     public delegate int CompareOp(object left, object right);
 
     private static readonly FixedDictionary<(Type, Type), BinaryOp> AddOps = BuildBinaryOps(
@@ -241,7 +241,7 @@ internal static class NumericDispatch
     private static bool TryFindUnaryNegationOperator(Type operandType, bool isChecked, out MethodInfo method)
     {
         const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
-        var methods = ReflectionRuntime.GetMethods(operandType, flags);
+        var methods = RuntimeTypeIntrospection.GetMethods(operandType, flags);
 
         if (isChecked)
         {
@@ -613,7 +613,7 @@ internal static class NumericDispatch
     {
         var key = (promotedType, promotedType);
         if (ops.TryGetValue(key, out var op))
-            return op(PromoteToType(left, promotedType)!, PromoteToType(right, promotedType)!);
+            return op(PromoteToType(left, promotedType)!, PromoteToType(right, promotedType)!)!;
 
         throw new AlderException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
     }
@@ -628,12 +628,12 @@ internal static class NumericDispatch
 
         // Fast path: same-type operands skip PromoteOperands (avoids 2 unbox+rebox cycles).
         if (leftType == rightType && ops.TryGetValue((leftType, leftType), out var fastOp))
-            return fastOp(left, right);
+            return fastOp(left, right)!;
 
         var (promotedLeft, promotedRight, resultType) = PromoteOperands(left, right);
 
         if (ops.TryGetValue((resultType, resultType), out var op))
-            return op(promotedLeft, promotedRight);
+            return op(promotedLeft, promotedRight)!;
 
         throw new AlderException(DiagnosticDescriptors.BadBinaryOps, opName, leftType.Name, rightType.Name);
     }

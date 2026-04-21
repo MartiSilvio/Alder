@@ -93,7 +93,9 @@ internal static class PatternValidator
             var type = context.RuntimeContext.TypeResolver.TryResolveType(rootId.Name.Lexeme);
             if (type is null) return false;
             if (type.IsEnum) return true;
-            var field = type.GetField(expr.Name.Lexeme,
+            var field = RuntimeTypeIntrospection.FindField(
+                type,
+                expr.Name.Lexeme,
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
                 | System.Reflection.BindingFlags.FlattenHierarchy);
             return field is { IsLiteral: true } || (field?.IsStatic == true && field.FieldType.IsEnum);

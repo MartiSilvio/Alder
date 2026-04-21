@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Alder.Diagnostics;
+using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Compilation;
 
@@ -520,21 +521,20 @@ public class CompilationTests
     }
 
     [Test]
-    public void Parse_NonCompilableExpressions_FallBackToTreeWalking()
+    public void Parse_ObjectLiteral_CompilesAndEvaluatesStructuralProjection()
     {
         var engine = new AlderEngine(new AlderOptions().UseCompiler());
 
-        // Object literals are not yet compilable
         var expr = engine.Parse("new { a = 1, b = 2 }");
 
-        // Should not be compiled after Parse (not compilable)
         Assert.That(expr.IsCompiled, Is.False);
 
-        // But should still work via tree-walking
-        var result = engine.Evaluate(expr) as IDictionary<string, object?>;
+        var result = engine.Evaluate(expr);
+
+        Assert.That(expr.IsCompiled, Is.True);
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["a"], Is.EqualTo(1));
-        Assert.That(result["b"], Is.EqualTo(2));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "a"), Is.EqualTo(1));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "b"), Is.EqualTo(2));
     }
 
     [Test]

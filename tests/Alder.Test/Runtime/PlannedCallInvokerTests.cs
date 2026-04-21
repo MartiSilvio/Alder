@@ -1,5 +1,6 @@
 using Alder.Binding.Services;
 using Alder.Runtime;
+using Alder.Runtime.OverloadResolution;
 
 namespace Alder.Test.Runtime;
 
@@ -11,10 +12,11 @@ public sealed class PlannedCallInvokerTests
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
-        binder.TryBindInstanceCall(
+        binder.TryBindCall(
             typeof(PlannedInvocationTarget),
             nameof(PlannedInvocationTarget.WithOptional),
-            [typeof(int)],
+            ArgumentDescriptor.FromTypes([typeof(int)]),
+            isStaticCall: false,
             isCaseSensitive: true, out var plan);
 
         var resolved = plan!.Resolution;
@@ -33,10 +35,11 @@ public sealed class PlannedCallInvokerTests
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
-        binder.TryBindInstanceCall(
+        binder.TryBindCall(
             typeof(PlannedInvocationTarget),
             nameof(PlannedInvocationTarget.Sum),
-            [typeof(int), typeof(int), typeof(int), typeof(int)],
+            ArgumentDescriptor.FromTypes([typeof(int), typeof(int), typeof(int), typeof(int)]),
+            isStaticCall: false,
             isCaseSensitive: true, out var plan);
 
         var resolved = plan!.Resolution;
@@ -56,10 +59,11 @@ public sealed class PlannedCallInvokerTests
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
-        binder.TryBindInstanceCall(
+        binder.TryBindCall(
             typeof(PlannedInvocationTarget),
             nameof(PlannedInvocationTarget.Echo),
-            [typeof(int)],
+            ArgumentDescriptor.FromTypes([typeof(int)]),
+            isStaticCall: false,
             isCaseSensitive: true, out var plan);
 
         var resolved = plan!.Resolution;

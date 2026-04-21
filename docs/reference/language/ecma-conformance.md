@@ -93,8 +93,8 @@ Additional pattern forms implemented by Alder are documented elsewhere and are n
 
 ## Expressions (Chapter 12)
 
-| ECMA section | Area                                                                | Status       | Notes                                                                                                                   |
-| ------------ | ------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- | ----------------------- | --- | --- |
+| ECMA section | Area                                                                 | Status    | Notes                                                                                                                    |
+| ------------ | -------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------ |
 | §12.4.5      | Binary operator overload resolution                                 | Supported    | User-defined operators are considered where applicable.                                                                 |
 | §12.4.7.2    | Unary numeric promotions                                            | Supported    |                                                                                                                         |
 | §12.4.7.3    | Binary numeric promotions                                           | Supported    |                                                                                                                         |
@@ -138,10 +138,10 @@ Additional pattern forms implemented by Alder are documented elsewhere and are n
 | §12.11       | Operator overload resolution                                        | Supported    |                                                                                                                         |
 | §12.12       | Relational and type-testing operators                               | Supported    |                                                                                                                         |
 | §12.12.11    | Tuple equality                                                      | Supported    |                                                                                                                         |
-| §12.13       | Boolean logical operators                                           | Supported    | Includes `&`, `                                                                                                         | `, `^`, `&&`, `         |     | `.  |
+| §12.13       | Boolean logical operators                                            | Supported | Includes `&`, `\|`, `^`, `&&`, `\|\|`.                                                                                  |
 | §12.13.3     | Enum bitwise operators                                              | Supported    |                                                                                                                         |
 | §12.13.5     | Three-valued `bool?` logic                                          | Supported    |                                                                                                                         |
-| §12.14.2     | Boolean conditional logical operators                               | Supported    | Includes the three-valued `bool?` semantics for `&&` and `                                                              |                         | `.  |
+| §12.14.2     | Boolean conditional logical operators                                | Supported | Includes the three-valued `bool?` semantics for `&&` and `\|\|`.                                                        |
 | §12.16       | The throw expression operator                                       | Supported    | Includes `throw` as an expression, including `?? throw ...`.                                                            |
 | §12.15       | Null coalescing operator (`??`)                                     | Supported    |                                                                                                                         |
 | §12.18       | Conditional operator (`?:`) type unification                        | Supported    |                                                                                                                         |
@@ -154,7 +154,7 @@ Additional pattern forms implemented by Alder are documented elsewhere and are n
 | §12.20.3.7   | Group clause translation                                            | Supported    |                                                                                                                         |
 | §12.20.3.8   | Transparent identifiers                                             | Supported    |                                                                                                                         |
 | §12.21.2     | Simple assignment                                                   | Supported    | Assignment targets must be assignable (variable, property with setter, or indexer).                                     |
-| §12.21.4     | Compound assignment                                                 | Supported    | Includes compound forms such as `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `                                                   | =`, `^=`, `<<=`, `>>=`. |
+| §12.21.4     | Compound assignment                                                  | Supported | Includes compound forms such as `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `\|=`, `^=`, `<<=`, `>>=`.                        |
 | §12.21.5     | Event assignment                                                    | Out of scope | Events are not a first-class assignment target in the Alder input surface.                                              |
 | §12.22       | Expression                                                          | Supported    | In boolean-condition contexts (`if`, loops, `?:`), the expression must be implicitly convertible to `bool`.             |
 | §12.23       | Constant expressions                                                | Supported    |                                                                                                                         |

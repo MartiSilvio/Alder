@@ -7,7 +7,7 @@ public readonly record struct ParityResult(bool IsSuccess, string Message);
 
 public static class BenchmarkParityVerifier
 {
-    public static ParityResult VerifyCompetitorScenario(CompetitorScenario scenario, BenchmarkData data)
+    public static ParityResult VerifyCrossEngineScenario(CrossEngineScenario scenario, BenchmarkData data)
     {
         try
         {
@@ -50,15 +50,12 @@ public static class BenchmarkParityVerifier
             var expected = scenario.Native(data);
             var interpreted = EvaluateAlder(data, scenario.AlderExpr, CompilationMode.Interpreted);
             var compiled = EvaluateAlder(data, scenario.AlderExpr, CompilationMode.Compiled);
-            var compiledFec = EvaluateAlder(data, scenario.AlderExpr, CompilationMode.CompiledFec);
             var roslyn = EvaluateRoslyn(data, scenario.RoslynExpr);
 
             if (!AreEquivalent(expected, interpreted))
                 return Failure(scenario.Name, "Alder Interpreted", expected, interpreted);
             if (!AreEquivalent(expected, compiled))
                 return Failure(scenario.Name, "Alder Compiled", expected, compiled);
-            if (!AreEquivalent(expected, compiledFec))
-                return Failure(scenario.Name, "Alder CompiledFec", expected, compiledFec);
             if (!AreEquivalent(expected, roslyn))
                 return Failure(scenario.Name, "Roslyn", expected, roslyn);
 

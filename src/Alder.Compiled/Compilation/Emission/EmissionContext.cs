@@ -6,13 +6,19 @@ using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission;
 
+internal enum ResolvedDispatchMode
+{
+    Direct,
+    RuntimeDispatch
+}
+
 internal sealed partial class EmissionContext
 {
     public ParameterExpression ContextParam { get; }
     public ParameterExpression ConfigParam { get; }
     public ParameterExpression ConstraintStateParam { get; }
     public ParameterExpression CancellationTokenParam { get; }
-    public bool PreferResolvedRuntimeDispatch { get; }
+    public ResolvedDispatchMode ResolvedDispatchMode { get; }
 
     internal Dictionary<int, PromotedLocal>? PromotedLocals { get; set; }
     internal Dictionary<string, HoistedIdentifier>? HoistedIdentifiers { get; set; }
@@ -26,14 +32,14 @@ internal sealed partial class EmissionContext
         ParameterExpression contextParam,
         ParameterExpression configParam,
         ParameterExpression constraintStateParam,
-        ParameterExpression cancellationTokenParam,
-        bool preferResolvedRuntimeDispatch)
+        ResolvedDispatchMode resolvedDispatchMode,
+        ParameterExpression cancellationTokenParam)
     {
         ContextParam = contextParam;
         ConfigParam = configParam;
         ConstraintStateParam = constraintStateParam;
         CancellationTokenParam = cancellationTokenParam;
-        PreferResolvedRuntimeDispatch = preferResolvedRuntimeDispatch;
+        ResolvedDispatchMode = resolvedDispatchMode;
     }
 
     public Expression Emit(BoundExpr expr) => Dispatch(expr);

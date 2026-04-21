@@ -11,12 +11,12 @@ internal static class CompoundAssignEvaluator
     public static object? Evaluate(BoundCompoundAssignExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var rightValue = ctx.Evaluate(node.Value, ct);
-        return AssignmentRuntime.ApplyCompoundAssign(node.Name, node.Operator, rightValue, ctx);
+        return AssignmentRuntime.ApplyCompoundAssign(node.Name, node.Operator, rightValue, ctx.Context, ctx.IsChecked);
     }
 
     public static async ValueTask<object?> EvaluateAsync(BoundCompoundAssignExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var rightValue = await ctx.EvaluateAsync(node.Value, ct);
-        return AssignmentRuntime.ApplyCompoundAssign(node.Name, node.Operator, rightValue, ctx);
+        return AssignmentRuntime.ApplyCompoundAssign(node.Name, node.Operator, rightValue, ctx.Context, ctx.IsChecked);
     }
 }

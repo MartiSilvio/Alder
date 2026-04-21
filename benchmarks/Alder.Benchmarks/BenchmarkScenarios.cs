@@ -6,7 +6,7 @@ namespace Alder.Benchmarks;
 /// <summary>
 /// Head-to-head scenario where Alder, Roslyn, and the external expression libraries can all participate.
 /// </summary>
-public sealed record CompetitorScenario(
+public sealed record CrossEngineScenario(
     string Name,
     string AlderExpr,
     string RoslynExpr,
@@ -55,7 +55,7 @@ public sealed record DynamicLinqScenario(
 
 public static class BenchmarkScenarios
 {
-    public static IReadOnlyList<CompetitorScenario> GetCompetitorScenarios() =>
+    public static IReadOnlyList<CrossEngineScenario> GetCrossEngineScenarios() =>
     [
         new("Arithmetic/Constant",
             "1 + 2 * 3 - 4 / 2",
@@ -148,12 +148,12 @@ public static class BenchmarkScenarios
                 : ((14.0 / 3.0) + g.Y)),
 
         new("Stress/BigBoolean",
-            CompetitorExpressionFactory.BuildBigBooleanStress(CompetitorExpressionDialect.CSharp),
-            CompetitorExpressionFactory.BuildBigBooleanStressForRoslyn(),
-            CompetitorExpressionFactory.BuildBigBooleanStress(CompetitorExpressionDialect.CSharp),
-            CompetitorExpressionFactory.BuildBigBooleanStress(CompetitorExpressionDialect.CSharp),
-            CompetitorExpressionFactory.BuildBigBooleanStress(CompetitorExpressionDialect.Flee),
-            g => CompetitorExpressionFactory.EvaluateBigBooleanStress(g)),
+            CrossEngineExpressionFactory.BuildBigBooleanStress(CrossEngineExpressionDialect.CSharp),
+            CrossEngineExpressionFactory.BuildBigBooleanStressForRoslyn(),
+            CrossEngineExpressionFactory.BuildBigBooleanStress(CrossEngineExpressionDialect.CSharp),
+            CrossEngineExpressionFactory.BuildBigBooleanStress(CrossEngineExpressionDialect.CSharp),
+            CrossEngineExpressionFactory.BuildBigBooleanStress(CrossEngineExpressionDialect.Flee),
+            g => CrossEngineExpressionFactory.EvaluateBigBooleanStress(g)),
     ];
 
     public static IReadOnlyList<AlderScenario> GetAdvancedScenarios() =>
@@ -236,7 +236,7 @@ public static class BenchmarkScenarios
         new("LINQ/WhereCount",
             "numbers.Where(x => x > 500).Count()",
             "Numbers.Where(x => x > 500).Count()",
-            g => g.Numbers.Where(x => x > 500).Count()),
+            g => g.Numbers.Count(x => x > 500)),
 
         new("LINQ/SelectSum",
             "numbers.Select(x => x * 2).Sum()",
@@ -261,7 +261,7 @@ public static class BenchmarkScenarios
         new("LINQ/ProductFilter",
             "products.Where(p => p.Price > 100m && p.IsActive).Count()",
             "Products.Where(p => p.Price > 100m && p.IsActive).Count()",
-            g => g.Products.Where(p => p.Price > 100m && p.IsActive).Count()),
+            g => g.Products.Count(p => p.Price > 100m && p.IsActive)),
 
         new("LINQ/ProductPipeline",
             "products.Where(p => p.Category == \"Electronics\" && p.Stock > 0).Select(p => p.Price).Sum()",
@@ -277,38 +277,38 @@ public static class BenchmarkScenarios
     public static IReadOnlyList<DynamicLinqScenario> GetDynamicLinqScenarios() =>
     [
         new("DynLINQ/WhereCount",
-            g => g.Numbers.Where(x => x > 500).Count(),
-            g => g.Numbers.WhereDynamic<int>("x => x > 500").Count(),
+            g => g.Numbers.AsQueryable().Count(x => x > 500),
+            g => g.Numbers.AsQueryable().WhereDynamic<int>("it > 500").Count(),
             g => g.Numbers.AsQueryable().Where("it > 500").Count()),
 
         new("DynLINQ/SelectSum",
-            g => g.Numbers.Select(x => x * 2).Sum(),
-            g => g.Numbers.SelectDynamic<int, int>("x => x * 2").Sum(),
+            g => g.Numbers.AsQueryable().Select(x => x * 2).Sum(),
+            g => g.Numbers.AsQueryable().SelectDynamic<int, int>("it * 2").Sum(),
             g => (int)g.Numbers.AsQueryable().Select("it * 2").Sum()),
 
         new("DynLINQ/WhereSelectSum",
-            g => g.Numbers.Where(x => x > 100).Select(x => x * x).Sum(),
-            g => g.Numbers.WhereDynamic<int>("x => x > 100").SelectDynamic<int, int>("x => x * x").Sum(),
+            g => g.Numbers.AsQueryable().Where(x => x > 100).Select(x => x * x).Sum(),
+            g => g.Numbers.AsQueryable().WhereDynamic<int>("it > 100").SelectDynamic<int, int>("it * it").Sum(),
             g => (int)g.Numbers.AsQueryable().Where("it > 100").Select("it * it").Sum()),
 
         new("DynLINQ/AnyPredicate",
-            g => g.Numbers.Any(x => x > 999),
-            g => g.Numbers.AnyDynamic<int>("x => x > 999"),
+            g => g.Numbers.AsQueryable().Any(x => x > 999),
+            g => g.Numbers.AsQueryable().AnyDynamic<int>("it > 999"),
             g => g.Numbers.AsQueryable().Any("it > 999")),
 
         new("DynLINQ/OrderByFirst",
-            g => g.Numbers.OrderByDescending(x => x).First(),
-            g => g.Numbers.OrderByDescendingDynamic<int, int>("x => x").First(),
+            g => g.Numbers.AsQueryable().OrderByDescending(x => x).First(),
+            g => g.Numbers.AsQueryable().OrderByDescendingDynamic<int, int>("it").First(),
             g => g.Numbers.AsQueryable().OrderBy("it descending").First()),
 
         new("DynLINQ/ProductFilter",
-            g => g.Products.Where(p => p.Price > 50m && p.IsActive).Count(),
-            g => g.Products.WhereDynamic<Product>("p => p.Price > 50m && p.IsActive").Count(),
+            g => g.Products.AsQueryable().Count(p => p.Price > 50m && p.IsActive),
+            g => g.Products.AsQueryable().WhereDynamic<Product>("Price > 50 && IsActive").Count(),
             g => g.Products.AsQueryable().Where("Price > 50 && IsActive").Count()),
 
         new("DynLINQ/OrderSort",
-            g => g.Orders.OrderByDescending(o => o.UnitPrice).First(),
-            g => g.Orders.OrderByDescendingDynamic<Order, decimal>("o => o.UnitPrice").First(),
+            g => g.Orders.AsQueryable().OrderByDescending(o => o.UnitPrice).First(),
+            g => g.Orders.AsQueryable().OrderByDescendingDynamic<Order, decimal>("UnitPrice").First(),
             g => g.Orders.AsQueryable().OrderBy("UnitPrice descending").First()),
     ];
 

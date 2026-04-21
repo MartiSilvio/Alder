@@ -44,29 +44,35 @@ public class ApiSurfaceTests
     }
 
     [Test]
-    public void Evaluate_Has4Overloads()
+    public void Evaluate_Overloads_ImplementExpressionVariableMatrix()
     {
         var overloads = typeof(AlderEngine)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(m => m.Name == "Evaluate")
             .ToList();
 
-        Assert.That(overloads, Has.Count.EqualTo(10));
-    }
+        Assert.That(overloads, Is.Not.Empty);
 
-    [Test]
-    public void Evaluate_Has4NonGeneric_And4Generic()
-    {
-        var overloads = typeof(AlderEngine)
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Where(m => m.Name == "Evaluate")
-            .ToList();
+        var expected = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "string|dict|non-generic",
+            "string|dict|generic",
+            "string|object|non-generic",
+            "string|object|generic",
+            "string|params|non-generic",
+            "string|params|generic",
+            "parsed|dict|non-generic",
+            "parsed|dict|generic",
+            "parsed|object|non-generic",
+            "parsed|object|generic",
+            "parsed|params|non-generic",
+            "parsed|params|generic",
+        };
 
-        var nonGeneric = overloads.Where(m => !m.IsGenericMethod).ToList();
-        var generic = overloads.Where(m => m.IsGenericMethod).ToList();
+        var actual = overloads.Select(GetEvaluateShapeKey).ToHashSet(StringComparer.Ordinal);
 
-        Assert.That(nonGeneric, Has.Count.EqualTo(5));
-        Assert.That(generic, Has.Count.EqualTo(5));
+        Assert.That(actual, Is.EquivalentTo(expected),
+            $"Unexpected Evaluate matrix.\nActual: {string.Join(", ", actual.OrderBy(x => x))}");
     }
 
     [Test]
@@ -84,14 +90,35 @@ public class ApiSurfaceTests
     }
 
     [Test]
-    public void EvaluateAsync_Exists()
+    public void EvaluateAsync_Overloads_ImplementExpressionVariableMatrix()
     {
         var asyncMethods = typeof(AlderEngine)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(m => m.Name == "EvaluateAsync")
             .ToList();
 
-        Assert.That(asyncMethods, Has.Count.GreaterThanOrEqualTo(4));
+        Assert.That(asyncMethods, Is.Not.Empty);
+
+        var expected = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "string|dict|non-generic",
+            "string|dict|generic",
+            "string|object|non-generic",
+            "string|object|generic",
+            "string|params|non-generic",
+            "string|params|generic",
+            "parsed|dict|non-generic",
+            "parsed|dict|generic",
+            "parsed|object|non-generic",
+            "parsed|object|generic",
+            "parsed|params|non-generic",
+            "parsed|params|generic",
+        };
+
+        var actual = asyncMethods.Select(GetEvaluateShapeKey).ToHashSet(StringComparer.Ordinal);
+
+        Assert.That(actual, Is.EquivalentTo(expected),
+            $"Unexpected EvaluateAsync matrix.\nActual: {string.Join(", ", actual.OrderBy(x => x))}");
     }
 
     [Test]
@@ -170,14 +197,27 @@ public class ApiSurfaceTests
     }
 
     [Test]
-    public void TryEvaluate_Has2Overloads()
+    public void TryEvaluate_Overloads_ImplementExpressionGenericMatrix()
     {
         var overloads = typeof(AlderEngine)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(m => m.Name == "TryEvaluate")
             .ToList();
 
-        Assert.That(overloads, Has.Count.EqualTo(2));
+        Assert.That(overloads, Is.Not.Empty);
+
+        var expected = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "string|non-generic",
+            "string|generic",
+            "parsed|non-generic",
+            "parsed|generic",
+        };
+
+        var actual = overloads.Select(GetTryEvaluateShapeKey).ToHashSet(StringComparer.Ordinal);
+
+        Assert.That(actual, Is.EquivalentTo(expected),
+            $"Unexpected TryEvaluate matrix.\nActual: {string.Join(", ", actual.OrderBy(x => x))}");
     }
 
     [Test]
@@ -236,6 +276,7 @@ public class ApiSurfaceTests
             "Compile",
             "CompileExpression",
             "CompileToFunc",
+            "CreateDynamicLambdaFactory",
             "ParseAndCompile",
             "ParseAsExpression",
             "TryParseAsExpression",
@@ -296,8 +337,11 @@ public class ApiSurfaceTests
             var parameters = method.GetParameters();
             Assert.That(parameters.Length, Is.GreaterThanOrEqualTo(2));
 
-            // First parameter is string expression
-            Assert.That(parameters[0].ParameterType, Is.EqualTo(typeof(string)));
+            Assert.That(
+                parameters[0].ParameterType == typeof(string) ||
+                parameters[0].ParameterType == typeof(AlderExpression),
+                Is.True,
+                "First parameter of TryEvaluate must be string or AlderExpression");
             Assert.That(parameters[0].Name, Is.EqualTo("expression"));
 
             // Second parameter is out result
@@ -345,6 +389,7 @@ public class ApiSurfaceTests
             "Alder.Aot.AlderRegisteredAttribute",
             "Alder.Aot.AlderTypeContext",
             "Alder.Aot.GeneratedCodeHelpers",
+            "Alder.Aot.GenericStaticDispatch",
             "Alder.Aot.TypedDispatch",
             "Alder.Attributes.AlderFunctionAttribute",
             "Alder.Attributes.AlderModuleAttribute",
@@ -413,16 +458,35 @@ public class ApiSurfaceTests
     }
 
     [Test]
+    public void AlderEval_PublicMethodNames_MatchGlobalEngineLifecycleSurface()
+    {
+        var methods = typeof(AlderEval)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
+            .Where(m => !m.IsSpecialName)
+            .Select(m => m.Name)
+            .Distinct()
+            .OrderBy(n => n)
+            .ToList();
+
+        var expected = new[]
+        {
+            "Configure",
+            "GetEngine",
+            "Reset",
+        }.OrderBy(n => n).ToList();
+
+        Assert.That(methods, Is.EqualTo(expected));
+    }
+
+    [Test]
     public void StringExtensions_CoverAllStringBasedEngineEvaluateOverloads()
     {
-        // Get all Evaluate/TryEvaluate methods on AlderEngine whose first param is string
         var engineMethods = typeof(AlderEngine)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(m => m.Name is "Evaluate" or "TryEvaluate")
             .Where(m => m.GetParameters().Length > 0 && m.GetParameters()[0].ParameterType == typeof(string))
             .ToList();
 
-        // Get all extension methods on AlderStringExtensions
         var extensionMethods = typeof(AlderStringExtensions)
             .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
             .Where(m => m.IsDefined(typeof(System.Runtime.CompilerServices.ExtensionAttribute), inherit: false))
@@ -433,15 +497,11 @@ public class ApiSurfaceTests
         foreach (var engineMethod in engineMethods)
         {
             var engineParams = engineMethod.GetParameters();
-
-            // Build expected extension param types: skip IServiceProvider (engine-level concern),
-            // keep everything else. First param (string) becomes "this string".
             var expectedParamTypes = engineParams
                 .Where(p => p.ParameterType != typeof(IServiceProvider))
                 .Select(p => p.ParameterType)
                 .ToList();
 
-            // Find matching extension method: same name, same generic arity, same param types
             var match = extensionMethods.FirstOrDefault(ext =>
             {
                 if (ext.Name != engineMethod.Name) return false;
@@ -462,10 +522,7 @@ public class ApiSurfaceTests
             });
 
             if (match == null)
-            {
-                var signature = FormatMethodSignature(engineMethod, skipServiceProvider: true);
-                missing.Add(signature);
-            }
+                missing.Add(FormatMethodSignature(engineMethod, skipServiceProvider: true));
         }
 
         Assert.That(missing, Is.Empty,
@@ -475,21 +532,38 @@ public class ApiSurfaceTests
 
     private static bool TypesMatch(Type a, Type b)
     {
-        // Unwrap by-ref (out/ref params) before comparing
         if (a.IsByRef) a = a.GetElementType()!;
         if (b.IsByRef) b = b.GetElementType()!;
 
         if (a == b) return true;
 
-        // Generic type parameters: compare by position
         if (a.IsGenericParameter && b.IsGenericParameter)
             return a.GenericParameterPosition == b.GenericParameterPosition;
 
-        // Generic types like Nullable<T>, IDictionary<K,V>: compare definitions
         if (a.IsGenericType && b.IsGenericType)
             return a.GetGenericTypeDefinition() == b.GetGenericTypeDefinition();
 
         return false;
+    }
+
+    private static string GetEvaluateShapeKey(MethodInfo method)
+    {
+        var parameters = method.GetParameters();
+        var expressionShape = parameters[0].ParameterType == typeof(AlderExpression) ? "parsed" : "string";
+        var variableShape = parameters[^1].IsDefined(typeof(ParamArrayAttribute), false)
+            ? "params"
+            : parameters[1].ParameterType == typeof(object)
+                ? "object"
+                : "dict";
+        var genericShape = method.IsGenericMethod ? "generic" : "non-generic";
+        return $"{expressionShape}|{variableShape}|{genericShape}";
+    }
+
+    private static string GetTryEvaluateShapeKey(MethodInfo method)
+    {
+        var expressionShape = method.GetParameters()[0].ParameterType == typeof(AlderExpression) ? "parsed" : "string";
+        var genericShape = method.IsGenericMethod ? "generic" : "non-generic";
+        return $"{expressionShape}|{genericShape}";
     }
 
     private static string FormatMethodSignature(MethodInfo method, bool skipServiceProvider)

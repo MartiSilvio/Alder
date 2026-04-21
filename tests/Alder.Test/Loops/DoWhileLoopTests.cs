@@ -3,7 +3,7 @@ using Alder.Test._Infrastructure;
 namespace Alder.Test.Loops;
 
 // Engine-only: Remaining tests use SetVariable, Alder-specific configuration (Constraints, CancellationToken),
-// Alder collection expression syntax ([...], [..spread]), anonymous objects as IDictionary, or test parsing API (TryParse).
+// Alder collection expression syntax ([...], [..spread]), structural object projections, or test parsing API (TryParse).
 // Execution semantics tests migrated to TestData/Loops/DoWhileLoop/*.csx
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -100,7 +100,7 @@ public class DoWhileLoopTests(CompilationMode mode)
 
 
 
-    // Engine-only: anonymous objects as IDictionary<string, object?>
+    // Engine-only: structural object projections
     [Test]
     public void DoWhileLoop_BuildingObjects_WorksCorrectly()
     {
@@ -114,11 +114,11 @@ public class DoWhileLoopTests(CompilationMode mode)
                 i = i + 1;
             } while (i < 3);
             return lastObj;
-        }") as IDictionary<string, object?>;
+        }");
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["Index"], Is.EqualTo(2));
-        Assert.That(result["Squared"], Is.EqualTo(4));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Index"), Is.EqualTo(2));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Squared"), Is.EqualTo(4));
     }
 
 

@@ -4,6 +4,7 @@ using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
+using Alder.Runtime.OverloadResolution;
 
 namespace Alder.Compiled.Compilation;
 
@@ -78,7 +79,7 @@ internal sealed class ExpressionTreeEmitter
             BoundNodeKind.VariableDeclaration => throw UnsupportedNode("a variable declaration"),
             BoundNodeKind.TryStatement => throw UnsupportedNode("try/catch"),
             BoundNodeKind.CollectionCreation => throw UnsupportedNode("a collection expression"),
-            BoundNodeKind.ObjectLiteral => throw UnsupportedNode("an object literal"),
+            BoundNodeKind.ObjectLiteral => EmitObjectLiteral((BoundObjectLiteralExpr)expr),
             BoundNodeKind.SpreadElement => throw UnsupportedNode("spread"),
             BoundNodeKind.SliceExpression => throw UnsupportedNode("slice"),
             BoundNodeKind.Lambda => throw UnsupportedNode("a nested lambda"),
@@ -132,6 +133,29 @@ internal sealed class ExpressionTreeEmitter
             return LinqExpression.Constant(value, value?.GetType() ?? typeof(object));
 
         throw new AlderException(DiagnosticDescriptors.NameNotInContext, name);
+    }
+
+    private LinqExpression EmitObjectLiteral(BoundObjectLiteralExpr expr)
+    {
+        var structuralInfo = ((BoundStructuralType)expr.StaticType).StructuralInfo
+            ?? throw new InvalidOperationException("Structural object literal missing runtime type metadata.");
+        var memberNames = structuralInfo.Members
+            .Select(static member => LinqExpression.Constant(member.Name))
+            .ToArray();
+        var values = new LinqExpression[expr.Properties.Length];
+
+        for (var i = 0; i < expr.Properties.Length; i++)
+        {
+            var value = Emit(expr.Properties[i].Value);
+            values[i] = value.Type == typeof(object)
+                ? value
+                : LinqExpression.Convert(value, typeof(object));
+        }
+
+        return LinqExpression.Call(
+            BoundRuntimeMethodCache.CreateUntypedStructuralObjectMethod,
+            LinqExpression.NewArrayInit(typeof(string), memberNames),
+            LinqExpression.NewArrayInit(typeof(object), values));
     }
 
     private LinqExpression EmitBinary(BoundBinaryExpr expr)

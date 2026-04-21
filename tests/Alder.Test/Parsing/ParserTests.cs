@@ -352,6 +352,17 @@ public class ParserTests
     }
 
     [Test]
+    public void Parse_AnonymousObject_WithInferredMembers_ReturnsNewExpr()
+    {
+        var expr = Parse("new { person.Name, person.Age }");
+        Assert.That(expr, Is.InstanceOf<NewExpr>());
+
+        var newExpr = (NewExpr)expr;
+        var obj = (ObjectLiteralExpr)newExpr.Initializer;
+        Assert.That(obj.Properties.Select(static p => p.Key.Lexeme), Is.EqualTo(new[] { "Name", "Age" }));
+    }
+
+    [Test]
     public void Parse_Block_ReturnsBlockExpr()
     {
         var expr = Parse("{ var x = 1; return x + 1; }");
@@ -504,6 +515,58 @@ public class ParserTests
     {
         var expr = Parse("if (x > 0) x else -x");
         Assert.That(expr, Is.InstanceOf<ConditionalExpr>());
+    }
+
+    [Test]
+    public void Parse_TopLevelIfExpression_RemainsExpression()
+    {
+        var expr = Parse("if (x > 0) x else -x");
+        Assert.That(expr, Is.InstanceOf<ConditionalExpr>());
+    }
+
+    [Test]
+    public void Parse_TopLevelLetIn_RemainsExpression()
+    {
+        var expr = Parse("let x = 5 in x * x");
+        Assert.That(expr, Is.InstanceOf<BlockExpr>());
+
+        var block = (BlockExpr)expr;
+        Assert.That(block.ReturnExpr, Is.Not.Null);
+    }
+
+    [Test]
+    public void Parse_TopLevelTypedDeclaration_FollowedByExpression_RemainsProgram()
+    {
+        var expr = Parse("int x = 5; x");
+        Assert.That(expr, Is.InstanceOf<BlockExpr>());
+
+        var block = (BlockExpr)expr;
+        Assert.That(block.Statements, Has.Count.EqualTo(1));
+        Assert.That(block.Statements[0], Is.InstanceOf<VariableDeclExpr>());
+        Assert.That(block.ReturnExpr, Is.InstanceOf<IdentifierExpr>());
+    }
+
+    [Test]
+    public void Parse_TopLevelLocalFunction_FollowedByExpression_RemainsProgram()
+    {
+        var expr = Parse("int Twice(int x) => x * 2; Twice(4)", LanguageMode.Standard);
+        Assert.That(expr, Is.InstanceOf<BlockExpr>());
+
+        var block = (BlockExpr)expr;
+        Assert.That(block.Statements, Has.Count.EqualTo(1));
+        Assert.That(block.Statements[0], Is.InstanceOf<VariableDeclExpr>());
+        Assert.That(block.ReturnExpr, Is.InstanceOf<CallExpr>());
+    }
+
+    [Test]
+    public void Parse_TypeKeywordMemberAccess_RemainsExpression()
+    {
+        var expr = Parse("double.NaN", LanguageMode.Standard);
+        Assert.That(expr, Is.InstanceOf<MemberAccessExpr>());
+
+        var access = (MemberAccessExpr)expr;
+        Assert.That(access.Object, Is.InstanceOf<TypeReferenceExpr>());
+        Assert.That(access.Name.Lexeme, Is.EqualTo("NaN"));
     }
 
     [Test]

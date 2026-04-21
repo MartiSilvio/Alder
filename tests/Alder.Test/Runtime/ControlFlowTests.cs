@@ -5,7 +5,7 @@ namespace Alder.Test.Runtime;
 /// <summary>
 /// ECMA-334 §12.18 — Conditional operator (?:), §13.6 — Selection statements (if/else).
 /// All tests engine-only: SetVariable with long, Alder [] collection expression syntax,
-/// TestPerson + anonymous object merge (non-serializable types).
+/// TestPerson variables (non-serializable types).
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
@@ -15,14 +15,14 @@ public class ControlFlowTests(CompilationMode mode)
 
     // Engine-only: SetVariable with long type
     [Test]
-    public void Eval_Ternary_WithExpression()
+    public void Eval_Ternary_ReturnsExpectedBranch()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 10L);
         Assert.That(engine.Evaluate("""x > 5 ? "big" : "small" """), Is.EqualTo("big"));
     }
 
-    // Engine-only: SetVariable with TestPerson (non-serializable) + anonymous object merge
+    // Engine-only: SetVariable with TestPerson (non-serializable)
     [Test]
     public void Eval_IfStatement_NullCheck_Pattern()
     {
@@ -32,12 +32,12 @@ public class ControlFlowTests(CompilationMode mode)
         var result = engine.Evaluate(@"{
             var p = person;
             if (p == null) return null;
-            return p + new { Extra = ""test"" };
-        }") as IDictionary<string, object?>;
+            return new { PersonName = p.Name, Extra = ""test"" };
+        }");
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["Name"], Is.EqualTo("John"));
-        Assert.That(result["Extra"], Is.EqualTo("test"));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "PersonName"), Is.EqualTo("John"));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Extra"), Is.EqualTo("test"));
     }
 
     [Test]

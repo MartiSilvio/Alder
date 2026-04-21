@@ -1,3 +1,7 @@
+using Alder.Diagnostics;
+
+using Alder.Test._Infrastructure;
+
 namespace Alder.Test.Core;
 
 [TestFixture]
@@ -86,11 +90,42 @@ public class BasicEvaluationTests
     public void AnonymousObject()
     {
         var engine = new AlderEngine();
-        var result = engine.Evaluate("""new { Name = "Test", Value = 42 } """) as IDictionary<string, object?>;
+        var result = engine.Evaluate("""new { Name = "Test", Value = 42 } """);
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["Name"], Is.EqualTo("Test"));
-        Assert.That(result["Value"], Is.EqualTo(42));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Name"), Is.EqualTo("Test"));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Value"), Is.EqualTo(42));
+    }
+
+    [Test]
+    public void AnonymousObject_InferredMember_UsesMemberName()
+    {
+        var engine = new AlderEngine();
+        engine.SetVariable("person", new { Name = "Ada", Age = 32 });
+
+        var result = engine.Evaluate("""new { person.Name, person.Age } """);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Name"), Is.EqualTo("Ada"));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Age"), Is.EqualTo(32));
+    }
+
+    [Test]
+    public void AnonymousObject_DuplicateMember_Throws()
+    {
+        var engine = new AlderEngine();
+
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("""new { Name = "Ada", Name = "Grace" } """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0833));
+    }
+
+    [Test]
+    public void AnonymousObject_NonNameableExpression_Throws()
+    {
+        var engine = new AlderEngine();
+
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("""new { 1 + 2 } """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8081));
     }
 
     [Test]

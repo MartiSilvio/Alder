@@ -37,6 +37,12 @@ internal static class CollectionFactory
         {
             case null:
                 return;
+            case StructuralObjectValue structural:
+            {
+                foreach (var (key, value) in structural)
+                    target[key] = value;
+                return;
+            }
             case IDictionary<string, object?> dict:
             {
                 foreach (var kvp in dict)
@@ -74,7 +80,7 @@ internal static class CollectionFactory
         if (config != null)
         {
             var listType = MethodDispatchCache.DynamicCodeSupported
-                ? typeof(List<>).MakeGenericType(elementType)
+                ? RuntimeGenericClosure.CloseType(typeof(List<>), [elementType])
                 : null;
 
             if (listType != null && config.TryGetDispatch(listType, out var listDispatch))
@@ -87,7 +93,7 @@ internal static class CollectionFactory
         }
 
         // JIT fallback
-        return CreateConcrete(typeof(List<>).MakeGenericType(elementType), elementType, values, config);
+        return CreateConcrete(RuntimeGenericClosure.CloseType(typeof(List<>), [elementType]), elementType, values, config);
     }
 
     private static object CreateConcrete(Type concreteType, Type elementType, List<object?> values, AlderConfig? config)
@@ -97,7 +103,7 @@ internal static class CollectionFactory
             return CreateViaDispatch(dispatch, elementType, values);
 
         // JIT fallback: MakeGenericMethod
-        return CreateCoreGenericMethod.MakeGenericMethod(concreteType, elementType).Invoke(null, [values])!;
+        return RuntimeGenericClosure.CloseMethod(CreateCoreGenericMethod, [concreteType, elementType]).Invoke(null, [values])!;
     }
 
     internal static object? ConvertElement(object? value, Type elementType, Type convertTarget)

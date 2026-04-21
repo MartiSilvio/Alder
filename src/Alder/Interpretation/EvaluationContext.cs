@@ -11,11 +11,7 @@ namespace Alder.Interpretation;
 
 internal sealed partial class EvaluationContext
 {
-    public AlderContext Context
-    {
-        get => _contextRef;
-        set => _contextRef = value;
-    }
+    public AlderContext Context { get; set; }
 
     public ExecutionConstraintState? ConstraintState { get; }
     public Stack<Exception> CaughtExceptions { get; }
@@ -27,14 +23,12 @@ internal sealed partial class EvaluationContext
     public bool IsChecked { get; set; }
     public Func<object?, bool>? YieldCallback { get; set; }
 
-    private AlderContext _contextRef;
-
     internal EvaluationContext(
         AlderContext context,
         ExecutionConstraintState? constraintState,
         Stack<Exception> caughtExceptions)
     {
-        _contextRef = context;
+        Context = context;
         ConstraintState = constraintState;
         CaughtExceptions = caughtExceptions;
     }

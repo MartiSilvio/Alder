@@ -19,6 +19,54 @@ internal sealed class StatementParser : ParserBase
     internal void SetExpressionParser(ExpressionParser expression) => _expression = expression;
     internal void SetPatternParser(PatternParser pattern) => _pattern = pattern;
 
+    internal bool IsProgramStatementStart()
+    {
+        if (Check(TokenType.Semicolon))
+            return true;
+
+        if (IsLabelStart())
+            return true;
+
+        return IsKeywordOrDeclarationStatementStart();
+    }
+
+    internal bool IsStatementStart()
+    {
+        if (Check(TokenType.LeftBrace))
+            return true;
+
+        return IsProgramStatementStart();
+    }
+
+    private bool IsKeywordOrDeclarationStatementStart()
+    {
+        if (Check(TokenType.If))
+            return !_expression.IsIfExpressionStart();
+
+        if (Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
+            Check(TokenType.Goto) ||
+            (Check(TokenType.Yield) && PeekNext().Type is TokenType.Return or TokenType.Break) ||
+            (Check(TokenType.Throw) && PeekNext().Type == TokenType.Semicolon) ||
+            Check(TokenType.While) || Check(TokenType.For) || Check(TokenType.Do) ||
+            Check(TokenType.Foreach) || Check(TokenType.Switch) || Check(TokenType.Try) ||
+            Check(TokenType.Const) || Check(TokenType.Using) || Check(TokenType.Lock))
+            return true;
+
+        if (CheckVar())
+            return !Check(TokenType.Let) || !_expression.IsLetInExpressionStart();
+
+        if (LanguageMode == LanguageMode.Extended &&
+            (Check(TokenType.Unless) || Check(TokenType.Until)))
+            return true;
+
+        if ((Check(TokenType.Checked) || Check(TokenType.Unchecked)) && PeekNext().Type == TokenType.LeftBrace)
+            return true;
+
+        return LooksLikeTypedDeclarationStart();
+    }
+
+    private bool IsLabelStart() => Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon;
+
     internal Expr ParseBlock()
     {
         var mark = Mark();
@@ -218,13 +266,6 @@ internal sealed class StatementParser : ParserBase
                 return declResult;
         }
 
-        if (Match(TokenType.LeftBrace))
-        {
-            var statements = ParseStatementList();
-            Consume(TokenType.RightBrace, "Expected '}' after block");
-            return new BlockExpr(statements, null) { Span = SpanFrom(mark) };
-        }
-
         // checked and unchecked support both expression and block forms.
         if (Check(TokenType.Checked) || Check(TokenType.Unchecked))
         {
@@ -305,6 +346,34 @@ internal sealed class StatementParser : ParserBase
 
         var declaredType = new Token(TokenType.Identifier, typeName, null, constToken.Line, constToken.Column);
         return new VariableDeclExpr(declaredType, name, initializer, IsConst: true) { Span = SpanFrom(mark) };
+    }
+
+    private bool LooksLikeTypedDeclarationStart()
+    {
+        if (IsTypeKeyword(Peek().Type) && PeekNext().Type == TokenType.Dot)
+            return false;
+
+        if (!IsTypeKeyword(Peek().Type) && !Check(TokenType.Identifier) && !Check(TokenType.LeftParen))
+            return false;
+
+        var saved = State.Current;
+        try
+        {
+            var typeName = TryParseTypeName();
+            if (typeName == null || (!Check(TokenType.Identifier) && !IsContextualKeyword(Peek().Type)))
+                return false;
+
+            var namePos = State.Current + 1;
+            if (namePos >= State.Tokens.Count)
+                return false;
+
+            var afterName = State.Tokens[namePos].Type;
+            return afterName is TokenType.Equal or TokenType.LeftParen or TokenType.Semicolon;
+        }
+        finally
+        {
+            State.Current = saved;
+        }
     }
 
     /// <summary>

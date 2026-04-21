@@ -66,7 +66,6 @@ public sealed class AlderOptions
     internal ICompiledProvider? Compiler { get; set; }
 
     internal StringComparer StringComparer => IsCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
-    internal StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
     /// <summary>
     /// Configures module-style registrations whose members are surfaced to expressions.
@@ -160,7 +159,7 @@ public sealed class AlderOptions
         /// </summary>
         /// <param name="moduleName">Name used inside expressions.</param>
         /// <param name="type">The module type to register.</param>
-        /// <param name="members">The members to expose, keyed by name.</param>
+        /// <param name="members">The members to expose, keyed by name. Each entry must contain either one or more methods, or a single property or field.</param>
         public ModuleBuilder Register(
             string moduleName,
             [DynamicallyAccessedMembers(
@@ -168,9 +167,9 @@ public sealed class AlderOptions
                 DynamicallyAccessedMemberTypes.PublicMethods |
                 DynamicallyAccessedMemberTypes.PublicProperties |
                 DynamicallyAccessedMemberTypes.PublicFields)] Type type,
-            IReadOnlyDictionary<string, MemberInfo> members)
+            IReadOnlyDictionary<string, IReadOnlyCollection<MemberInfo>> members)
         {
-            RegisteredTypes.Add(new RegisteredType(type, null, moduleName, members));
+            RegisteredTypes.Add(new RegisteredType(type, null, moduleName, ModuleMemberMetadata.BuildFromMemberMap(members, _options.StringComparer)));
             return this;
         }
 
@@ -365,7 +364,7 @@ public sealed class AlderOptions
         Type Type,
         object? Instance,
         string? ModuleName,
-        IReadOnlyDictionary<string, MemberInfo> Members);
+        IReadOnlyDictionary<string, ModuleMemberEntry> Members);
 }
 
 /// <summary>

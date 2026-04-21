@@ -41,22 +41,9 @@ public sealed partial class AlderEngine
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        using var state = CreateEvaluationState(variables, cancellationToken);
 
-        var target = this;
-        if (variables != null)
-        {
-            target = CreateChild();
-            target.SetVariables(variables);
-        }
-
-        var context = target.GetOrCreateContext();
-
-        var constraints = _config.Constraints;
-        var executionContext = context.CreateChild();
-        var state = new ExecutionConstraintState();
-        state.Reset(constraints);
-
-        if (!expression.TryGetOrCreateBoundExpression(executionContext, out var boundExpression, out var failureReason) ||
+        if (!expression.TryGetOrCreateBoundExpression(state.BindingContext, out var boundExpression, out var failureReason) ||
             boundExpression == null)
         {
             expression.RecordBoundFallback(failureReason);
@@ -66,7 +53,7 @@ public sealed partial class AlderEngine
         boundExpression = RunSecurityOnlyPipeline(boundExpression, cancellationToken);
         var sourceText = new Text.SourceText(expression.Source);
         var tracer = new EvaluationTracer(sourceText);
-        var evaluator = new BoundEvaluator(executionContext, state, tracer, sourceText);
+        var evaluator = new BoundEvaluator(state.ExecutionContext, state.ConstraintState, tracer, sourceText);
 
         try
         {

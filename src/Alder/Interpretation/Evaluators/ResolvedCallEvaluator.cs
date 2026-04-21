@@ -5,6 +5,7 @@ using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Runtime;
 using Alder.Runtime.Extensions;
+using Alder.Runtime.OverloadResolution;
 using Alder.Runtime.Semantics;
 using MethodInvoker = Alder.Runtime.MethodInvoker;
 
@@ -64,9 +65,7 @@ internal static class ResolvedCallEvaluator
 
         var callee = ctx.Evaluate(call.Callee, ct);
         var invokeResult = MethodInvoker.InvokeCall(callee, args, ctx.Context, ct: ct);
-        DefineOutVariablesIfAny(args, outBindings, ctx, ct);
-        ExecutionRuntime.CheckCollectionSize(invokeResult, ctx.Context.Config.Security);
-        return invokeResult;
+        return FinalizeCallResult(invokeResult, args, outBindings, ctx, "method invocation", null, ct);
     }
 
     internal static object? EvaluatePostfixChain(PostfixChain.Chain chain, EvaluationContext ctx, CancellationToken ct)
@@ -130,6 +129,37 @@ internal static class ResolvedCallEvaluator
             IdentifierRuntime.DefineOutVariables(args, outBindings, ctx.Context);
     }
 
+    internal static object? FinalizeCallResult(
+        object? result,
+        EvaluationContext ctx,
+        string leakKind,
+        string leakName)
+    {
+        TypeHelpers.GuardReflectionLeak(result, leakKind, leakName);
+        ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
+        return result;
+    }
+
+    internal static object? FinalizeCallResult(
+        object? result,
+        object?[] args,
+        OutVariableBinding[] outBindings,
+        EvaluationContext ctx,
+        string leakKind,
+        string? leakName,
+        CancellationToken ct)
+    {
+        DefineOutVariablesIfAny(args, outBindings, ctx, ct);
+
+        if (leakName == null)
+            TypeHelpers.GuardReflectionLeak(result, leakKind);
+        else
+            TypeHelpers.GuardReflectionLeak(result, leakKind, leakName);
+
+        ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
+        return result;
+    }
+
     internal static object? ResolveMemberAccessWithTarget(BoundMemberAccessBase ma, object? target, EvaluationContext ctx, CancellationToken ct)
     {
         return ma switch
@@ -146,19 +176,16 @@ internal static class ResolvedCallEvaluator
 
     internal static object? ResolvePropertyAccess(BoundPropertyAccessExpr node, object? target, EvaluationContext ctx, CancellationToken ct)
     {
-        if (target == null)
+        var declaringType = node.Property.DeclaringType;
+        if (declaringType != null && declaringType.IsGenericType &&
+            declaringType.GetGenericTypeDefinition() == typeof(Nullable<>))
         {
-            var declaringType = node.Property.DeclaringType;
-            if (declaringType != null && declaringType.IsGenericType &&
-                declaringType.GetGenericTypeDefinition() == typeof(Nullable<>))
-            {
-                if (node.MemberName == nameof(Nullable<int>.HasValue)) return (object)false;
-                if (node.MemberName == nameof(Nullable<int>.Value))
-                    throw new InvalidOperationException("Nullable object must have a value.");
-            }
-
-            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "property", node.MemberName);
+            return TypeHelpers.GetNullablePropertyValue(declaringType, target, node.MemberName);
         }
+
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "property", node.MemberName);
+
         if (TypeHelpers.IsValueTupleType(node.Property.DeclaringType ?? node.Property.ReflectedType!))
             return MemberAccess.GetMember(target, node.MemberName, node.NullSafe, ctx.Context);
         return MemberAccess.GetResolvedMember(node.Property, target, node.MemberName, node.NullSafe, ctx.Context);
@@ -178,33 +205,14 @@ internal static class ResolvedCallEvaluator
 
     private static object? InvokeResolved(ResolvedCall resolved, object? target, object?[] args, EvaluationContext ctx, CancellationToken ct)
     {
-        var parameters = MethodDispatchCache.GetParameters(resolved.Method);
-        var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, ct);
-
-        // A boxed Nullable<T> with HasValue=false is indistinguishable from a null reference,
-        // but its struct methods are still well-defined on the default value.
-        if (target == null && !resolved.Method.IsStatic &&
-            resolved.Method.DeclaringType is { IsGenericType: true } declaringType &&
-            declaringType.GetGenericTypeDefinition() == typeof(Nullable<>))
-        {
-            return TypeHelpers.InvokeNullableInstanceMethod(declaringType, resolved.Method.Name, prepared);
-        }
-
-        var result = MethodInvoker.InvokeResolvedMethod(resolved.Method, target, prepared, ctx.Context);
-        ArgumentPreparer.CopyBackOutArgs(args, prepared, parameters);
-        TypeHelpers.GuardReflectionLeak(result, "method", resolved.Method.Name);
-        ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
-        return result;
+        var result = MethodInvoker.InvokeResolvedCall(resolved, target, args, ctx.Context, ct);
+        return FinalizeCallResult(result, ctx, "method", resolved.Method.Name);
     }
 
     private static object? InvokeResolvedExtension(ResolvedCall resolved, object?[] args, EvaluationContext ctx, CancellationToken ct)
     {
-        var parameters = MethodDispatchCache.GetParameters(resolved.Method);
-        var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, ct);
-        var result = MethodInvoker.InvokeMethodCore(resolved.Method, null, prepared);
-        TypeHelpers.GuardReflectionLeak(result, "method", resolved.Method.Name);
-        ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
-        return result;
+        var result = MethodInvoker.InvokeResolvedCall(resolved, null, args, ctx.Context, ct);
+        return FinalizeCallResult(result, ctx, "method", resolved.Method.Name);
     }
 
     public static async ValueTask<object?> EvaluateAsync(BoundResolvedCallExpr node, EvaluationContext ctx, CancellationToken ct)
@@ -257,9 +265,7 @@ internal static class ResolvedCallEvaluator
         var (args, outBindings) = await EvaluateArgumentsWithOutBindingsAsync(call.Arguments, ctx, ct);
         var callee = await ctx.EvaluateAsync(call.Callee, ct);
         var invokeResult = MethodInvoker.InvokeCall(callee, args, ctx.Context, ct: ct);
-        DefineOutVariablesIfAny(args, outBindings, ctx, ct);
-        ExecutionRuntime.CheckCollectionSize(invokeResult, ctx.Context.Config.Security);
-        return invokeResult;
+        return FinalizeCallResult(invokeResult, args, outBindings, ctx, "method invocation", null, ct);
     }
 
     internal static async ValueTask<object?> EvaluatePostfixChainAsync(PostfixChain.Chain chain, EvaluationContext ctx, CancellationToken ct)

@@ -6,9 +6,7 @@ namespace Alder.Test.Compilation;
 /// Verifies that FastExpressionCompiler can be plugged in via IExpressionCompiler
 /// and produces correct results for expression shapes it reliably handles.
 ///
-/// Intentionally does NOT run the full parity suite — FEC has known gaps with
-/// complex Block/ArrayAccess/loop patterns that cause InvalidProgramException
-/// or native segfaults (exit 139). Those are FEC bugs, not Alder bugs.
+/// Scope intentionally targets expression shapes that are stable under this backend.
 /// </summary>
 [TestFixture]
 public class FecCompilerTests

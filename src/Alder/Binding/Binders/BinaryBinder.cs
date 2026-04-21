@@ -219,7 +219,7 @@ internal static class BinaryBinder
 
         static bool HasOperator(Type type, string name)
         {
-            foreach (var m in type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
+            foreach (var m in RuntimeTypeIntrospection.GetMethods(type, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
             {
                 if (m.Name == name && m.GetParameters().Length == 2)
                     return true;
@@ -275,7 +275,7 @@ internal static class BinaryBinder
             {
                 var unlifted = InferArithmeticResultType(lEff, rEff, op);
                 if (unlifted != typeof(object) && unlifted.IsValueType)
-                    return typeof(Nullable<>).MakeGenericType(unlifted);
+                    return RuntimeGenericClosure.CloseType(typeof(Nullable<>), [unlifted]);
             }
         }
 

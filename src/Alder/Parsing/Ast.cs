@@ -59,7 +59,6 @@ internal interface IExprVisitor<out T>
     T VisitCollectionExpr(CollectionExpr expr);
     T VisitImplicitArrayCreation(ImplicitArrayCreationExpr expr);
     T VisitObjectLiteral(ObjectLiteralExpr expr);
-    T VisitWith(WithExpr expr);
     T VisitSpread(SpreadExpr expr);
 
     T VisitInterpolatedString(InterpolatedStringExpr expr);
@@ -304,16 +303,10 @@ internal sealed record ImplicitArrayCreationExpr(List<Expr> Elements) : Expr
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitImplicitArrayCreation(this);
 }
 
-// Alder extension (ExpandoObject, not C# anonymous types)
+// Structural object projection: new { Name, Age = person.Age }
 internal sealed record ObjectLiteralExpr(List<(Token Key, Expr Value)> Properties) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitObjectLiteral(this);
-}
-
-// §12.18
-internal sealed record WithExpr(Expr Object, List<(Token Key, Expr Value)> Initializers) : Expr
-{
-    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitWith(this);
 }
 
 // Alder extension

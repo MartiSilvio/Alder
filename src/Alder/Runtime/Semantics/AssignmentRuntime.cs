@@ -70,7 +70,7 @@ internal static class AssignmentRuntime
         var currentValue = context.Get(name);
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement
-            ? Operators.Add(currentValue, one, context.Config, context, isChecked)
+            ? Operators.Add(currentValue, one, context.Config, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
         newValue = NarrowIncrementResult(name, newValue, context);
         context.Set(name, newValue);
@@ -169,7 +169,7 @@ internal static class AssignmentRuntime
         var currentValue = MemberAccess.GetMember(target, memberName, false, context);
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement
-            ? Operators.Add(currentValue, one, context.Config, context, isChecked)
+            ? Operators.Add(currentValue, one, context.Config, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
         newValue = NarrowToOriginalType(currentValue, newValue);
         MemberAccess.SetMember(target, memberName, newValue, context);
@@ -188,7 +188,7 @@ internal static class AssignmentRuntime
         var currentValue = MemberAccess.GetIndex(target, index, context);
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement
-            ? Operators.Add(currentValue, one, context.Config, context, isChecked)
+            ? Operators.Add(currentValue, one, context.Config, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
         newValue = NarrowToOriginalType(currentValue, newValue);
         MemberAccess.SetIndex(target, index, newValue, context);
@@ -218,7 +218,7 @@ internal static class AssignmentRuntime
     {
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement
-            ? Operators.Add(currentValue, one, context.Config, context, isChecked)
+            ? Operators.Add(currentValue, one, context.Config, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
         return NarrowToType(newValue!, variableType);
     }
@@ -230,36 +230,6 @@ internal static class AssignmentRuntime
 
         return value;
     }
-
-    public static object? ApplyCompoundAssign(string name, TokenType op, object? rightValue, EvaluationContext ctx)
-        => ApplyCompoundAssign(name, op, rightValue, ctx.Context, ctx.IsChecked);
-
-    public static object? ApplyIncrementDecrement(string name, bool isIncrement, bool isPrefix, EvaluationContext ctx)
-        => ApplyIncrementDecrement(name, isIncrement, isPrefix, ctx.Context, ctx.IsChecked);
-
-    public static object? ApplyMemberAssign(object? target, string memberName, object? value, EvaluationContext ctx)
-        => ApplyMemberAssign(target, memberName, value, ctx.Context);
-
-    public static object? ApplyIndexAssign(object? target, object? index, object? value, EvaluationContext ctx)
-        => ApplyIndexAssign(target, index, value, ctx.Context);
-
-    public static object? ApplyMemberCompoundAssign(object? target, string memberName, TokenType op, object? rightValue, EvaluationContext ctx)
-        => ApplyMemberCompoundAssign(target, memberName, op, rightValue, ctx.Context, ctx.IsChecked);
-
-    public static object? ApplyIndexCompoundAssign(object? target, object? index, TokenType op, object? rightValue, EvaluationContext ctx)
-        => ApplyIndexCompoundAssign(target, index, op, rightValue, ctx.Context, ctx.IsChecked);
-
-    public static object? ApplyMemberNullCoalesceAssign(object? target, string memberName, object? value, EvaluationContext ctx)
-        => ApplyMemberNullCoalesceAssign(target, memberName, value, ctx.Context);
-
-    public static object? ApplyIndexNullCoalesceAssign(object? target, object? index, object? value, EvaluationContext ctx)
-        => ApplyIndexNullCoalesceAssign(target, index, value, ctx.Context);
-
-    public static object? ApplyMemberIncrement(object? target, string memberName, bool isIncrement, bool isPrefix, EvaluationContext ctx)
-        => ApplyMemberIncrement(target, memberName, isIncrement, isPrefix, ctx.Context, ctx.IsChecked);
-
-    public static object? ApplyIndexIncrement(object? target, object? index, bool isIncrement, bool isPrefix, EvaluationContext ctx)
-        => ApplyIndexIncrement(target, index, isIncrement, isPrefix, ctx.Context, ctx.IsChecked);
 
     private static object? ValidateCompoundAssignmentLocal(object? result, object? rightValue, Type variableType)
         => ValidateCompoundAssignmentCore(result, rightValue, variableType);
@@ -320,7 +290,7 @@ internal static class AssignmentRuntime
     {
         return operatorType switch
         {
-            TokenType.Plus => Operators.Add(left, right, context.Config, context, isChecked),
+            TokenType.Plus => Operators.Add(left, right, context.Config, isChecked),
             TokenType.Minus => Operators.Subtract(left, right, isChecked),
             TokenType.Star => Operators.Multiply(left, right, isChecked),
             TokenType.Slash => Operators.Divide(left, right),

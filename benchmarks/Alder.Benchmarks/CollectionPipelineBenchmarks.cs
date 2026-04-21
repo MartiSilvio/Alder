@@ -106,7 +106,7 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
         new("Filter+Count",
             "products.Where(p => p.Price > 100m && p.IsActive).Count()",
             "Products.Where(p => p.Price > 100m && p.IsActive).Count()",
-            ps => ps.Where(p => p.Price > 100m && p.IsActive).Count()),
+            ps => ps.Count(p => p.Price > 100m && p.IsActive)),
 
         new("Filter+Project+Sum",
             """products.Where(p => p.Category == "Electronics").Select(p => p.Price).Sum()""",
@@ -116,7 +116,7 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
         new("ComplexPredicate",
             "products.Where(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive).Count()",
             "Products.Where(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive).Count()",
-            ps => ps.Where(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive).Count()),
+            ps => ps.Count(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive)),
 
         new("Sort+Take",
             "products.OrderByDescending(p => p.Price).Take(10).Select(p => p.Price).Sum()",

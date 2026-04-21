@@ -181,4 +181,53 @@ public class CompiledDelegateTests
         var func = engine.CompileToFunc<object?>("{ var a = 1; var b = 2; var c = 3; return a + b + c; }");
         Assert.Throws<AlderExecutionLimitException>(() => func());
     }
+
+    [Test]
+    public void CompiledExpression_Invoke_AfterEngineDispose_ThrowsObjectDisposedException()
+    {
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
+        engine.SetVariable("x", 21);
+        var compiled = engine.Compile<int>("x * 2");
+
+        Assert.That(compiled.Invoke(), Is.EqualTo(42));
+
+        engine.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => compiled.Invoke());
+    }
+
+    [Test]
+    public void CompileToFunc_Invoke_AfterEngineDispose_ThrowsObjectDisposedException()
+    {
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
+        engine.SetVariable("x", 7);
+        var func = engine.CompileToFunc<int>("x + 1");
+
+        Assert.That(func(), Is.EqualTo(8));
+
+        engine.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => func());
+    }
+
+    [Test]
+    public void CompiledExpression_Invoke_CancelledToken_CancelsNestedLambdaInvocation()
+    {
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
+        var compiled = engine.Compile<int>("((Func<int>)(() => 1))()");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() => compiled.Invoke(cts.Token));
+    }
+
+    [Test]
+    public void CompiledExpression_InvokeWithVariables_CancelledToken_CancelsNestedLambdaInvocation()
+    {
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
+        var compiled = engine.Compile<int>("((Func<int>)(() => x + y))()");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var variables = new Dictionary<string, object?> { ["x"] = 1, ["y"] = 2 };
+        Assert.Throws<OperationCanceledException>(() => compiled.Invoke(variables, cts.Token));
+    }
 }

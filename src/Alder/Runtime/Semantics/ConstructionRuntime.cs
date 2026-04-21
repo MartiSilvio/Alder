@@ -1,5 +1,6 @@
 using System.Runtime.ExceptionServices;
 using Alder.Diagnostics;
+using Alder.Runtime.OverloadResolution;
 
 namespace Alder.Runtime.Semantics;
 
@@ -12,10 +13,13 @@ internal static class ConstructionRuntime
 
         if (type.BaseType == typeof(MulticastDelegate) && args is [LambdaValue or CompiledLambdaValue])
         {
-            var converted = LambdaDelegateConverter.TryConvert(args[0], type);
+            var converted = LambdaDelegateConverter.TryConvert(args[0]!, type);
             if (converted is not null)
                 return converted;
         }
+
+        if (!MethodDispatchCache.DynamicCodeSupported)
+            throw new AlderException(DiagnosticDescriptors.GeneratedConstructorRequired, type.Name, args.Length);
 
         var constructors = context.TypeMetadata.GetConstructors(type, BindingFlags.Public | BindingFlags.Instance);
         var descriptors = ArgumentDescriptor.FromArgs(args);
@@ -66,7 +70,7 @@ internal static class ConstructionRuntime
             for (var i = 0; i < elements.Length; i++)
                 types[i] = elements[i]?.GetType() ?? typeof(object);
 
-            var tupleType = RuntimeGenericFactory.CloseGenericType(GetOpenValueTupleType(elements.Length), types);
+            var tupleType = RuntimeGenericClosure.CloseType(GetOpenValueTupleType(elements.Length), types);
             return Activator.CreateInstance(tupleType, elements)!;
         }
 
@@ -85,7 +89,7 @@ internal static class ConstructionRuntime
         genericArgs[7] = restTuple.GetType();
         ctorArgs[7] = restTuple;
 
-        var nestedTupleType = RuntimeGenericFactory.CloseGenericType(typeof(ValueTuple<,,,,,,,>), genericArgs);
+        var nestedTupleType = RuntimeGenericClosure.CloseType(typeof(ValueTuple<,,,,,,,>), genericArgs);
         return Activator.CreateInstance(nestedTupleType, ctorArgs)!;
     }
 
@@ -150,7 +154,7 @@ internal static class ConstructionRuntime
         var type = value.GetType();
         MethodInfo? match = null;
 
-        foreach (var m in ReflectionRuntime.GetMethods(type, BindingFlags.Public | BindingFlags.Instance))
+        foreach (var m in RuntimeTypeIntrospection.GetMethods(type, BindingFlags.Public | BindingFlags.Instance))
         {
             if (m.Name != "Deconstruct")
                 continue;
@@ -326,7 +330,7 @@ internal static class ConstructionRuntime
 
     private static bool HasIndexerWithArity(Type targetType, int parameterCount)
     {
-        var properties = ReflectionRuntime.GetProperties(targetType, BindingFlags.Public | BindingFlags.Instance);
+        var properties = RuntimeTypeIntrospection.GetProperties(targetType, BindingFlags.Public | BindingFlags.Instance);
         foreach (var property in properties)
         {
             if (property.Name == "Item" && property.GetIndexParameters().Length == parameterCount)

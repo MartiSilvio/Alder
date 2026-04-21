@@ -5,17 +5,16 @@ namespace Alder.Text;
 /// </summary>
 public sealed class SourceText
 {
-    private readonly string _text;
     private int[]? _lineStarts;
 
     /// <param name="text">The source text.</param>
-    public SourceText(string text) => _text = text;
+    public SourceText(string text) => Text = text;
 
     /// <summary>The underlying source string.</summary>
-    public string Text => _text;
+    public string Text { get; }
 
     /// <summary>The length of the source text in characters.</summary>
-    public int Length => _text.Length;
+    public int Length => Text.Length;
 
     private int[] LineStarts => _lineStarts ??= ComputeLineStarts();
 
@@ -25,7 +24,7 @@ public sealed class SourceText
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="offset"/> is negative or beyond the text length.</exception>
     public LinePosition GetLinePosition(int offset)
     {
-        if (offset < 0 || offset > _text.Length)
+        if (offset < 0 || offset > Text.Length)
             throw new ArgumentOutOfRangeException(nameof(offset));
 
         var lineStarts = LineStarts;
@@ -47,12 +46,12 @@ public sealed class SourceText
     {
         var starts = new List<int> { 0 };
 
-        for (var i = 0; i < _text.Length; i++)
+        for (var i = 0; i < Text.Length; i++)
         {
-            var c = _text[i];
+            var c = Text[i];
             if (c == '\r')
             {
-                if (i + 1 < _text.Length && _text[i + 1] == '\n')
+                if (i + 1 < Text.Length && Text[i + 1] == '\n')
                     i++;
                 starts.Add(i + 1);
             }

@@ -12,9 +12,6 @@ internal sealed class CompiledProvider : ICompiledProvider
 
     private CompiledProvider() { }
 
-    public CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache, AlderConfig config)
-        => ILExpressionCompiler.GetOrCompile(expressionText, ast, cache, config);
-
     public CompiledExpressionInfo TryCompile(Expr ast, AlderConfig config)
         => ILExpressionCompiler.TryCompile(ast, config);
 

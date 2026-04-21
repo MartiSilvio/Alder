@@ -22,10 +22,6 @@ internal sealed class MemberBinderService
     public bool TryBindMemberRead(BoundType targetType, string memberName, bool isStatic, bool isCaseSensitive,
         out MemberBindResult result, out MemberInfo? member, out Type? resolvedType)
     {
-        if (TryBindMemberReadFromClrType(targetType.ClrType, memberName, isStatic, isCaseSensitive,
-                out result, out member, out resolvedType))
-            return true;
-
         if (targetType.HasStructuralMembers)
         {
             var comparer = isCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
@@ -40,6 +36,10 @@ internal sealed class MemberBinderService
                 }
             }
         }
+
+        if (TryBindMemberReadFromClrType(targetType.ClrType, memberName, isStatic, isCaseSensitive,
+                out result, out member, out resolvedType))
+            return true;
 
         return false;
     }
@@ -209,7 +209,7 @@ internal sealed class MemberBinderService
     private static IEnumerable<Type> EnumerateSelfAndInterfaces(Type type)
     {
         yield return type;
-        foreach (var interfaceType in ReflectionRuntime.GetInterfaces(type))
+        foreach (var interfaceType in RuntimeTypeIntrospection.GetInterfaces(type))
             yield return interfaceType;
     }
 }

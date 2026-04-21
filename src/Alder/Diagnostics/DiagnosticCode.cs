@@ -86,6 +86,8 @@ public enum DiagnosticCode
     CS0818 = 818,
     /// <summary>No best type found for an implicitly-typed array</summary>
     CS0826 = 826,
+    /// <summary>An anonymous type cannot have multiple properties with the same name</summary>
+    CS0833 = 833,
 
     /// <summary>; expected</summary>
     CS1002 = 1002,
@@ -267,6 +269,12 @@ public enum DiagnosticCode
     ALDR0314 = 1_000_314,
     /// <summary>Cannot resolve module instance</summary>
     ALDR0315 = 1_000_315,
+    /// <summary>Member requires generated dispatch in authoritative generated mode</summary>
+    ALDR0316 = 1_000_316,
+    /// <summary>Method requires generated dispatch in authoritative generated mode</summary>
+    ALDR0317 = 1_000_317,
+    /// <summary>Constructor requires generated dispatch in authoritative generated mode</summary>
+    ALDR0318 = 1_000_318,
 
     /// <summary>Cannot slice null</summary>
     ALDR0400 = 1_000_400,

@@ -1,3 +1,5 @@
+using Alder.Runtime;
+
 namespace Alder;
 
 public sealed partial class AlderEngine
@@ -54,7 +56,7 @@ public sealed partial class AlderEngine
 
         foreach (var (name, info) in _config.Modules)
         {
-            result[name] = new RegisteredModule(info.Type, info.Instance, info.Members);
+            result[name] = new RegisteredModule(info.Type, info.Instance, info.Members.Keys.ToArray());
         }
 
         return result;
@@ -65,8 +67,8 @@ public sealed partial class AlderEngine
     /// </summary>
     /// <param name="Type">The .NET type that provides the module's methods and properties.</param>
     /// <param name="Instance">An optional pre-created instance for instance methods; <c>null</c> if the engine creates one on demand.</param>
-    /// <param name="Members">The members exposed to expressions, keyed by name.</param>
-    public sealed record RegisteredModule(Type Type, object? Instance, IReadOnlyDictionary<string, MemberInfo>? Members);
+    /// <param name="MemberNames">The member names exposed to expressions.</param>
+    public sealed record RegisteredModule(Type Type, object? Instance, IReadOnlyList<string>? MemberNames);
 
     private void DefineOrStageVariable(string name, object? value, Type inferredType)
     {
@@ -87,7 +89,7 @@ public sealed partial class AlderEngine
 
     internal void SetTypedVariablesFromObject(object obj)
     {
-        var entries = ToTypedVariables(obj);
+        var entries = VariableBindingProjector.ProjectTypedVariables(obj);
         foreach (var (name, value, type) in entries)
             DefineOrStageVariable(name, value, type);
     }

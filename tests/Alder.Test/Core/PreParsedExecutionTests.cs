@@ -35,4 +35,32 @@ public class PreParsedExecutionTests
         Assert.That(expr, Is.Not.Null);
         Assert.That(error, Is.Null);
     }
+
+    [Test]
+    public void PreParsed_ParamsVariables_AreBoundByPosition()
+    {
+        var engine = new AlderEngine();
+        var expression = engine.Parse("@0 + @1 + @2");
+
+        var result = engine.Evaluate<int>(expression, 1, 2, 3);
+
+        Assert.That(result, Is.EqualTo(6));
+    }
+
+    [Test]
+    public void PreParsed_TryEvaluate_WithDictionaryVariables_Succeeds()
+    {
+        var engine = new AlderEngine();
+        var expression = engine.Parse("x + y");
+        var variables = new Dictionary<string, object?>
+        {
+            ["x"] = 10,
+            ["y"] = 15,
+        };
+
+        var success = engine.TryEvaluate<int>(expression, out var result, variables);
+
+        Assert.That(success, Is.True);
+        Assert.That(result, Is.EqualTo(25));
+    }
 }

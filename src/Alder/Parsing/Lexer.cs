@@ -146,7 +146,6 @@ internal sealed class Lexer
         ["value"] = TokenType.Value,
         ["when"] = TokenType.When,
         ["where"] = TokenType.Where,
-        ["with"] = TokenType.With,
         ["yield"] = TokenType.Yield,
     });
 
@@ -951,9 +950,9 @@ internal sealed class Lexer
                 _ => throw LexError(DiagnosticDescriptors.InvalidNumber, $"Unknown numeric suffix at {_line}:{_column}")
             };
         }
-        catch (OverflowException)
+        catch (OverflowException ex)
         {
-            throw new AlderException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
+            throw new AlderException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column, ex);
         }
 
         RejectTrailingIdentifierChars();
@@ -1079,9 +1078,9 @@ internal sealed class Lexer
                 _ => throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid suffix for hex literal at {_line}:{_column}")
             };
         }
-        catch (OverflowException)
+        catch (OverflowException ex)
         {
-            throw new AlderException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
+            throw new AlderException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column, ex);
         }
 
         RejectTrailingIdentifierChars();
@@ -1111,9 +1110,9 @@ internal sealed class Lexer
                 _ => throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid suffix for binary literal at {_line}:{_column}")
             };
         }
-        catch (OverflowException)
+        catch (OverflowException ex)
         {
-            throw new AlderException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
+            throw new AlderException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column, ex);
         }
 
         RejectTrailingIdentifierChars();

@@ -1,3 +1,5 @@
+using Alder.Aot;
+
 namespace Alder.Runtime;
 
 /// <summary>
@@ -11,120 +13,85 @@ internal static class TypedDispatchHelper
         AlderConfig config, Type type, string name,
         object instance, object?[] args, out object? result)
     {
-        if (config.TryGetDispatch(type, out var dispatch))
-        {
-            if (dispatch.TryInvoke(name, instance, args, out result))
-                return true;
-
-            var canonicalName = ResolveCanonicalName(config, type, name, isStatic: false, MemberTypes.Method);
-            if (canonicalName != null && dispatch.TryInvoke(canonicalName, instance, args, out result))
-                return true;
-        }
-
-        result = null;
-        return false;
+        object? resolved = null;
+        var success = TryDispatchNamed(
+            config, type, name, isStatic: false, MemberTypes.Method,
+            dispatch => dispatch.TryInvoke(name, instance, args, out resolved),
+            dispatchName => dispatchName.Dispatch.TryInvoke(dispatchName.Name, instance, args, out resolved));
+        result = resolved;
+        return success;
     }
 
     internal static bool TryInvokeStatic(
         AlderConfig config, Type type, string name,
         object?[] args, out object? result)
     {
-        if (config.TryGetDispatch(type, out var dispatch))
-        {
-            if (dispatch.TryInvokeStatic(name, args, out result))
-                return true;
-
-            var canonicalName = ResolveCanonicalName(config, type, name, isStatic: true, MemberTypes.Method);
-            if (canonicalName != null && dispatch.TryInvokeStatic(canonicalName, args, out result))
-                return true;
-        }
-
-        result = null;
-        return false;
+        object? resolved = null;
+        var success = TryDispatchNamed(
+            config, type, name, isStatic: true, MemberTypes.Method,
+            dispatch => dispatch.TryInvokeStatic(name, args, out resolved),
+            dispatchName => dispatchName.Dispatch.TryInvokeStatic(dispatchName.Name, args, out resolved));
+        result = resolved;
+        return success;
     }
 
     internal static bool TryGetMember(
         AlderConfig config, Type type, string name,
         object instance, out object? value)
     {
-        if (config.TryGetDispatch(type, out var dispatch))
-        {
-            if (dispatch.TryGet(name, instance, out value))
-            {
-                value = TypeHelpers.GuardReflectionLeak(value, "member", name);
-                return true;
-            }
-
-            var canonicalName = ResolveCanonicalName(config, type, name, isStatic: false, MemberTypes.Property | MemberTypes.Field);
-            if (canonicalName != null && dispatch.TryGet(canonicalName, instance, out value))
-            {
-                value = TypeHelpers.GuardReflectionLeak(value, "member", name);
-                return true;
-            }
-        }
-
-        value = null;
-        return false;
+        object? resolved = null;
+        var success = TryDispatchNamed(
+            config, type, name, isStatic: false, MemberTypes.Property | MemberTypes.Field,
+            dispatch => TryGetMemberValue(dispatch, name, instance, "member", name, ref resolved),
+            dispatchName => TryGetMemberValue(dispatchName.Dispatch, dispatchName.Name, instance, "member", name, ref resolved));
+        value = resolved;
+        return success;
     }
 
     internal static bool TryGetStaticMember(
         AlderConfig config, Type type, string name,
         out object? value)
     {
-        if (config.TryGetDispatch(type, out var dispatch))
-        {
-            if (dispatch.TryGetStatic(name, out value))
-            {
-                value = TypeHelpers.GuardReflectionLeak(value, "static member", name);
-                return true;
-            }
-
-            var canonicalName = ResolveCanonicalName(config, type, name, isStatic: true, MemberTypes.Property | MemberTypes.Field);
-            if (canonicalName != null && dispatch.TryGetStatic(canonicalName, out value))
-            {
-                value = TypeHelpers.GuardReflectionLeak(value, "static member", name);
-                return true;
-            }
-        }
-
-        value = null;
-        return false;
+        object? resolved = null;
+        var success = TryDispatchNamed(
+            config, type, name, isStatic: true, MemberTypes.Property | MemberTypes.Field,
+            dispatch => TryGetStaticMemberValue(dispatch, name, "static member", name, ref resolved),
+            dispatchName => TryGetStaticMemberValue(dispatchName.Dispatch, dispatchName.Name, "static member", name, ref resolved));
+        value = resolved;
+        return success;
     }
 
     internal static bool TrySetMember(
         AlderConfig config, Type type, string name,
         object instance, object? value)
     {
-        if (!config.TryGetDispatch(type, out var dispatch))
-            return false;
-
-        if (dispatch.TrySet(name, instance, value))
-            return true;
-
-        var canonicalName = ResolveCanonicalName(config, type, name, isStatic: false, MemberTypes.Property | MemberTypes.Field);
-        return canonicalName != null && dispatch.TrySet(canonicalName, instance, value);
+        return TryDispatchNamed(
+            config, type, name, isStatic: false, MemberTypes.Property | MemberTypes.Field,
+            dispatch => dispatch.TrySet(name, instance, value),
+            dispatchName => dispatchName.Dispatch.TrySet(dispatchName.Name, instance, value));
     }
 
     internal static bool TryGetIndex(
         AlderConfig config, Type type,
         object instance, object key, out object? value)
     {
-        if (config.TryGetDispatch(type, out var dispatch) &&
-            dispatch.TryGetIndex(instance, key, out value))
-        {
-            value = TypeHelpers.GuardReflectionLeak(value, "indexer");
-            return true;
-        }
-        value = null;
-        return false;
+        object? resolved = null;
+        var success = TryDispatchChain(
+            config,
+            type,
+            dispatch => TryGetIndexValue(dispatch, instance, key, ref resolved));
+        value = resolved;
+        return success;
     }
 
     internal static bool TrySetIndex(
         AlderConfig config, Type type,
         object instance, object key, object? value)
     {
-        return config.TryGetDispatch(type, out var dispatch) &&
-               dispatch.TrySetIndex(instance, key, value);
+        return TryDispatchChain(
+            config,
+            type,
+            dispatch => dispatch.TrySetIndex(instance, key, value));
     }
 
     internal static bool TryCreate(
@@ -139,6 +106,88 @@ internal static class TypedDispatchHelper
         return false;
     }
 
+    private static bool TryDispatchChain(
+        AlderConfig config,
+        Type type,
+        Func<TypedDispatch, bool> attempt)
+    {
+        for (var current = type; current != null; current = current.BaseType)
+        {
+            if (!config.TryGetDispatch(current, out var dispatch))
+                continue;
+
+            if (attempt(dispatch))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryDispatchNamed(
+        AlderConfig config,
+        Type type,
+        string name,
+        bool isStatic,
+        MemberTypes memberTypes,
+        Func<TypedDispatch, bool> tryOriginalName,
+        Func<(TypedDispatch Dispatch, string Name), bool> tryCanonicalName)
+    {
+        return TryDispatchChain(
+            config,
+            type,
+            dispatch =>
+            {
+                if (tryOriginalName(dispatch))
+                    return true;
+
+                var dispatchType = dispatch.Type;
+                var canonicalName = ResolveCanonicalName(config, dispatchType, name, isStatic, memberTypes);
+                return canonicalName != null && tryCanonicalName((dispatch, canonicalName));
+            });
+    }
+
+    private static bool TryGetMemberValue(
+        TypedDispatch dispatch,
+        string dispatchName,
+        object instance,
+        string accessKind,
+        string requestedName,
+        ref object? value)
+    {
+        if (!dispatch.TryGet(dispatchName, instance, out value))
+            return false;
+
+        value = TypeHelpers.GuardReflectionLeak(value, accessKind, requestedName);
+        return true;
+    }
+
+    private static bool TryGetStaticMemberValue(
+        TypedDispatch dispatch,
+        string dispatchName,
+        string accessKind,
+        string requestedName,
+        ref object? value)
+    {
+        if (!dispatch.TryGetStatic(dispatchName, out value))
+            return false;
+
+        value = TypeHelpers.GuardReflectionLeak(value, accessKind, requestedName);
+        return true;
+    }
+
+    private static bool TryGetIndexValue(
+        TypedDispatch dispatch,
+        object instance,
+        object key,
+        ref object? value)
+    {
+        if (!dispatch.TryGetIndex(instance, key, out value))
+            return false;
+
+        value = TypeHelpers.GuardReflectionLeak(value, "indexer");
+        return true;
+    }
+
     /// <summary>
     /// In case-insensitive mode, resolves the canonical (PascalCase) member name via reflection
     /// so AOT dispatch, which uses exact names, can match. Returns null if case-sensitive
@@ -148,7 +197,7 @@ internal static class TypedDispatchHelper
     private static string? ResolveCanonicalName(
         AlderConfig config, Type type, string name, bool isStatic, MemberTypes memberTypes)
     {
-        if (config.IsCaseSensitive)
+        if (config.IsCaseSensitive || !MethodDispatchCache.DynamicCodeSupported)
             return null;
 
         var flags = BindingFlags.Public | BindingFlags.IgnoreCase

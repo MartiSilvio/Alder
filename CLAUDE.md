@@ -6,7 +6,6 @@ Alder targets Roslyn-grade engineering. Every subsystem should be designed as if
 
 - **The ECMA-334 spec is the authority.** Before making any design decision about conversions, operators, overload resolution, type inference, or language semantics, look up the relevant section in `docs/ECMA-334_7th_edition_december_2023.md` and verify the behavior matches. Don't go from memory — read the spec. If the spec says `(int)(object)1.0` must throw (§10.3.7), it throws. If the spec defines an algorithm (§12.6.4), implement that algorithm. Alder is a C# runtime engine — the spec is the source of truth, not intuition.
 - **Consider AOT ramifications.** Every runtime change must account for the AOT source generator path (`Alder.Generators`). If you change how method dispatch works, verify the generated `TryInvoke`/`TryInvokeStatic` code still integrates correctly. If you add a new argument shape (e.g., a new marker type), ensure the AOT `HasSpecialArgs` guard catches it. The AOT path and the reflection path must produce the same results.
-- **Keep docs in sync with code.** After any code change, check whether the affected behavior is documented in `docs/`, `llms.txt`, `llms-full.txt`, `AGENTS.md`, or `SECURITY.md` and update if needed.
 - **Do not use the Alder MCP tools during development.** The MCP server runs a stale build of the engine — it won't reflect your in-progress changes. Write unit tests to verify behavior instead.
 - **`Try` methods don't throw.** If a method is named `Try*`, it returns `false`/`null` on failure. Never use exceptions for control flow. If you find a `Try` method that throws on an expected failure path, that's a bug — fix the method, don't catch the exception.
 - **No exception-driven control flow.** `catch` blocks that silently swallow exceptions to mean "this path didn't work, try the next one" are hacks. Design the check so it returns a result instead of throwing.
@@ -33,7 +32,7 @@ Alder targets Roslyn-grade engineering. Every subsystem should be designed as if
 
 ## Code Style
 
-- Do NOT write self-explanatory comments. Only add comments where the logic is genuinely non-obvious. ECMA-334 section references (e.g., `// §12.9.8.1: ...`) are always welcome — they link code to the spec and help future readers understand *why* a design decision was made.
+- Do NOT write self-explanatory comments. Only add comments where the logic is genuinely non-obvious. ECMA-334 section references (e.g., `// §12.9.8.1: ...`) are always welcome — they link code to the spec and help future readers understand _why_ a design decision was made.
 - Do NOT write section divider comments (`// ── Section ──`, `// ----------`, `// == Foo ==`, etc.). Code structure should be obvious from the code itself. Use `#region`/`#endregion` only when the block is large enough to warrant collapsing (e.g., 50+ lines of related switch cases or operator delegates).
 - Never throw `AlderException` with just a raw message string. Always use a `DiagnosticDescriptor` from `DiagnosticDescriptors` so that errors have proper codes and structured formatting.
 - No magic strings for operator symbols. Use `TokenLexemes.GetCanonical(TokenType.X)` instead of hardcoding `"+"`, `"<="`, etc. Operator representations have a single source of truth in the lexer.

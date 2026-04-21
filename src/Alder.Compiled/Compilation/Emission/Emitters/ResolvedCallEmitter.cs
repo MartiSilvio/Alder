@@ -4,6 +4,7 @@ using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Compilation;
 using Alder.Runtime;
+using Alder.Runtime.OverloadResolution;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
@@ -92,14 +93,14 @@ internal static class ResolvedCallEmitter
 
         if (!call.IsExtensionCall)
         {
-            if (ctx.PreferResolvedRuntimeDispatch)
+            if (ctx.ResolvedDispatchMode == ResolvedDispatchMode.RuntimeDispatch)
             {
                 var objectArgs = LinqExpression.NewArrayInit(typeof(object), args.Select(EmitHelpers.AsObject));
                 var targetExpr = call.IsStaticCall
                     ? LinqExpression.Constant(null, typeof(object))
                     : EmitHelpers.AsObject(emittedTarget ?? ctx.Emit(memberAccess.Target));
                 var runtimeCall = LinqExpression.Call(
-                    InvokeResolvedMethodMethod,
+                    InvokePreparedMethodMethod,
                     LinqExpression.Constant(method, typeof(MethodInfo)),
                     targetExpr,
                     objectArgs,

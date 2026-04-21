@@ -197,6 +197,18 @@ public class TypeResolverTests(CompilationMode mode)
         Assert.That(result, Is.TypeOf<Dictionary<int, string>>());
     }
 
+    [Test]
+    public void ResolveType_ImplicitBcl_PrefersExactNonGenericTypeOverFriendlyGenericAlias()
+    {
+        var engine = CreateEngine();
+
+        var taskType = (Type)engine.Evaluate("typeof(Task)")!;
+        var valueTaskType = (Type)engine.Evaluate("typeof(ValueTask)")!;
+
+        Assert.That(taskType, Is.EqualTo(typeof(Task)));
+        Assert.That(valueTaskType, Is.EqualTo(typeof(ValueTask)));
+    }
+
     #endregion
 
     #region Namespace Import Resolution (RegisterNamespace)

@@ -378,12 +378,16 @@ public class BenchmarkTests
     }
 
     [Test]
-    public void Benchmark_ReflectionCache_ObjectMerge()
+    public void Benchmark_ReflectionCache_TypedPropertiesAndDictionary()
     {
-        // Object merging uses GetProperties heavily
-        const string expression = "person + new { FullName = person.FirstName + \" \" + person.LastName, IsAdult = person.Age >= 18 }";
+        const string expression = "person.FirstName + \" \" + person.LastName + \" / \" + extras[\"FullName\"]";
         var engine = new AlderEngine(new AlderOptions { LanguageMode = LanguageMode.Extended })
-            .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
+            .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 })
+            .SetVariable("extras", new Dictionary<string, object?>
+            {
+                ["FullName"] = "John Doe",
+                ["IsAdult"] = true
+            });
 
         Warmup(() => engine.Evaluate(expression));
 
@@ -394,14 +398,13 @@ public class BenchmarkTests
         }
         sw.Stop();
 
-        ReportResult("Object merge (typed + anonymous)", sw.ElapsedMilliseconds);
+        ReportResult("Typed props + dictionary index", sw.ElapsedMilliseconds);
     }
 
     [Test]
-    public void Benchmark_ReflectionCache_SpreadOperator()
+    public void Benchmark_ReflectionCache_StructuralProjection()
     {
-        // Spread also uses GetProperties
-        const string expression = "new { ..person, Email = \"john@example.com\" }";
+        const string expression = "new { person.FirstName, person.LastName, Email = \"john@example.com\" }";
         var engine = new AlderEngine(new AlderOptions { LanguageMode = LanguageMode.Extended })
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
 
@@ -414,7 +417,7 @@ public class BenchmarkTests
         }
         sw.Stop();
 
-        ReportResult("Spread typed object", sw.ElapsedMilliseconds);
+        ReportResult("Structural projection", sw.ElapsedMilliseconds);
     }
 
     [Test]
@@ -440,19 +443,19 @@ public class BenchmarkTests
     [Test]
     public void Benchmark_ReflectionCache_HeavyReflection()
     {
-        // Combine all reflection-heavy operations in one expression
+        // Combine reflection-heavy property/index access with structural projection.
         const string expression = @"
             {
-                var merged = person + new { FullName = person.FirstName + "" "" + person.LastName };
-                var summary = $""{merged.FullName} ({person.Age}) - {order.Status}: ${order.Total}"";
-                return new { ..merged, Summary = summary, Product = product.Name };
+                var summary = $""{person.FirstName} {person.LastName} ({person.Age}) - {order.Status}: ${order.Total}"";
+                return new { Summary = summary, Product = product.Name, FullName = extras[""FullName""] };
             }
         ";
 
         var engine = new AlderEngine(new AlderOptions { LanguageMode = LanguageMode.Extended })
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 })
             .SetVariable("order", new Order { Id = 1, Total = 99.99m, Status = "Complete" })
-            .SetVariable("product", new Product { Name = "Widget", Price = 19.99, InStock = true });
+            .SetVariable("product", new Product { Name = "Widget", Price = 19.99, InStock = true })
+            .SetVariable("extras", new Dictionary<string, object?> { ["FullName"] = "John Doe" });
 
         Warmup(() => engine.Evaluate(expression));
 
@@ -463,7 +466,7 @@ public class BenchmarkTests
         }
         sw.Stop();
 
-        ReportResult("Heavy reflection (merge + spread + props)", sw.ElapsedMilliseconds);
+        ReportResult("Heavy reflection (projection + props)", sw.ElapsedMilliseconds);
     }
 
 

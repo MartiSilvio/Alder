@@ -2,18 +2,31 @@ using System.Runtime.ExceptionServices;
 using Alder.Binding;
 using Alder.Diagnostics;
 using Alder.Interpretation;
+using Alder.Runtime.OverloadResolution;
 
 namespace Alder.Runtime;
 
 internal static class MethodInvoker
 {
-    internal static object? InvokeResolvedMethod(MethodInfo method, object? target, object?[] args, AlderContext context)
+    internal static object? InvokePreparedMethod(MethodInfo method, object? target, object?[] args, AlderContext context)
     {
         if (method.IsStatic)
         {
             var declaringType = method.DeclaringType ?? throw new InvalidOperationException("Resolved static method has no declaring type.");
-            if (TypedDispatchHelper.TryInvokeStatic(context.Config, declaringType, method.Name, args, out var staticResult))
-                return staticResult;
+            if (!MethodDispatchCache.DynamicCodeSupported)
+            {
+                if (TryInvokeStaticDispatch(
+                        declaringType,
+                        method.Name,
+                        args,
+                        context,
+                        typeArgs: null,
+                        method,
+                        out var staticResult))
+                    return staticResult;
+
+                throw new AlderException(DiagnosticDescriptors.GeneratedMethodRequired, declaringType.Name, method.Name);
+            }
 
             return InvokeMethodCore(method, null, args);
         }
@@ -21,10 +34,42 @@ internal static class MethodInvoker
         if (target == null)
             throw new AlderException(DiagnosticDescriptors.NullMethodCall, method.Name);
 
-        if (TypedDispatchHelper.TryInvokeInstance(context.Config, target.GetType(), method.Name, target, args, out var typedResult))
-            return typedResult;
+        if (!MethodDispatchCache.DynamicCodeSupported)
+        {
+            if (TypedDispatchHelper.TryInvokeInstance(context.Config, target.GetType(), method.Name, target, args, out var fallbackTypedResult))
+                return fallbackTypedResult;
+
+            throw new AlderException(DiagnosticDescriptors.GeneratedMethodRequired, target.GetType().Name, method.Name);
+        }
 
         return InvokeMethodCore(method, target, args);
+    }
+
+    internal static object? InvokeResolvedCall(
+        ResolvedCall resolved,
+        object? target,
+        object?[] args,
+        AlderContext context,
+        CancellationToken ct)
+    {
+        var parameters = MethodDispatchCache.GetParameters(resolved.Method);
+        var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, ct);
+
+        try
+        {
+            if (!resolved.Method.IsStatic &&
+                resolved.Method.DeclaringType is { IsGenericType: true } declaringType &&
+                declaringType.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                return TypeHelpers.InvokeNullableInstanceMethod(declaringType, target, resolved.Method.Name, prepared);
+            }
+
+            return InvokePreparedMethod(resolved.Method, target, prepared, context);
+        }
+        finally
+        {
+            ArgumentPreparer.CopyBackOutArgs(args, prepared, parameters);
+        }
     }
 
     public static object? InvokeMemberCall(
@@ -49,18 +94,21 @@ internal static class MethodInvoker
         // `Type` object itself so `typeof(int).ToString()` and `typeof(int).GetInterfaces()`
         // still resolve (the bound path handles these statically after the binder split, but
         // the fallback keeps genuinely dynamic callers working).
-        if (target is Type staticType && !HasSpecialArgs(args))
+        if (target is Type staticType)
         {
-            var resolvedArgs = args.Length >= 2 && args[0] != null
-                ? TryResolveLambdaArgs(args, args[0].GetType(), context) ?? args
-                : args;
-            if (TypedDispatchHelper.TryInvokeStatic(context.Config, staticType, methodName, resolvedArgs, out var staticResult))
+            if (TryInvokeStaticDispatch(staticType, methodName, args, context, typeArgs, resolvedMethod: null, out var staticResult))
                 return staticResult;
+
+            if (!MethodDispatchCache.DynamicCodeSupported)
+                throw new AlderException(DiagnosticDescriptors.GeneratedMethodRequired, staticType.Name, methodName);
         }
 
         var result = TryInvokeInstanceMethod(target, methodName, args, context, typeArgs, ct);
         if (result.Success)
             return result.Value;
+
+        if (!MethodDispatchCache.DynamicCodeSupported)
+            throw new AlderException(DiagnosticDescriptors.GeneratedMethodRequired, target.GetType().Name, methodName);
 
         var callee = MemberAccess.GetMember(target, methodName, nullSafe, context);
         return InvokeCall(callee, args, context, typeArgs, ct);
@@ -79,7 +127,7 @@ internal static class MethodInvoker
                 InvokeModuleMethod(moduleRef, args, context, ct),
 
             FunctionRef funcRef =>
-                funcRef.Invoke(args),
+                funcRef.Function(args),
 
             LambdaValue lambda =>
                 InvokeLambda(lambda, args, context),
@@ -88,10 +136,7 @@ internal static class MethodInvoker
                 InvokeCompiledLambda(compiled, args),
 
             Delegate del =>
-                TypeHelpers.GuardReflectionLeak(del.DynamicInvoke(args), "delegate invocation"),
-
-            StaticMethodRef staticRef =>
-                InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, typeArgs, ct),
+                InvokeDelegate(del, args),
 
             MethodRef methodRef =>
                 InvokeMethodRef(methodRef, args, context, typeArgs, ct),
@@ -101,6 +146,27 @@ internal static class MethodInvoker
         };
     }
 
+    internal static bool IsCallable(object? callee) => callee is
+        FunctionRef or
+        LambdaValue or
+        CompiledLambdaValue or
+        Delegate or
+        ModuleMethodRef or
+        MethodRef;
+
+    private static object? InvokeDelegate(Delegate del, object?[] args)
+    {
+        try
+        {
+            return TypeHelpers.GuardReflectionLeak(del.DynamicInvoke(args), "delegate invocation");
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException != null)
+        {
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw; // unreachable, satisfies compiler
+        }
+    }
+
     private static object? InvokeMethodRef(
         MethodRef methodRef,
         object?[] args,
@@ -108,6 +174,9 @@ internal static class MethodInvoker
         IReadOnlyList<string>? typeArgs,
         CancellationToken ct)
     {
+        if (methodRef.Target is Type staticType)
+            return InvokeStaticMethod(staticType, methodRef.MethodName, args, context, typeArgs, ct);
+
         var target = methodRef.Target;
 
         if (target is Range or InclusiveRange)
@@ -118,6 +187,9 @@ internal static class MethodInvoker
             context, typeArgs, ct);
         if (result.Success)
             return result.Value;
+
+        if (!MethodDispatchCache.DynamicCodeSupported)
+            throw new AlderException(DiagnosticDescriptors.GeneratedMethodRequired, target!.GetType().Name, methodRef.MethodName);
 
         if (!HasAnyMethodWithName(target!, methodRef.MethodName, context))
             throw new AlderException(DiagnosticDescriptors.MemberNotFound, target!.GetType().Name, methodRef.MethodName);
@@ -141,12 +213,15 @@ internal static class MethodInvoker
             return (false, null);
 
         var type = target.GetType();
-        var hasSpecialArgs = HasSpecialArgs(args);
+        var hasNamedArgs = HasNamedArgs(args);
 
         // Tier 1: typed dispatch (primary path for both JIT and AOT)
-        if (!hasSpecialArgs &&
+        if (!hasNamedArgs &&
             TypedDispatchHelper.TryInvokeInstance(context.Config, type, methodName, target, args, out var typedResult))
             return (true, typedResult);
+
+        if (!MethodDispatchCache.DynamicCodeSupported)
+            return (false, null);
 
         // Tier 2: reflection with overload resolution and caching
         var descriptors = ArgumentDescriptor.FromArgs(args);
@@ -154,7 +229,7 @@ internal static class MethodInvoker
         if (typeArgs is null or { Count: 0 } &&
             ResolutionCache.TryGet(type, methodName, descriptors, out var cached))
         {
-            return InvokeWithResolved(cached, target, args, ct);
+            return (true, InvokeResolvedCall(cached, target, args, context, ct));
         }
 
         var flags = BindingFlags.Public | BindingFlags.Instance;
@@ -167,124 +242,18 @@ internal static class MethodInvoker
         if (OverloadResolver.TryResolve(methods, argsWithCt, context, out var resolved, out var ambiguous, typeArgs, ct))
         {
             ResolutionCache.Set(type, methodName, descriptors, resolved);
-            return InvokeWithResolved(resolved, target, args, ct);
+            return (true, InvokeResolvedCall(resolved, target, args, context, ct));
         }
 
         if (ambiguous)
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
         // Tier 3: extension methods, per-type interleaved dispatch (typed then reflection)
-        var extensionResult = TryInvokeExtensionMethod(
-            target, methodName, args, hasSpecialArgs, context, typeArgs, ct);
+        var extensionResult = ExtensionMethodResolver.TryInvoke(target, methodName, args, context, typeArgs, ct);
         if (extensionResult.Success)
             return extensionResult;
 
         return (false, null);
-    }
-
-    private static (bool Success, object? Value) TryInvokeExtensionMethod(
-        object target, string methodName, object?[] args, bool hasSpecialArgs,
-        AlderContext context,
-        IReadOnlyList<string>? typeArgs, CancellationToken ct)
-    {
-        var extensionTypes = context.ExtensionTypes;
-        if (extensionTypes.IsDefaultOrEmpty)
-            return (false, null);
-
-        var extArgs = PrependTarget(target, args);
-        var resolvedArgs = TryResolveLambdaArgs(extArgs, target.GetType(), context) ?? extArgs;
-        var resolvedInnerArgs = resolvedArgs == extArgs ? args : resolvedArgs.AsSpan(1).ToArray();
-
-        // Try AOT extension dispatches first (value-type LINQ)
-        if (!hasSpecialArgs && context.Config.ExtensionDispatches is { } extDispatches)
-        {
-            foreach (var dispatch in extDispatches)
-            {
-                if (dispatch.TryInvokeStatic(methodName, resolvedArgs, out var aotResult))
-                    return (true, aotResult);
-            }
-        }
-
-        foreach (var extType in extensionTypes)
-        {
-            if (!hasSpecialArgs && context.Config.TryGetDispatch(extType, out var extDispatch))
-            {
-                if (extDispatch.TryInvokeStatic(methodName, resolvedArgs, out var typedResult))
-                    return (true, typedResult);
-            }
-
-            var reflResult = ExtensionMethodResolver.TryInvokeFromType(
-                target, target.GetType(), methodName, resolvedInnerArgs, extType,
-                context.Config.IsCaseSensitive, typeArgs, context, ct);
-            if (reflResult.Success)
-                return reflResult;
-        }
-
-        return (false, null);
-    }
-
-    private static object?[]? TryResolveLambdaArgs(object?[] extArgs, Type targetType, AlderContext context)
-    {
-        var elementType = TypeHelpers.GetEnumerableElementType(targetType);
-        if (elementType == null)
-            return null;
-
-        var hasConvertible = false;
-        for (var i = 1; i < extArgs.Length; i++)
-        {
-            if (extArgs[i] is LambdaValue or CompiledLambdaValue or StaticMethodRef or MethodRef or ModuleMethodRef)
-            {
-                hasConvertible = true;
-                break;
-            }
-        }
-        if (!hasConvertible)
-            return null;
-
-        var resolved = new object?[extArgs.Length];
-        resolved[0] = extArgs[0];
-
-        var inputTypes = new Binding.BoundType[] { new(elementType) };
-        for (var i = 1; i < extArgs.Length; i++)
-        {
-            var arg = extArgs[i];
-
-            if (arg is not (LambdaValue or CompiledLambdaValue or StaticMethodRef or MethodRef or ModuleMethodRef))
-            {
-                resolved[i] = arg;
-                continue;
-            }
-
-            var returnType = ExtensionMethodResolver.InferLambdaReturnType(arg, inputTypes, context);
-            if (returnType == null || returnType == typeof(object))
-            {
-                resolved[i] = arg;
-                continue;
-            }
-
-            Delegate? converted = null;
-            try
-            {
-                var delegateType = typeof(Func<,>).MakeGenericType(elementType, returnType);
-                converted = LambdaDelegateConverter.TryConvert(arg!, delegateType);
-            }
-            catch
-            {
-                // MakeGenericType can fail on NativeAOT for rare type combinations.
-                // The extension dispatch or reflection fallback handles these cases.
-            }
-            resolved[i] = converted ?? arg;
-        }
-
-        return resolved;
-    }
-
-    private static object?[] PrependTarget(object target, object?[] args)
-    {
-        var extArgs = new object?[args.Length + 1];
-        extArgs[0] = target;
-        Array.Copy(args, 0, extArgs, 1, args.Length);
-        return extArgs;
     }
 
     internal static MethodInfo? TryMakeConcreteMethodWithTypeArgs(MethodInfo genericMethod, IReadOnlyList<string> typeArgs, TypeResolver? resolver = null)
@@ -307,7 +276,7 @@ internal static class MethodInvoker
                     return null;
                 resolvedTypes[i] = type;
             }
-            if (RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, resolvedTypes, out var closedMethod))
+            if (RuntimeGenericClosure.TryCloseMethod(genericMethod, resolvedTypes, out var closedMethod))
                 return closedMethod;
             return null;
         }
@@ -323,24 +292,26 @@ internal static class MethodInvoker
         AlderContext context,
         CancellationToken ct)
     {
-        var methodName = methodRef.Method.Name;
+        var methodName = methodRef.MethodName;
         var module = methodRef.Module;
-        var target = methodRef.Method.IsStatic ? null : module.Resolve(methodRef.ServiceProvider);
+        if (!module.Members.TryGetValue(methodName, out var memberEntry) || !memberEntry.HasMethods)
+            throw new AlderException(DiagnosticDescriptors.MemberNotFound, module.Type.Name, methodName);
 
-        var methods = context.TypeMetadata.GetMethods(module.Type, methodName,
-            BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
-
-        var descriptors = ArgumentDescriptor.FromArgs(args);
-        if (OverloadResolver.TryResolve(methods, descriptors, context, out var resolved, out var ambiguous, ct: ct))
-            return InvokeWithResolved(resolved, target, args, ct).Value;
-
-        if (ambiguous)
-            throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
-
-        if (methods.Length > 0)
-            throw ClassifyOverloadFailure(methodName, methods, args, descriptors);
-
-        throw new AlderException(DiagnosticDescriptors.MemberNotFound, module.Type.Name, methodName);
+        var methods = memberEntry.Methods as MethodInfo[] ?? memberEntry.Methods.ToArray();
+        return InvokeMethodGroup(
+            methodName,
+            methods,
+            args,
+            context,
+            typeArgs: null,
+            ct,
+            targetFactory: static targetState =>
+            {
+                var moduleRef = (ModuleMethodRef)targetState!;
+                return moduleRef.Module.Resolve(moduleRef.ServiceProvider);
+            },
+            targetState: methodRef,
+            targetName: module.Type.Name);
     }
 
     private static object? InvokeStaticMethod(
@@ -351,37 +322,28 @@ internal static class MethodInvoker
         IReadOnlyList<string>? typeArgs,
         CancellationToken ct)
     {
-        if (!HasSpecialArgs(args) &&
-            TypedDispatchHelper.TryInvokeStatic(context.Config, type, methodName, args, out var aotResult))
-            return aotResult;
+        if (TryInvokeStaticDispatch(type, methodName, args, context, typeArgs, resolvedMethod: null, out var staticResult))
+            return staticResult;
 
-        var descriptors = ArgumentDescriptor.FromArgs(args);
-
-        if (typeArgs is null or { Count: 0 } &&
-            ResolutionCache.TryGet(type, methodName, descriptors, out var cached))
-        {
-            return InvokeWithResolved(cached, null, args, ct).Value;
-        }
+        if (!MethodDispatchCache.DynamicCodeSupported)
+            throw new AlderException(DiagnosticDescriptors.GeneratedMethodRequired, type.Name, methodName);
 
         var bindingFlags = BindingFlags.Public | BindingFlags.Static;
         if (!context.Config.IsCaseSensitive)
             bindingFlags |= BindingFlags.IgnoreCase;
 
         var methods = context.TypeMetadata.GetMethods(type, methodName, bindingFlags);
-
-        if (OverloadResolver.TryResolve(methods, descriptors, context, out var resolved, out var ambiguous, typeArgs, ct))
-        {
-            ResolutionCache.Set(type, methodName, descriptors, resolved);
-            return InvokeWithResolved(resolved, null, args, ct).Value;
-        }
-
-        if (ambiguous)
-            throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, $"{type.Name}.{methodName}");
-
-        if (methods.Length > 0)
-            throw ClassifyOverloadFailure(methodName, methods, args, descriptors);
-
-        throw new AlderException(DiagnosticDescriptors.MemberNotFound, type.Name, methodName);
+        return InvokeMethodGroup(
+            methodName,
+            methods,
+            args,
+            context,
+            typeArgs,
+            ct,
+            targetFactory: null,
+            targetState: null,
+            targetName: type.Name,
+            cacheOwner: type);
     }
 
     private static AlderException ClassifyOverloadFailure(
@@ -472,17 +434,71 @@ internal static class MethodInvoker
         return new AlderException(DiagnosticDescriptors.MissingRequiredArgument, argCount.ToString(), methodName);
     }
 
-    private static (bool Success, object? Value) InvokeWithResolved(
-        ResolvedCall resolved,
-        object? target,
+    private static object? InvokeMethodGroup(
+        string methodName,
+        MethodInfo[] methods,
         object?[] args,
-        CancellationToken ct)
+        AlderContext context,
+        IReadOnlyList<string>? typeArgs,
+        CancellationToken ct,
+        Func<object?, object?>? targetFactory,
+        object? targetState,
+        string targetName,
+        Type? cacheOwner = null)
     {
-        var parameters = MethodDispatchCache.GetParameters(resolved.Method);
-        var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, ct);
-        var result = InvokeMethodCore(resolved.Method, target, prepared);
-        ArgumentPreparer.CopyBackOutArgs(args, prepared, parameters);
-        return (true, result);
+        var descriptors = ArgumentDescriptor.FromArgs(args);
+
+        if (cacheOwner != null &&
+            typeArgs is null or { Count: 0 } &&
+            ResolutionCache.TryGet(cacheOwner, methodName, descriptors, out var cached))
+        {
+            var cachedTarget = cached.Method.IsStatic ? null : targetFactory?.Invoke(targetState);
+            return InvokeResolvedCall(cached, cachedTarget, args, context, ct);
+        }
+
+        if (OverloadResolver.TryResolve(methods, descriptors, context, out var resolved, out var ambiguous, typeArgs, ct))
+        {
+            if (cacheOwner != null)
+                ResolutionCache.Set(cacheOwner, methodName, descriptors, resolved);
+
+            var resolvedTarget = resolved.Method.IsStatic ? null : targetFactory?.Invoke(targetState);
+            return InvokeResolvedCall(resolved, resolvedTarget, args, context, ct);
+        }
+
+        if (ambiguous)
+            throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
+
+        if (methods.Length > 0)
+            throw ClassifyOverloadFailure(methodName, methods, args, descriptors);
+
+        throw new AlderException(DiagnosticDescriptors.MemberNotFound, targetName, methodName);
+    }
+
+    private static bool TryInvokeStaticDispatch(
+        Type declaringType,
+        string methodName,
+        object?[] args,
+        AlderContext context,
+        IReadOnlyList<string>? typeArgs,
+        MethodInfo? resolvedMethod,
+        out object? result)
+    {
+        result = null;
+        if (HasNamedArgs(args))
+            return false;
+
+        if (GenericStaticDispatchHelper.TryInvoke(
+                context.Config,
+                declaringType,
+                methodName,
+                args,
+                typeArgs,
+                context.TypeResolver,
+                resolvedMethod,
+                out result))
+            return true;
+
+        return TypedDispatchHelper.TryInvokeStatic(context.Config, declaringType, methodName, args, out result);
     }
 
     internal static object? InvokeMethodCore(
@@ -495,7 +511,7 @@ internal static class MethodInvoker
             if (!MethodDispatchCache.TryInvokeFast(method, target, args, out var result))
                 result = method.Invoke(target, args);
 
-            return TypeHelpers.GuardReflectionLeak(result, "method", method.Name);
+        return TypeHelpers.GuardReflectionLeak(result, "method", method.Name);
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {
@@ -509,7 +525,7 @@ internal static class MethodInvoker
         var typeArgs = TypeInference.Infer(genericMethod, argTypes, lambdaArgs: null, runtimeContext: null);
         if (typeArgs == null)
             return null;
-        return RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, typeArgs, out var closed)
+        return RuntimeGenericClosure.TryCloseMethod(genericMethod, typeArgs, out var closed)
             ? closed : null;
     }
 
@@ -557,7 +573,7 @@ internal static class MethodInvoker
             var def = firstParamType.GetGenericTypeDefinition();
             if (receiverType.IsGenericType && receiverType.GetGenericTypeDefinition() == def)
                 return true;
-            foreach (var iface in receiverType.GetInterfaces())
+            foreach (var iface in RuntimeTypeIntrospection.GetInterfaces(receiverType))
             {
                 if (iface.IsGenericType && iface.GetGenericTypeDefinition() == def)
                     return true;
@@ -573,11 +589,11 @@ internal static class MethodInvoker
         return false;
     }
 
-    private static bool HasSpecialArgs(object?[] args)
+    private static bool HasNamedArgs(object?[] args)
     {
         foreach (var arg in args)
         {
-            if (arg is NamedArg or OutArgMarker)
+            if (arg is NamedArg)
                 return true;
         }
         return false;

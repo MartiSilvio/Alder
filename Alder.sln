@@ -25,8 +25,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alder.Generators.Tests", "t
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alder.AotMatrix", "tests\Alder.AotMatrix\Alder.AotMatrix.csproj", "{82D14A4A-E54C-4E13-919F-436F9175EA30}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AI", "AI", "{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Alder.Runtime;
+namespace Alder.Runtime.OverloadResolution;
 
 internal static class ApplicabilityChecker
 {
@@ -206,8 +206,9 @@ internal static class ApplicabilityChecker
                 if (paramType.ContainsGenericParameters)
                 {
                     // Open generic delegate: check arity only, type inference closes it later
-                    var invoke = paramType.GetMethod(nameof(Action.Invoke));
-                    if (invoke == null || invoke.GetParameters().Length != arg.LambdaArity)
+                    if (!DelegateShapeInspector.TryGetInvoke(paramType, out var invoke))
+                        return false;
+                    if (invoke.GetParameters().Length != arg.LambdaArity)
                         return false;
                 }
                 else
@@ -265,8 +266,7 @@ internal static class ApplicabilityChecker
 
     private static int GetDelegateInputParameterCount(Type delegateType)
     {
-        var invoke = delegateType.GetMethod("Invoke");
-        return invoke?.GetParameters().Length ?? -1;
+        return DelegateShapeInspector.GetInputParameterCountOrMinusOne(delegateType);
     }
 
     private static bool IsClaimedByNamedArg(string paramName, ReadOnlySpan<ArgumentDescriptor> args)

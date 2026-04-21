@@ -1,6 +1,5 @@
 using System.Runtime.CompilerServices;
 using Alder.Binding;
-using Alder.Compilation;
 using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
@@ -25,18 +24,13 @@ public sealed class AlderExpression
     private int _boundExecutionCount;
     private int _boundFallbackCount;
     private volatile string? _lastBoundFallbackReason;
-    internal readonly ExpressionCache? _expressionCache;
     private readonly ConditionalWeakTable<AlderContext, CachedBoundExpression> _boundExpressionCacheByContext = new();
+    private readonly object _boundCacheGate = new();
 
-    internal AlderExpression(string expression, Expr ast) : this(expression, ast, null)
-    {
-    }
-
-    internal AlderExpression(string expression, Expr ast, ExpressionCache? expressionCache)
+    internal AlderExpression(string expression, Expr ast)
     {
         Source = expression;
         Ast = ast;
-        _expressionCache = expressionCache;
     }
 
     /// <summary>
@@ -72,9 +66,10 @@ public sealed class AlderExpression
     internal BoundExpr GetOrCreateBoundExpression(AlderContext context)
     {
         var currentVersion = context.GetTypeInferenceVersion();
-        if (_boundExpressionCacheByContext.TryGetValue(context, out var cached) && cached.Version == currentVersion)
+        lock (_boundCacheGate)
         {
-            return cached.Bound;
+            if (_boundExpressionCacheByContext.TryGetValue(context, out var cached) && cached.Version == currentVersion)
+                return cached.Bound;
         }
 
         var sourceText = new Text.SourceText(Source);
@@ -111,15 +106,24 @@ public sealed class AlderExpression
             throw ex;
         }
 
-        var entry = new CachedBoundExpression(currentVersion, bound, bindingContext.LocalCount);
-        _boundExpressionCacheByContext.Remove(context);
-        _boundExpressionCacheByContext.Add(context, entry);
-        return bound;
+        lock (_boundCacheGate)
+        {
+            if (_boundExpressionCacheByContext.TryGetValue(context, out var existing) && existing.Version == currentVersion)
+                return existing.Bound;
+
+            var entry = new CachedBoundExpression(currentVersion, bound, bindingContext.LocalCount);
+            _boundExpressionCacheByContext.Remove(context);
+            _boundExpressionCacheByContext.Add(context, entry);
+            return bound;
+        }
     }
 
     internal int GetLocalCount(AlderContext context)
     {
-        return _boundExpressionCacheByContext.TryGetValue(context, out var cached) ? cached.LocalCount : 0;
+        lock (_boundCacheGate)
+        {
+            return _boundExpressionCacheByContext.TryGetValue(context, out var cached) ? cached.LocalCount : 0;
+        }
     }
 
     internal bool TryGetOrCreateBoundExpression(AlderContext context, out BoundExpr? bound, out string? failureReason)

@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace Alder.Aot;
 
 /// <summary>
@@ -10,6 +12,12 @@ public abstract class AlderTypeContext
     public abstract IReadOnlyList<TypedDispatch> GetTypeMetadata();
 
     /// <summary>
+    /// Returns explicit rooted generic static dispatchers for this context.
+    /// Each dispatcher covers a bounded set of closed generic method shapes for a single declaring type.
+    /// </summary>
+    public virtual IReadOnlyList<GenericStaticDispatch>? GetGenericStaticDispatch() => null;
+
+    /// <summary>
     /// Returns delegate factories for environments where runtime generic closure is unavailable or unsafe.
     /// Each entry maps a closed delegate type such as <c>Func&lt;int, bool&gt;</c> to a factory
     /// that wraps an Alder lambda in that delegate type.
@@ -17,8 +25,8 @@ public abstract class AlderTypeContext
     public virtual IReadOnlyDictionary<Type, Func<object, Delegate>>? GetDelegateFactories() => null;
 
     /// <summary>
-    /// Returns extra dispatch entries for cases where runtime generic closure is not reliable,
-    /// such as LINQ over value-type collections under NativeAOT.
+    /// Returns the closed delegate types rooted by this context.
+    /// By default this is derived from <see cref="GetDelegateFactories"/> when available.
     /// </summary>
-    public virtual IReadOnlyList<TypedDispatch>? GetExtensionDispatches() => null;
+    public virtual IReadOnlyCollection<Type>? GetClosedDelegateTypes() => GetDelegateFactories()?.Keys.ToArray();
 }

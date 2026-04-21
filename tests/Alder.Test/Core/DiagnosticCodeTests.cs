@@ -376,8 +376,9 @@ public class DiagnosticCodeTests
         // CS1061 fires in the engine's GetMember for IDictionary member access.
         // Use Interpreted mode to ensure the engine path is exercised.
         var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
+        engine.SetVariable("dict", new Dictionary<string, object?> { ["Name"] = "test" });
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("""{ var obj = new { Name = "test" }; return obj.NonExistent; } """));
+            engine.Evaluate("""dict.NonExistent"""));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1061));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS1061"));
         Assert.That(ex.Message, Does.Contain("NonExistent"));

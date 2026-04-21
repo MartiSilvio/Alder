@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Parsing;
 
 namespace Alder.Test.Runtime;
@@ -778,7 +779,7 @@ public sealed class BoundExecutionTests
     }
 
     [Test]
-    public void Interpreted_ShouldUseBoundEvaluator_ForObjectLiteralWithSpread()
+    public void Interpreted_ShouldReject_ObjectLiteralSpread()
     {
         var engine = new AlderEngine(new AlderOptions
         {
@@ -786,15 +787,8 @@ public sealed class BoundExecutionTests
         });
         engine.SetVariable("obj", new Dictionary<string, object?> { ["A"] = 1 });
 
-        var expression = engine.Parse("new { ..obj, B = 2 }");
-        var result = engine.Evaluate(expression);
-
-        Assert.That(result, Is.AssignableTo<IDictionary<string, object?>>());
-        var dict = (IDictionary<string, object?>)result!;
-        Assert.That(dict["A"], Is.EqualTo(1));
-        Assert.That(dict["B"], Is.EqualTo(2));
-        Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
+        var ex = Assert.Throws<AlderException>(() => engine.Parse("new { ..obj, B = 2 }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     [Test]

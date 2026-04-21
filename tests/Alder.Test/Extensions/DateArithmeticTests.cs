@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Extensions;
@@ -14,8 +15,8 @@ public class DateArithmeticTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("a", new DateTime(2024, 1, 1));
         engine.SetVariable("b", new DateTime(2024, 1, 2));
-        var result = engine.Evaluate("a + b");
-        Assert.That(result, Is.InstanceOf<IDictionary<string, object?>>());
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("a + b"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
     }
 
     [Test]

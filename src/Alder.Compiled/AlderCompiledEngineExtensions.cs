@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Compiled.Compilation;
+using Alder.Compiled.DynamicLinq;
 using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
@@ -19,6 +20,7 @@ public static class AlderCompiledEngineExtensions
         typeof(AlderCompiledEngineExtensions).GetMethod(
             nameof(InvokeTypedCompiled),
             BindingFlags.NonPublic | BindingFlags.Static)!;
+    
     /// <summary>
     /// Parses source and immediately attempts compilation.
     /// </summary>
@@ -70,6 +72,15 @@ public static class AlderCompiledEngineExtensions
     /// <exception cref="InvalidOperationException">Thrown when the expression cannot be compiled to IL.</exception>
     public static AlderCompiledExpression<object?> Compile(this AlderEngine engine, string expression)
         => Compile<object?>(engine, expression);
+
+    /// <summary>
+    /// Creates a reusable Dynamic LINQ factory bound to this engine.
+    /// </summary>
+    public static IDynamicLambdaFactory CreateDynamicLambdaFactory(this AlderEngine engine)
+    {
+        engine.GetCompiledFeatureAccess().ThrowIfDisposed();
+        return new AlderDynamicLambdaFactory(engine);
+    }
 
     /// <summary>
     /// Compiles source and returns a <see cref="Func{TResult}"/> that closes over the engine state.
@@ -243,17 +254,11 @@ public static class AlderCompiledEngineExtensions
         object?[] values,
         CancellationToken cancellationToken)
     {
-        var parentContext = engine.GetContextForCompiled();
-        if (parentContext.GetTypeInferenceVersion() != parentTypeVersion)
-            throw new AlderException(DiagnosticDescriptors.CompiledExpressionStale);
-
-        var childContext = parentContext.CreateChild();
+        using var state = engine.CreateCompiledInvocationState(parentTypeVersion, cancellationToken);
         for (var i = 0; i < parameterNames.Length; i++)
-            childContext.Define(parameterNames[i], values[i], parameterTypes[i]);
+            state.ExecutionContext.Define(parameterNames[i], values[i], parameterTypes[i]);
 
-        var constraintState = new ExecutionConstraintState();
-        constraintState.Reset(config.Constraints);
-        return compiledDelegate(childContext, config, constraintState, cancellationToken);
+        return compiledDelegate(state.ExecutionContext, config, state.ConstraintState, cancellationToken);
     }
 
     /// <summary>
@@ -365,19 +370,20 @@ public static class AlderCompiledEngineExtensions
                 {
                     body = LinqExpression.Convert(body, returnType);
                 }
-                catch (InvalidOperationException)
+                catch (InvalidOperationException ex)
                 {
                     throw new AlderException(
                         DiagnosticDescriptors.CantConvAnonMethReturnType,
+                        ex,
                         delegateType.Name);
                 }
             }
 
             return LinqExpression.Lambda<TDelegate>(body, parameterExpressions);
         }
-        catch (InsufficientExecutionStackException)
+        catch (InsufficientExecutionStackException ex)
         {
-            throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
+            throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded, ex);
         }
     }
 

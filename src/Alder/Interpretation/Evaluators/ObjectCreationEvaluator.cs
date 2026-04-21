@@ -24,13 +24,13 @@ internal static class ObjectCreationEvaluator
         {
             if (entry.PropertyName != null)
             {
-                var value = ctx.Evaluate(entry.Value, ct);
+                var value = ctx.Evaluate(entry.Value!, ct);
                 MemberAccess.SetMember(result!, entry.PropertyName, value, ctx.Context);
             }
             else if (entry.IndexerKey != null)
             {
-                var value = ctx.Evaluate(entry.Value, ct);
-                var key = ctx.Evaluate(entry.IndexerKey, ct);
+                var value = ctx.Evaluate(entry.Value!, ct);
+                var key = ctx.Evaluate(entry.IndexerKey!, ct);
                 MemberAccess.SetIndex(result!, key!, value, ctx.Context);
             }
             else if (!entry.Elements.IsDefaultOrEmpty)
@@ -42,7 +42,7 @@ internal static class ObjectCreationEvaluator
             }
             else
             {
-                var value = ctx.Evaluate(entry.Value, ct);
+                var value = ctx.Evaluate(entry.Value!, ct);
                 MethodInvoker.InvokeMemberCall(result!, "Add", [value], false, ctx.Context, null, ct);
             }
         }
@@ -65,13 +65,13 @@ internal static class ObjectCreationEvaluator
         {
             if (entry.PropertyName != null)
             {
-                var value = await ctx.EvaluateAsync(entry.Value, ct);
+                var value = await ctx.EvaluateAsync(entry.Value!, ct);
                 MemberAccess.SetMember(result!, entry.PropertyName, value, ctx.Context);
             }
             else if (entry.IndexerKey != null)
             {
-                var value = await ctx.EvaluateAsync(entry.Value, ct);
-                var key = await ctx.EvaluateAsync(entry.IndexerKey, ct);
+                var value = await ctx.EvaluateAsync(entry.Value!, ct);
+                var key = await ctx.EvaluateAsync(entry.IndexerKey!, ct);
                 MemberAccess.SetIndex(result!, key!, value, ctx.Context);
             }
             else if (!entry.Elements.IsDefaultOrEmpty)
@@ -83,7 +83,7 @@ internal static class ObjectCreationEvaluator
             }
             else
             {
-                var value = await ctx.EvaluateAsync(entry.Value, ct);
+                var value = await ctx.EvaluateAsync(entry.Value!, ct);
                 MethodInvoker.InvokeMemberCall(result!, "Add", [value], false, ctx.Context, null, ct);
             }
         }

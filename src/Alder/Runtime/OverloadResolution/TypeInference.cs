@@ -1,4 +1,4 @@
-namespace Alder.Runtime;
+namespace Alder.Runtime.OverloadResolution;
 
 internal static class TypeInference
 {
@@ -25,6 +25,12 @@ internal static class TypeInference
                 ExplicitParameterTypeInference(lambdaArgs[i]!, parameters[i].ParameterType, ctx);
         }
 
+        // Some delegate-shaped parameters already have fully-known input types before any generic
+        // parameter is fixed (for example Converter<int, TOutput>). Seed output bounds immediately
+        // so those methods can participate in type inference without waiting for later iterations.
+        if (lambdaArgs != null)
+            PerformOutputTypeInference(ctx, parameters, argTypes, lambdaArgs, runtimeContext);
+
         // Phase 2 fixes type parameters iteratively as more bounds become usable.
         IterativeFix(ctx, parameters, argTypes, lambdaArgs, runtimeContext);
 
@@ -34,8 +40,12 @@ internal static class TypeInference
                 return null;
         }
 
-        return RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, ctx.FixedTypes!, out _)
-            ? ctx.FixedTypes!
+        var inferredTypes = new Type[ctx.FixedTypes.Length];
+        for (var i = 0; i < ctx.FixedTypes.Length; i++)
+            inferredTypes[i] = ctx.FixedTypes[i]!;
+
+        return RuntimeGenericClosure.TryCloseMethod(genericMethod, inferredTypes, out _)
+            ? inferredTypes
             : null;
     }
 
@@ -127,16 +137,8 @@ internal static class TypeInference
                 continue;
 
             var paramType = parameters[i].ParameterType;
-            if (!paramType.IsGenericType)
+            if (!TryGetDelegateInputOutputTypes(paramType, out var inputTypes, out var outputType))
                 continue;
-
-            var paramGenericDef = paramType.GetGenericTypeDefinition();
-            if (!IsFuncType(paramGenericDef))
-                continue;
-
-            var paramGenericArgs = paramType.GetGenericArguments();
-            var inputTypes = new Type[paramGenericArgs.Length - 1];
-            Array.Copy(paramGenericArgs, inputTypes, inputTypes.Length);
 
             if (!AllInputTypesFixed(inputTypes, ctx))
                 continue;
@@ -147,7 +149,6 @@ internal static class TypeInference
             if (resultType == null)
                 continue;
 
-            var outputType = paramGenericArgs[^1];
             LowerBoundInference(resultType, outputType, ctx);
         }
     }
@@ -191,7 +192,7 @@ internal static class TypeInference
                 substituted[j] = SubstituteSingle(args[j], ctx);
             try
             {
-                return type.GetGenericTypeDefinition().MakeGenericType(substituted);
+                return RuntimeGenericClosure.CloseType(type.GetGenericTypeDefinition(), substituted);
             }
             catch (ArgumentException)
             {
@@ -355,22 +356,14 @@ internal static class TypeInference
     // ECMA-334 section 12.6.3.2: Explicit parameter type inference for lambdas
     private static void ExplicitParameterTypeInference(object lambdaArg, Type paramType, InferenceContext ctx)
     {
-        if (!paramType.IsGenericType)
+        if (!TryGetDelegateInputOutputTypes(paramType, out var inputTypes, out _))
             return;
 
-        var paramGenericDef = paramType.GetGenericTypeDefinition();
-        if (!IsFuncType(paramGenericDef) && !IsActionType(paramGenericDef))
-            return;
-
-        var paramGenericArgs = paramType.GetGenericArguments();
         var lambdaParamCount = GetLambdaParameterCount(lambdaArg);
         if (lambdaParamCount < 0)
             return;
 
-        // For Func<T1..Tn, TResult>, input params are 0..n-1
-        // For Action<T1..Tn>, all params are input
-        var inputCount = IsFuncType(paramGenericDef) ? paramGenericArgs.Length - 1 : paramGenericArgs.Length;
-        if (lambdaParamCount != inputCount)
+        if (lambdaParamCount != inputTypes.Length)
             return;
 
         // Alder lambdas don't have explicit parameter types (they're dynamically typed),
@@ -473,7 +466,7 @@ internal static class TypeInference
 
         Type? match = null;
 
-        foreach (var iface in ReflectionRuntime.GetInterfaces(type))
+        foreach (var iface in RuntimeTypeIntrospection.GetInterfaces(type))
         {
             if (!iface.IsGenericType || iface.GetGenericTypeDefinition() != genericDef)
                 continue;
@@ -511,17 +504,10 @@ internal static class TypeInference
                 continue;
 
             var paramType = parameters[i].ParameterType;
-            if (!paramType.IsGenericType)
+            if (!TryGetDelegateInputOutputTypes(paramType, out var inputTypes, out var outputType))
                 continue;
-
-            var paramGenericDef = paramType.GetGenericTypeDefinition();
-            if (!IsFuncType(paramGenericDef))
+            if (outputType == typeof(void))
                 continue;
-
-            var paramGenericArgs = paramType.GetGenericArguments();
-            var inputTypes = new Type[paramGenericArgs.Length - 1];
-            Array.Copy(paramGenericArgs, inputTypes, inputTypes.Length);
-            var outputType = paramGenericArgs[^1];
 
             var outputIndices = CollectGenericParamIndices(outputType, ctx);
             var inputIndices = new HashSet<int>();
@@ -540,6 +526,27 @@ internal static class TypeInference
         }
 
         return depends;
+    }
+
+    private static bool TryGetDelegateInputOutputTypes(
+        Type delegateType,
+        out Type[] inputTypes,
+        out Type outputType)
+    {
+        if (!DelegateShapeInspector.TryGetInvoke(delegateType, out var invoke))
+        {
+            inputTypes = Array.Empty<Type>();
+            outputType = typeof(void);
+            return false;
+        }
+
+        var invokeParameters = invoke.GetParameters();
+        inputTypes = new Type[invokeParameters.Length];
+        for (var i = 0; i < invokeParameters.Length; i++)
+            inputTypes[i] = invokeParameters[i].ParameterType;
+
+        outputType = invoke.ReturnType;
+        return true;
     }
 
     private static HashSet<int> CollectGenericParamIndices(Type type, InferenceContext ctx)

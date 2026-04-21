@@ -1,10 +1,25 @@
 # Alder Benchmark Suite
 
-This suite is organized for public, claim-grade review. Every benchmark belongs to one of three categories:
+This suite uses a unified **Case × Evaluator × Lane** architecture for cross-engine claims.
+`DynamicLinqBenchmarks` remains specialized but aligns to the same taxonomy and manifest contract.
+
+Every benchmark still belongs to one of three categories:
 
 - `HeadToHead/*`: apples-to-apples comparisons on workloads that all compared engines can express and evaluate with semantic parity.
 - `Capability/*`: Alder-only or Alder-vs-Roslyn scenarios that demonstrate product value outside the common denominator.
 - `Operational/*`: production-shaped costs such as cold start, compilation amortization, reusable business-rule execution, dynamic query pipelines, and concurrent throughput.
+
+## Core Architecture
+
+- `BenchmarkCase`: semantic workload with expected native truth and per-engine expression payloads.
+- `IBenchmarkEvaluator`: engine adapter with capability declaration and lane-specific execution semantics.
+- `BenchmarkLane`: `PreParsed`, `Warm`, `Cold`.
+- `BenchmarkMatrixRow`: normalized row (`CaseId`, `EvaluatorId`, `Lane`, `Scale`, capability).
+- `MatrixCatalogBuilder`: deterministic row generation.
+- Capability resolution is explicit for every case/evaluator pair. Unsupported syntax is emitted as `N/A` with reason code and mapped to native-equivalent baseline context.
+- `PreParsedRunner` / `WarmRunner` / `ColdRunner`: enforce lane semantics.
+- `ParityRunner`: validates semantic equivalence before claims.
+- `BenchmarkManifestWriter`: emits JSON manifest with required tags (`Suite`, `Category`, `Lane`, `CaseId`, `EvaluatorId`, `Scale`).
 
 ## What This Suite Does Not Claim
 

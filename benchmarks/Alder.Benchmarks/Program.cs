@@ -12,4 +12,6 @@ if (args.Any(a => string.Equals(a, "--smoke-fec", StringComparison.OrdinalIgnore
     return;
 }
 
-BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
+var summaries = BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
+var runManifest = Alder.Benchmarks.BenchmarkManifestWriter.BuildRunManifest(summaries.Cast<object>());
+Alder.Benchmarks.BenchmarkManifestWriter.WriteManifest(runManifest);
