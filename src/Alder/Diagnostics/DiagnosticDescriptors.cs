@@ -404,4 +404,7 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor SpreadOutsideLiteral =
         new(DiagnosticCode.ALDR0405, "Spread operator can only be used in array or object literals");
 
+    public static readonly DiagnosticDescriptor ProjectionMaterializationFailed =
+        new(DiagnosticCode.ALDR0406, "Cannot materialize projection of type '{0}' to '{1}': {2}");
+
 }

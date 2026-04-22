@@ -288,6 +288,8 @@ public enum DiagnosticCode
     ALDR0404 = 1_000_404,
     /// <summary>Spread operator used outside array or object literal</summary>
     ALDR0405 = 1_000_405,
+    /// <summary>Cannot materialize projection of type '{0}' to '{1}': {2}</summary>
+    ALDR0406 = 1_000_406,
 }
 
 internal static class DiagnosticCodeExtensions

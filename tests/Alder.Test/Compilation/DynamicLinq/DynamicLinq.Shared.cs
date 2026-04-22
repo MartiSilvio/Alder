@@ -5,6 +5,16 @@ namespace Alder.Test.Compilation;
 
 public record Product(string Name, decimal Price, string Category, bool InStock);
 public record WarehouseStock(string Category, int Count);
+public record ProductSummaryRecord(string name, decimal price);
+public sealed class ProductSummaryDto
+{
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+}
+public sealed class ProductEnvelopeDto
+{
+    public ProductSummaryDto Product { get; set; } = null!;
+}
 
 public record Customer(string Name, int Age, Address? Address, List<Order> Orders);
 public record Address(string City, string Country, string? PostalCode);

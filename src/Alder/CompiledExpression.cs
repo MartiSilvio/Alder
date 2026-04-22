@@ -64,16 +64,6 @@ public sealed class AlderCompiledExpression<T>
         }
 
         var result = _delegate(state.ExecutionContext, _config, state.ConstraintState, cancellationToken);
-        return ConvertResult(result);
-    }
-
-    private static T? ConvertResult(object? result)
-    {
-        return result switch
-        {
-            null => default,
-            T typed => typed,
-            _ => (T)Convert.ChangeType(result, typeof(T))
-        };
+        return AlderTypedResultConverter.Convert<T>(result);
     }
 }

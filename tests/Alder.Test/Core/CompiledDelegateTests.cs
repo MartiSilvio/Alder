@@ -1,4 +1,5 @@
 using Alder.Diagnostics;
+using Alder.Test.Compilation;
 
 namespace Alder.Test.Core;
 
@@ -118,6 +119,19 @@ public class CompiledDelegateTests
         var compiled = engine.Compile<string>("\"Hello, \" + name");
 
         Assert.That(compiled.Invoke(), Is.EqualTo("Hello, World"));
+    }
+
+    [Test]
+    public void Compile_Generic_ProjectionResult_MaterializesToDto()
+    {
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
+        var compiled = engine.Compile<ProductSummaryDto>("""new { Name = "Widget", Price = 9.99m }""");
+
+        var result = compiled.Invoke();
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.Name, Is.EqualTo("Widget"));
+        Assert.That(result.Price, Is.EqualTo(9.99m));
     }
 
     [Test]

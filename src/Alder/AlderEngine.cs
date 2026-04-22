@@ -198,16 +198,7 @@ public sealed partial class AlderEngine : IDisposable
 
     private static T? ConvertResult<T>(object? result)
     {
-        return result switch
-        {
-            null => default,
-            T typed => typed,
-            _ when LambdaDelegateConverter.IsSupportedDelegateType(typeof(T)) =>
-                (T)(object)(LambdaDelegateConverter.TryConvert(result, typeof(T))
-                    ?? throw new AlderException(
-                        DiagnosticDescriptors.DelegateConversionFailed, result.GetType().Name, typeof(T).Name)),
-            _ => (T)Convert.ChangeType(result, typeof(T))
-        };
+        return AlderTypedResultConverter.Convert<T>(result);
     }
 
     private static object? UnwrapControlFlowSignal(object? result)

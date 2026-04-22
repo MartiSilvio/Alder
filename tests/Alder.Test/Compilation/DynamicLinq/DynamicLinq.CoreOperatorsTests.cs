@@ -160,6 +160,44 @@ public partial class DynamicLinqTests
             Assert.That(TestHelpers.ReadProjectedMember(first, "ProductName"), Is.EqualTo("Widget"));
             Assert.That(TestHelpers.ReadProjectedMember(first, "Price"), Is.EqualTo(9.99m));
         }
+
+        [Test]
+        public void SelectDynamic_StructuralProjection_CanBeMaterializedToRecordDto()
+        {
+            var result = Products
+                .SelectDynamic<Product, object>("new { Name, Price }")
+                .Select(AlderProjectionMaterializer.Materialize<ProductSummaryRecord>)
+                .ToList();
+
+            Assert.That(result[0]!.name, Is.EqualTo("Widget"));
+            Assert.That(result[0]!.price, Is.EqualTo(9.99m));
+        }
+
+        [Test]
+        public void SelectDynamic_StructuralProjection_CanBeMaterializedToClassDto()
+        {
+            var result = Products
+                .SelectDynamic<Product, object>("new { Name, Price }")
+                .Select(AlderProjectionMaterializer.Materialize<ProductSummaryDto>)
+                .ToList();
+
+            Assert.That(result[0]!.Name, Is.EqualTo("Widget"));
+            Assert.That(result[0]!.Price, Is.EqualTo(9.99m));
+        }
+
+        [Test]
+        public void IQueryable_SelectDynamic_StructuralProjection_CanBeMaterializedAfterEnumeration()
+        {
+            var result = Products
+                .AsQueryable()
+                .SelectDynamic<Product, object>("new { Name, Price }")
+                .ToList()
+                .Select(AlderProjectionMaterializer.Materialize<ProductSummaryDto>)
+                .ToList();
+
+            Assert.That(result[0]!.Name, Is.EqualTo("Widget"));
+            Assert.That(result[0]!.Price, Is.EqualTo(9.99m));
+        }
     }
 
     [TestFixture]

@@ -257,9 +257,9 @@ public class ParityTests(CompilationMode mode)
 
     private static void AssertResultEqual(object? result, object? expected, string exprInfo)
     {
-        if (expected != null && IsAnonymousType(expected.GetType()) && TryReadObjectProperties(result, out var actualProperties))
+        if (TryReadStructuralParityProperties(expected, result, out var expectedProperties, out var actualProperties))
         {
-            AssertAnonymousObjectEqual(actualProperties, expected);
+            AssertStructuralObjectEqual(actualProperties, expectedProperties);
             return;
         }
 
@@ -267,21 +267,44 @@ public class ParityTests(CompilationMode mode)
         Assert.That(result?.GetType(), Is.EqualTo(expected?.GetType()), $"Type mismatch.\n{exprInfo}");
     }
 
-    private static void AssertAnonymousObjectEqual(IReadOnlyDictionary<string, object?> values, object anonymous)
+    private static void AssertStructuralObjectEqual(
+        IReadOnlyDictionary<string, object?> actualProperties,
+        IReadOnlyDictionary<string, object?> expectedProperties)
     {
-        var props = anonymous.GetType().GetProperties();
-        Assert.That(values.Count, Is.EqualTo(props.Length), "Property count mismatch");
-        foreach (var prop in props)
+        Assert.That(actualProperties.Count, Is.EqualTo(expectedProperties.Count), "Property count mismatch");
+        foreach (var (name, expectedValue) in expectedProperties)
         {
-            Assert.That(values.TryGetValue(prop.Name, out var actual), Is.True, $"Missing property '{prop.Name}'");
-            Assert.That(actual, Is.EqualTo(prop.GetValue(anonymous)), $"Property '{prop.Name}' value mismatch");
+            Assert.That(actualProperties.TryGetValue(name, out var actualValue), Is.True, $"Missing property '{name}'");
+            Assert.That(actualValue, Is.EqualTo(expectedValue), $"Property '{name}' value mismatch");
         }
+    }
+
+    private static bool TryReadStructuralParityProperties(
+        object? expected,
+        object? result,
+        out IReadOnlyDictionary<string, object?> expectedProperties,
+        out IReadOnlyDictionary<string, object?> actualProperties)
+    {
+        expectedProperties = null!;
+        actualProperties = null!;
+
+        if (expected == null || !TryReadObjectProperties(result, out actualProperties))
+            return false;
+
+        if (IsAnonymousType(expected.GetType()))
+        {
+            return TryReadObjectProperties(expected, out expectedProperties);
+        }
+
+        return false;
     }
 
     private static bool TryReadObjectProperties(object? value, out IReadOnlyDictionary<string, object?> properties)
     {
         properties = null!;
         if (value == null)
+            return false;
+        if (value is Type)
             return false;
 
         if (value is IDictionary<string, object?> dict)
