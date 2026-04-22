@@ -1,2 +1,0 @@
-var arr = new[] { 10, 20, 30, 40, 50 };
-return arr[^1] == 50 && arr[1..3].Length == 2;

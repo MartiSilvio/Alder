@@ -1,6 +1,5 @@
 using System.Runtime.CompilerServices;
 using Alder.Binding;
-using Alder.Compilation;
 using Alder.Diagnostics;
 using Alder.Interpretation;
 using Alder.Runtime;

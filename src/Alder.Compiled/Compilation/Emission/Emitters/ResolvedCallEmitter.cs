@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Compilation;

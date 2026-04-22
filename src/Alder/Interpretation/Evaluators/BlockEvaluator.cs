@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime.Semantics;

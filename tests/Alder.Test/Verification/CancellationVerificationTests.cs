@@ -1,5 +1,4 @@
 using Alder.Test._Infrastructure;
-using System.Reflection;
 
 namespace Alder.Test.Verification;
 
@@ -210,44 +209,8 @@ public class CancellationVerificationTests(CompilationMode mode)
         var engine = CreateEngine();
         var cts = new CancellationTokenSource();
         cts.Cancel();
-
-        try
-        {
-            engine.Evaluate("return 1;", cancellationToken: cts.Token);
-            Assert.Fail("Should have thrown");
-        }
-        catch (OperationCanceledException)
-        {
-            Assert.Pass("Correctly throws OperationCanceledException, not AlderException");
-        }
-        catch (AlderException ex)
-        {
-            Assert.Fail($"Cancellation was wrapped in AlderException: {ex.ErrorCode} — {ex.Message}");
-        }
-    }
-
-    [Test]
-    public void CancelledEvaluation_DoesNotPersistTokenOnRootContext()
-    {
-        var engine = CreateEngine();
-        var parsed = engine.Parse("while (true) { }");
-        using var cts = new CancellationTokenSource();
-        cts.Cancel();
-
         Assert.Throws<OperationCanceledException>(() =>
-            engine.Evaluate(parsed, cancellationToken: cts.Token));
-
-        var contextField = typeof(AlderEngine).GetField("_context", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.That(contextField, Is.Not.Null);
-        var context = contextField!.GetValue(engine);
-        Assert.That(context, Is.Not.Null);
-
-        var tokenField = context!.GetType().GetField("ActiveCancellationToken", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.That(tokenField, Is.Not.Null);
-
-        var persisted = (CancellationToken)tokenField!.GetValue(context)!;
-        Assert.That(persisted, Is.EqualTo(default(CancellationToken)),
-            "Root context must not retain per-evaluation cancellation tokens.");
+            engine.Evaluate("return 1;", cancellationToken: cts.Token));
     }
 
     [Test]

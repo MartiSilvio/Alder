@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Alder.Binding.BoundNodes;
 
 namespace Alder.Binding;

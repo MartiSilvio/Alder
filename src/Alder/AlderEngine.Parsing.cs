@@ -1,6 +1,5 @@
 using Alder.Diagnostics;
 using Alder.Parsing;
-using Alder.Text;
 
 namespace Alder;
 

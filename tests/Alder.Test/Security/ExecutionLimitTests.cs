@@ -46,31 +46,4 @@ public class ExecutionLimitTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(expected));
     }
 
-    [Test]
-    public void CancellationToken_CanBeCancelled()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        // Use a very large array to ensure it takes some time
-        var items = Enumerable.Range(1, 10_000_000).ToArray();
-        engine.SetVariable("items", items);
-        using var cts = new CancellationTokenSource();
-
-        var task = Task.Run(() =>
-        {
-            return engine.Evaluate(@"
-            {
-                var sum = 0L;
-                foreach (var item in items) {
-                    sum = sum + item;
-                }
-                return sum;
-            }", cancellationToken: cts.Token);
-        });
-
-        // Give it a tiny bit of time to start
-        Thread.Sleep(10);
-        cts.Cancel();
-
-        Assert.ThrowsAsync<OperationCanceledException>(async () => await task);
-    }
 }

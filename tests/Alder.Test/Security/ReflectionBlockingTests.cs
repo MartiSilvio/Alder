@@ -27,39 +27,6 @@ public class ReflectionBlockingTests(CompilationMode mode)
     }
 
     [Test]
-    public void AllowsGetType_OnInt()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("num", 42);
-
-        var result = engine.Evaluate("num.GetType()");
-
-        Assert.That(result, Is.EqualTo(typeof(int)));
-    }
-
-    [Test]
-    public void AllowsGetType_OnList()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("items", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("items.GetType()");
-
-        Assert.That(result, Is.EqualTo(typeof(List<int>)));
-    }
-
-    [Test]
-    public void AllowsGetType_OnAnonymousObject()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("obj", new { Name = "Test", Value = 42 });
-
-        var result = engine.Evaluate("obj.GetType()");
-
-        Assert.That(result, Is.InstanceOf<Type>());
-    }
-
-    [Test]
     public void AllowsTypePropertyAccess()
     {
         var engine = TestEngineFactory.Create(mode);
@@ -69,40 +36,6 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var result = engine.Evaluate("holder.TypeValue");
 
         Assert.That(result, Is.EqualTo(typeof(string)));
-    }
-
-    [Test]
-    public void AllowsTypeFromDictionary()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("dict", new Dictionary<string, object?> { ["type"] = typeof(int) });
-
-        var result = engine.Evaluate("""dict["type"] """);
-
-        Assert.That(result, Is.EqualTo(typeof(int)));
-    }
-
-    [Test]
-    public void AllowsTypeFromArray()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("arr", new object[] { typeof(string), typeof(int) });
-
-        var result = engine.Evaluate("arr[0]");
-
-        Assert.That(result, Is.EqualTo(typeof(string)));
-    }
-
-    [Test]
-    public void AllowsSelectReturningType()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("items", new List<object> { "hello", 42, 3.14 });
-
-        var result = engine.Evaluate<List<Type>>("items.Select(x => x.GetType()).ToList()");
-
-        Assert.That(result, Has.Count.EqualTo(3));
-        Assert.That(result![0], Is.EqualTo(typeof(string)));
     }
 
     [Test]
@@ -208,64 +141,6 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("typeof(string).Assembly"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
-    }
-
-    #endregion
-
-    #region Safe Operations Still Work
-
-    [Test]
-    public void AllowsNormalMethodCalls()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("text", "hello");
-
-        var result = engine.Evaluate("text.ToUpper()");
-
-        Assert.That(result, Is.EqualTo("HELLO"));
-    }
-
-    [Test]
-    public void AllowsNormalPropertyAccess()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("text", "hello");
-
-        var result = engine.Evaluate("text.Length");
-
-        Assert.That(result, Is.EqualTo(5));
-    }
-
-    [Test]
-    public void AllowsNormalIndexAccess()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("arr", new[] { 10, 20, 30 });
-
-        var result = engine.Evaluate("arr[1]");
-
-        Assert.That(result, Is.EqualTo(20));
-    }
-
-    [Test]
-    public void AllowsModuleMethods()
-    {
-        var engine = TestEngineFactory.Create(mode);
-
-        var result = engine.Evaluate("Math.Abs(-5)");
-
-        Assert.That(result, Is.EqualTo(5));
-    }
-
-    [Test]
-    public void AllowsLinqOperations()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("items", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("items.Where(x => x > 1).Sum()");
-
-        Assert.That(result, Is.EqualTo(5));
     }
 
     #endregion

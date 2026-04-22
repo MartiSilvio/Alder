@@ -1,5 +1,3 @@
-using Alder.Binding.BoundNodes;
-
 namespace Alder.Binding.Services;
 
 internal static class NamedTargetBindingService

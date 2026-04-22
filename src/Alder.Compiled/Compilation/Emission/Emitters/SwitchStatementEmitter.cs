@@ -3,7 +3,6 @@ using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Compilation;
-using Alder.Diagnostics;
 using Alder.Interpretation;
 using Alder.Parsing;
 using Alder.Runtime;

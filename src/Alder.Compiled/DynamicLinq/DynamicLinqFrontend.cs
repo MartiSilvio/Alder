@@ -1,9 +1,6 @@
 using System.Linq.Expressions;
-using Alder.Binding;
 using Alder.Compiled.Compilation;
 using Alder.Diagnostics;
-using Alder.Parsing;
-using Alder.Runtime;
 
 namespace Alder.Compiled.DynamicLinq;
 

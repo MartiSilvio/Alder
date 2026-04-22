@@ -1,5 +1,4 @@
 using Alder.Test._Infrastructure;
-using Alder.Diagnostics;
 
 namespace Alder.Test.Core;
 

@@ -49,6 +49,18 @@ public class BenchmarkSuiteDesignTests
     }
 
     [Test]
+    public void DynamicLinqBenchmarks_IncludeRepresentativeCoverage_ForRecentSurfaceExpansion()
+    {
+        var queryNames = DynamicLinqBenchmarks.GetDynamicLinqQueries()
+            .Select(x => x.Name)
+            .ToArray();
+
+        Assert.That(queryNames, Does.Contain("SetOperator+UnionCount"));
+        Assert.That(queryNames, Does.Contain("Projection+TypedDtoFirst"));
+        Assert.That(queryNames, Does.Contain("Sequence+SequenceEqual"));
+    }
+
+    [Test]
     public void CrossEngineScenarios_StaySemanticallyAlignedAcrossEngines()
     {
         var data = BenchmarkData.CreateStandard();

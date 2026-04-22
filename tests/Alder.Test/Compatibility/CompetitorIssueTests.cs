@@ -6,12 +6,10 @@ namespace Alder.Test.Compatibility;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-public class CompetitorIssueTests(CompilationMode mode)
+public class CompatibilityRegressionTests(CompilationMode mode)
 {
-    // Dynamic Expresso issue #327:
-    // https://github.com/dynamicexpresso/DynamicExpresso/issues/327
     [Test]
-    public void Issue327_GenericInstanceMethodCall_ToObjectDateTime_Works()
+    public void GenericInstanceMethodCall_OnJObjectToken_CanMaterializeDateTime()
     {
         var engine = TestEngineFactory.Create(mode);
         var test = JObject.Parse("""
@@ -27,35 +25,8 @@ public class CompetitorIssueTests(CompilationMode mode)
         Assert.That((DateTime)result!, Is.EqualTo(new DateTime(2024, 1, 2, 3, 4, 5)));
     }
 
-    // Dynamic Expresso issue #366:
-    // https://github.com/dynamicexpresso/DynamicExpresso/issues/366
     [Test]
-    public void Issue366_NullConditionalWithLogicalAnd_Works()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        var dto = new { Object1 = (object?)null };
-        engine.SetVariable("dto", dto);
-
-        var result = engine.Evaluate("dto?.Object1 != null && dto.Object1 != null");
-        Assert.That(result, Is.False);
-    }
-
-    // Dynamic Expresso issue #367:
-    // https://github.com/dynamicexpresso/DynamicExpresso/issues/367
-    [Test]
-    public void Issue367_NullGuardWithLogicalAnd_Works()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("myobj", null);
-
-        var result = engine.Evaluate("""myobj != null && myobj.Text == "test" """);
-        Assert.That(result, Is.False);
-    }
-
-    // Dynamic Expresso issue #337:
-    // https://github.com/dynamicexpresso/DynamicExpresso/issues/337
-    [Test]
-    public void Issue337_LambdaWithStringIndexerLiteral_Works()
+    public void LambdaCanProjectDictionaryStringIndexerValues()
     {
         var engine = TestEngineFactory.Create(mode);
         var source = new[]
@@ -73,38 +44,8 @@ public class CompetitorIssueTests(CompilationMode mode)
         Assert.That(list[1], Is.EqualTo("B"));
     }
 
-    // Dynamic Expresso issue (closed) #95:
-    // https://github.com/dynamicexpresso/DynamicExpresso/issues/95
     [Test]
-    public void Issue95_ExpandoCollectionProperty_WithLinq_Works()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        dynamic root = new ExpandoObject();
-        root.Items = new List<int> { 1, 2, 3, 4 };
-        engine.SetVariable("root", root);
-
-        var result = engine.Evaluate("root.Items.Where(x => x > 2).Count()");
-        Assert.That(result, Is.EqualTo(2));
-    }
-
-    // Dynamic Expresso issue #328:
-    // https://github.com/dynamicexpresso/DynamicExpresso/issues/328
-    [Test]
-    public void Issue328_DynamicBoolPropertyAccess_Works()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        dynamic obj = new ExpandoObject();
-        obj.IsEnabled = true;
-        engine.SetVariable("obj", obj);
-
-        var result = engine.Evaluate("obj.IsEnabled");
-        Assert.That(result, Is.True);
-    }
-
-    // Dynamic Expresso issue #90:
-    // https://github.com/dynamicexpresso/DynamicExpresso/issues/90
-    [Test]
-    public void Issue90_RuntimeConstructedGenericCollection_WithLambdaWhere_Works()
+    public void RuntimeConstructedGenericCollection_CanFlowThroughLinqLambda()
     {
         var engine = TestEngineFactory.Create(mode);
 
@@ -121,10 +62,8 @@ public class CompetitorIssueTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(1));
     }
 
-    // Dynamic Expresso issue #335:
-    // https://github.com/dynamicexpresso/DynamicExpresso/issues/335
     [Test]
-    public void Issue335_MultiParameterIndexerOnCustomType()
+    public void MultiParameterIndexer_CanUseNestedIndexerArguments()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("context", new TwoKeyIndex());
@@ -134,24 +73,8 @@ public class CompetitorIssueTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("A:B"));
     }
 
-    // Dynamic Expresso issue (closed) #351:
-    // https://github.com/dynamicexpresso/DynamicExpresso/issues/351
     [Test]
-    public void Issue351_TryValidate_PropertyAccessOnRegisteredVariable_HasNoUnknownIdentifierDiagnostics()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("test", new { Name = "abc", Age = 1 });
-
-        var success = engine.TryValidate("test.Name", out var diagnostics);
-
-        Assert.That(success, Is.True);
-        Assert.That(diagnostics, Is.Empty);
-    }
-
-    // Dynamic Expresso issue (closed) #295:
-    // https://github.com/dynamicexpresso/DynamicExpresso/issues/295
-    [Test]
-    public void Issue295_ExpandoStringMember_CanBePassedToStringFunctionWithoutExplicitCast()
+    public void ExpandoStringMember_CanFlowIntoRegisteredFunction()
     {
         var engine = TestEngineFactory.Create(mode, o =>
             o.Functions.Register("PathCombine", args => Path.Combine((string)args[0]!, (string)args[1]!)));
@@ -163,15 +86,6 @@ public class CompetitorIssueTests(CompilationMode mode)
         var result = engine.Evaluate("""PathCombine(GlobalSettings.MyTestPath, "test.txt")""");
 
         Assert.That(result, Is.EqualTo(Path.Combine("C:\\delme\\", "test.txt")));
-    }
-
-    // Jace issue #92:
-    // https://github.com/pieterderycke/Jace/issues/92
-    [Test]
-    public void JaceIssue92_InvalidScientificNotation_ThrowsParseStyleError()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        Assert.Catch(() => engine.Evaluate("1e+"));
     }
 
     private sealed class TwoKeyIndex

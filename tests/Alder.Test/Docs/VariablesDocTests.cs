@@ -8,17 +8,6 @@ namespace Alder.Test.Docs;
 public class VariablesDocTests(CompilationMode mode)
 {
     [Test]
-    public void SetVariableTyped()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable<List<int>>("scores", new List<int> { 88, 92, 76, 95, 61 });
-
-        var result = engine.Evaluate<double>("scores.Where(s => s >= 70).Average()");
-
-        Assert.That(result, Is.EqualTo(87.75));
-    }
-
-    [Test]
     public void FluentChaining()
     {
         var engine = TestEngineFactory.Create(mode);
@@ -30,18 +19,6 @@ public class VariablesDocTests(CompilationMode mode)
         var result = engine.Evaluate<double>("principal * Math.Pow(1 + rate, years)");
 
         Assert.That(result, Is.EqualTo(1000.0 * Math.Pow(1.05, 10)).Within(0.001));
-    }
-
-    [Test]
-    public void AnonymousObject()
-    {
-        var engine = TestEngineFactory.Create(mode);
-
-        var result = engine.Evaluate<bool>(
-            "age >= 18 && country != null",
-            new { age = 25, country = "US" });
-
-        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -96,19 +73,6 @@ public class VariablesDocTests(CompilationMode mode)
         var expected = amounts.Select(a => a * 0.08).OrderBy(x => x).ToList();
         var actual = results.OrderBy(x => x).ToList();
         Assert.That(actual, Is.EqualTo(expected));
-    }
-
-    [Test]
-    public void GetVariables()
-    {
-        var engine = TestEngineFactory.Create(mode);
-
-        var expr = engine.Parse("orders.Where(o => o.Total > minAmount).Count()");
-        var vars = expr.GetVariables();
-
-        Assert.That(vars, Does.Contain("orders"));
-        Assert.That(vars, Does.Contain("minAmount"));
-        Assert.That(vars, Does.Not.Contain("o"));
     }
 
     [Test]

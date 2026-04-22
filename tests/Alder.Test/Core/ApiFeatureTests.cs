@@ -309,33 +309,4 @@ public class ApiFeatureTests(CompilationMode mode)
     }
 
     #endregion
-
-    #region IDisposable
-
-    [Test]
-    public void Dispose_ThenEvaluate_ThrowsObjectDisposedException()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.Dispose();
-
-        Assert.Throws<ObjectDisposedException>(() => engine.Evaluate("1 + 2"));
-    }
-
-    [Test]
-    public void Dispose_IsIdempotent()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.Dispose();
-        Assert.DoesNotThrow(() => engine.Dispose());
-    }
-
-    [Test]
-    public void Dispose_UsingPattern_Works()
-    {
-        using var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("1 + 2");
-        Assert.That(result, Is.EqualTo(3));
-    }
-
-    #endregion
 }

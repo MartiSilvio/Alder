@@ -73,6 +73,30 @@
     <Compile Update="AlderEngine.Registration.cs">
       <DependentUpon>AlderEngine.cs</DependentUpon>
     </Compile>
+    <Compile Update="AlderEngine.CompiledInvocationState.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.Evaluation.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.EvaluationAsync.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.EvaluationState.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.ExpressionState.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.Parsing.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.Validation.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.Tracing.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
   </ItemGroup>
 
 </Project>

@@ -1,10 +1,7 @@
 using System.Linq.Expressions;
-using Alder.Binding;
-using Alder.Binding.BoundNodes;
 using Alder.Compiled.Compilation;
 using Alder.Compiled.DynamicLinq;
 using Alder.Diagnostics;
-using Alder.Parsing;
 using Alder.Runtime;
 
 namespace Alder.Compiled;

@@ -1,5 +1,4 @@
 using Alder.Diagnostics;
-using Alder.Interpretation;
 using Alder.Parsing;
 
 namespace Alder.Runtime.Semantics;

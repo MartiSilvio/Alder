@@ -1,4 +1,3 @@
-using System.Globalization;
 using Alder.Diagnostics;
 
 namespace Alder.Runtime;

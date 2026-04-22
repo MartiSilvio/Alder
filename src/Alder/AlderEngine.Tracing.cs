@@ -1,6 +1,5 @@
 using Alder.Diagnostics;
 using Alder.Interpretation;
-using Alder.Runtime;
 using Alder.Tracing;
 
 namespace Alder;

@@ -315,7 +315,74 @@ public static class BenchmarkScenarios
             g => g.Products.AsQueryable().Select(p => p.Category).Contains("Electronics"),
             g => g.Products.AsQueryable().SelectDynamic<Product, string>("Category").ContainsDynamic("Electronics"),
             g => g.Products.AsQueryable().Select("Category").Cast<string>().Contains("Electronics")),
+
+        new("DynLINQ/SetOperatorUnionCount",
+            g => g.Products.AsQueryable()
+                .Where(p => p.IsActive)
+                .Select(p => p.Category)
+                .Union(g.Products.AsQueryable().Where(p => p.Price > 500m).Select(p => p.Category))
+                .Count(),
+            g =>
+            {
+                var active = g.Products.AsQueryable().WhereDynamic<Product>("IsActive").SelectDynamic<Product, string>("Category");
+                var expensive = g.Products.AsQueryable().WhereDynamic<Product>("Price > 500").SelectDynamic<Product, string>("Category");
+                return active.UnionDynamic(expensive).Count();
+            },
+            g => g.Products.AsQueryable().Where("IsActive").Select("Category").Cast<string>()
+                .Union(g.Products.AsQueryable().Where("Price > 500").Select("Category").Cast<string>())
+                .Count()),
+
+        new("DynLINQ/ProjectionTypedDtoFirst",
+            g => g.Products.AsQueryable()
+                .OrderBy(p => p.Id)
+                .Select(p => p.Price)
+                .First(),
+            g =>
+            {
+                var projection = g.Products.AsQueryable()
+                    .OrderByDynamic<Product, int>("Id")
+                    .SelectDynamic<Product, object>("new { Name, Price }")
+                    .First();
+                return ReadProjectedDecimal(projection, "Price");
+            },
+            g => ReadProjectedDecimal(
+                g.Products.AsQueryable().OrderBy("Id").Select("new (Name, Price)").First(),
+                "Price")),
+
+        new("DynLINQ/SequenceEqual",
+            g =>
+            {
+                var left = g.Products.AsQueryable().Where(p => p.IsActive).OrderBy(p => p.Id).Take(128).Select(p => p.Category);
+                var right = g.Products.AsQueryable().Where(p => p.IsActive).OrderBy(p => p.Id).Take(128).Select(p => p.Category);
+                return left.SequenceEqual(right);
+            },
+            g =>
+            {
+                var left = g.Products.AsQueryable().WhereDynamic<Product>("IsActive")
+                    .OrderByDynamic<Product, int>("Id")
+                    .Take(128)
+                    .SelectDynamic<Product, string>("Category");
+                var right = g.Products.AsQueryable().WhereDynamic<Product>("IsActive")
+                    .OrderByDynamic<Product, int>("Id")
+                    .Take(128)
+                    .SelectDynamic<Product, string>("Category");
+                return left.SequenceEqualDynamic(right);
+            },
+            g =>
+            {
+                var left = g.Products.AsQueryable().Where("IsActive").OrderBy("Id").Take(128).Select("Category").Cast<string>();
+                var right = g.Products.AsQueryable().Where("IsActive").OrderBy("Id").Take(128).Select("Category").Cast<string>();
+                return left.SequenceEqual(right);
+            }),
     ];
+
+    private static decimal ReadProjectedDecimal(object projection, string memberName)
+    {
+        var property = projection.GetType().GetProperty(memberName)
+            ?? throw new InvalidOperationException($"Projection did not expose member '{memberName}'.");
+        return (decimal)(property.GetValue(projection)
+            ?? throw new InvalidOperationException($"Projection member '{memberName}' was null."));
+    }
 
     public static IReadOnlyList<ExtendedScenario> GetExtendedScenarios() =>
     [

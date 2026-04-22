@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Verification;
 
@@ -78,77 +77,6 @@ public class ThreadSafetyVerificationTests
         engine.SetVariable<int[]>("value", [1, 2, 3]);
         Assert.That(engine.Evaluate<int>(parsed), Is.EqualTo(3),
             "Type-version change must invalidate stale bound entries and rebind against new static types.");
-    }
-
-    // Exploratory stress probe for shared parent-scoped mutation.
-    [Test]
-    [Explicit("Exploratory probe; not part of the enforced CI contract.")]
-    public void ConcurrentSharedParentCompoundAssignment_CanLoseUpdates()
-    {
-        var engine = new AlderEngine();
-        engine.SetVariable<long>("counter", 0);
-        engine.Evaluate("return counter;");
-
-        const int iterations = 5;
-        var barrier = new Barrier(iterations);
-
-        Parallel.For(0, iterations, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 2 }, _ =>
-        {
-            var child = engine.CreateChild();
-            barrier.SignalAndWait();
-            child.Evaluate("counter = counter + 1");
-        });
-
-        var finalValue = engine.Evaluate<long>("return counter;");
-        if (finalValue != iterations)
-            Assert.Warn($"Observed lost updates under unsupported shared mutation: expected {iterations}, got {finalValue}.");
-        else
-            Assert.Pass("No lost update observed in this run.");
-    }
-
-    // Exploratory stress probe for concurrent mutation during evaluation.
-    [Test]
-    [Explicit("Exploratory probe; not part of the enforced CI contract.")]
-    public void SharedParentMutation_DuringEvaluate_CanProduceTornRead()
-    {
-        var engine = new AlderEngine();
-        engine.SetVariable<long>("y", 0);
-        engine.Evaluate("return y;");
-
-        var tornReads = new ConcurrentBag<(long Left, long Right)>();
-        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-
-        var evaluator = Task.Run(() =>
-        {
-            while (!cts.Token.IsCancellationRequested)
-            {
-                try
-                {
-                    // y + y should always be even if reads are consistent
-                    var result = (long)engine.Evaluate("return y + y;")!;
-                    if (result % 2 != 0)
-                        tornReads.Add((result / 2, result - result / 2));
-                }
-                catch { }
-            }
-        });
-
-        var mutator = Task.Run(() =>
-        {
-            long val = 0;
-            while (!cts.Token.IsCancellationRequested)
-            {
-                val = val == 0 ? 1 : 0;
-                engine.SetVariable<long>("y", val);
-            }
-        });
-
-        Task.WaitAll(evaluator, mutator);
-
-        if (tornReads.Count > 0)
-            Assert.Warn($"Detected {tornReads.Count} torn reads under unsupported shared mutation.");
-        else
-            Assert.Pass("No torn reads detected in this run (race is timing-dependent)");
     }
 
     // Dispose during Evaluate must not corrupt runtime state.

@@ -1,4 +1,3 @@
-using System.Dynamic;
 using System.Collections.Concurrent;
 using Alder.Interpretation;
 using Alder.Parsing;

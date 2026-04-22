@@ -156,37 +156,6 @@ public class SecuritySandboxVerificationTests(CompilationMode mode)
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107).Or.EqualTo(DiagnosticCode.CS0246));
     }
 
-    // --- Compiled path bypass test ---
-
-    // If the binder checks security but compiled IL doesn't re-check,
-    // changing the security policy after compilation could allow a bypass.
-    // This tests the time-of-check-time-of-use gap.
-    [Test]
-    public void Attack_CompiledPathBypass_PolicyChangeAfterCompilation()
-    {
-        if (mode != CompilationMode.Compiled) return;
-
-        // Step 1: Compile with permissive policy
-        var engine = new AlderEngine(o =>
-        {
-            o.UseCompiler();
-            o.Sandbox = SandboxOptions.Trusted();
-        });
-        engine.SetVariable<string>("data", "hello");
-
-        // This should compile successfully
-        var result = engine.Evaluate("return data.ToUpper();");
-        Assert.That(result, Is.EqualTo("HELLO"));
-
-        // Document: the compiled delegate contains no runtime security checks.
-        // Security is enforced at bind time. If the same expression object were reused
-        // on an engine with a different policy, the compiled path would bypass it.
-        // This is acceptable if engines are immutable after construction, but should
-        // be documented as a security constraint.
-        Assert.Pass("Compiled path relies on bind-time security validation — " +
-                    "policy changes after compilation are not re-checked at runtime");
-    }
-
     // --- Generic type argument test ---
     [Test]
     public void Attack_GenericTypeWithBlockedArgument()

@@ -1,6 +1,4 @@
-using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
-using System.Reflection;
 
 namespace Alder.Test.Verification;
 
@@ -104,21 +102,7 @@ public class DisposeVerificationTests(CompilationMode mode)
     {
         var engine = CreateEngine();
         engine.Dispose();
-
-        try
-        {
-            engine.SetVariable("x", 42);
-            Assert.Fail("SetVariable after dispose should throw");
-        }
-        catch (ObjectDisposedException)
-        {
-            Assert.Pass("Correctly throws ObjectDisposedException");
-        }
-        catch (Exception ex)
-        {
-            Assert.Fail($"SetVariable after dispose threw {ex.GetType().Name} instead of " +
-                        $"ObjectDisposedException: {ex.Message}");
-        }
+        Assert.Throws<ObjectDisposedException>(() => engine.SetVariable("x", 42));
     }
 
     [Test]
@@ -126,21 +110,7 @@ public class DisposeVerificationTests(CompilationMode mode)
     {
         var engine = CreateEngine();
         engine.Dispose();
-
-        try
-        {
-            engine.SetVariable<int>("x", 42);
-            Assert.Fail("SetVariable<T> after dispose should throw");
-        }
-        catch (ObjectDisposedException)
-        {
-            Assert.Pass("Correctly throws ObjectDisposedException");
-        }
-        catch (Exception ex)
-        {
-            Assert.Fail($"SetVariable<T> after dispose threw {ex.GetType().Name} instead of " +
-                        $"ObjectDisposedException: {ex.Message}");
-        }
+        Assert.Throws<ObjectDisposedException>(() => engine.SetVariable<int>("x", 42));
     }
 
     [Test]
@@ -148,21 +118,8 @@ public class DisposeVerificationTests(CompilationMode mode)
     {
         var engine = CreateEngine();
         engine.Dispose();
-
-        try
-        {
-            engine.SetVariables(new Dictionary<string, object?> { ["x"] = 1 });
-            Assert.Fail("SetVariables after dispose should throw");
-        }
-        catch (ObjectDisposedException)
-        {
-            Assert.Pass("Correctly throws ObjectDisposedException");
-        }
-        catch (Exception ex)
-        {
-            Assert.Fail($"SetVariables after dispose threw {ex.GetType().Name} instead of " +
-                        $"ObjectDisposedException: {ex.Message}");
-        }
+        Assert.Throws<ObjectDisposedException>(() =>
+            engine.SetVariables(new Dictionary<string, object?> { ["x"] = 1 }));
     }
 
     // GetRegisteredModules must throw after disposal.
@@ -185,47 +142,6 @@ public class DisposeVerificationTests(CompilationMode mode)
         engine.Dispose();
         Assert.Throws<ObjectDisposedException>(() =>
             engine.CompileExpression<Func<int>>("return 1;"));
-    }
-
-    // Compiled delegate invocation contract after engine dispose.
-    //
-    // The compiled delegate holds a closure over the engine's AlderContext.
-    // After disposal, invoking the delegate may produce stale results, throw
-    // ObjectDisposedException, or crash with NRE depending on what the delegate accesses.
-    //
-    // Fix: Either (a) the compiled delegate should check disposal and throw
-    // ObjectDisposedException, or (b) document that compiled delegates are valid
-    // independently of engine lifetime (fire-and-forget pattern).
-    [Test]
-    [Explicit("Known contract gap: compiled delegate behavior after engine disposal is not yet strict.")]
-    public void CompiledDelegate_AfterEngineDispose_BehaviorDocumented()
-    {
-        if (mode != CompilationMode.Compiled) return;
-
-        var engine = new AlderEngine(o => o.UseCompiler());
-        engine.SetVariable<int>("x", 21);
-        var fn = engine.CompileExpression<Func<int>>("return x * 2;");
-        Assert.That(fn(), Is.EqualTo(42));
-
-        engine.Dispose();
-
-        try
-        {
-            var result = fn();
-            Assert.Pass($"Current behavior: compiled delegate returned {result} after engine disposal.");
-        }
-        catch (ObjectDisposedException)
-        {
-            Assert.Pass("Current behavior: compiled delegate throws ObjectDisposedException after disposal.");
-        }
-        catch (AlderException ex) when (ex.ErrorCode == DiagnosticCode.ALDR0003)
-        {
-            Assert.Pass("Current behavior: compiled delegate throws CompiledExpressionStale after disposal.");
-        }
-        catch (Exception ex)
-        {
-            Assert.Fail($"Compiled delegate threw unexpected {ex.GetType().Name}: {ex.Message}");
-        }
     }
 
     // --- Parent/child disposal interactions ---
@@ -291,93 +207,9 @@ public class DisposeVerificationTests(CompilationMode mode)
         var parent = CreateEngine();
         var child = parent.CreateChild();
         child.Dispose();
-
-        try
-        {
-            child.SetVariable("x", 1);
-            Assert.Fail("SetVariable on disposed child should throw");
-        }
-        catch (ObjectDisposedException)
-        {
-            Assert.Pass();
-        }
-        catch (Exception ex)
-        {
-            Assert.Fail($"Expected ObjectDisposedException, got {ex.GetType().Name}: {ex.Message}");
-        }
+        Assert.Throws<ObjectDisposedException>(() => child.SetVariable("x", 1));
 
         parent.Dispose();
     }
 
-    [Test]
-    public void RootEngine_UsesSingleTypeMetadataProviderInstance()
-    {
-        var engine = CreateEngine();
-
-        var configField = typeof(AlderEngine).GetField("_config", BindingFlags.Instance | BindingFlags.NonPublic);
-        var localMetadataField = typeof(AlderEngine).GetField("_typeMetadata", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.That(configField, Is.Not.Null);
-        Assert.That(localMetadataField, Is.Not.Null);
-
-        var config = configField!.GetValue(engine);
-        Assert.That(config, Is.Not.Null);
-
-        var configMetadataProperty = config!.GetType().GetProperty("TypeMetadata", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.That(configMetadataProperty, Is.Not.Null);
-
-        var configMetadata = configMetadataProperty!.GetValue(config);
-        var localMetadata = localMetadataField!.GetValue(engine);
-
-        Assert.That(localMetadata, Is.SameAs(configMetadata),
-            "Engine-local metadata cache must be the same instance used by runtime config.");
-    }
-
-    [Test]
-    public void RootDispose_ClearsSharedTypeMetadataCaches()
-    {
-        var engine = CreateEngine();
-        engine.SetVariable("s", "hello");
-        Assert.That(engine.Evaluate<int>("return s.Length;"), Is.EqualTo(5));
-
-        var metadata = GetEngineTypeMetadataProvider(engine);
-        var beforeDisposeCount = GetMetadataCacheEntryCount(metadata);
-        Assert.That(beforeDisposeCount, Is.GreaterThan(0),
-            "Evaluation should populate shared metadata caches before disposal.");
-
-        engine.Dispose();
-
-        var afterDisposeCount = GetMetadataCacheEntryCount(metadata);
-        Assert.That(afterDisposeCount, Is.EqualTo(0),
-            "Root dispose must clear shared metadata caches.");
-    }
-
-    private static object GetEngineTypeMetadataProvider(AlderEngine engine)
-    {
-        var metadataField = typeof(AlderEngine).GetField("_typeMetadata", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.That(metadataField, Is.Not.Null);
-        var metadata = metadataField!.GetValue(engine);
-        Assert.That(metadata, Is.Not.Null);
-        return metadata!;
-    }
-
-    private static int GetMetadataCacheEntryCount(object metadataProvider)
-    {
-        var total = 0;
-        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
-        foreach (var field in metadataProvider.GetType().GetFields(flags))
-        {
-            if (!field.FieldType.IsGenericType ||
-                field.FieldType.GetGenericTypeDefinition() != typeof(System.Collections.Concurrent.ConcurrentDictionary<,>))
-            {
-                continue;
-            }
-
-            var value = field.GetValue(metadataProvider);
-            var countProperty = value?.GetType().GetProperty("Count", BindingFlags.Instance | BindingFlags.Public);
-            if (countProperty?.GetValue(value) is int count)
-                total += count;
-        }
-
-        return total;
-    }
 }

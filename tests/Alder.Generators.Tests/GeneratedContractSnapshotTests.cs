@@ -1,4 +1,3 @@
-using Microsoft.CodeAnalysis;
 using NUnit.Framework;
 
 namespace Alder.Generators.Tests;

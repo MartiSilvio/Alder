@@ -114,6 +114,9 @@ public class DynamicLinqBenchmarks : BenchmarkBase
             "Projection+DistinctCategoryCount" => BuildAlderProjectionDistinctCategoryCountCached(engine),
             "Projection+Contains" => BuildAlderProjectionContainsCached(engine),
             "Projection+AnonymousMaterialization" => BuildAlderProjectionAnonymousMaterializationCached(engine),
+            "SetOperator+UnionCount" => BuildAlderSetOperatorUnionCountCached(engine),
+            "Projection+TypedDtoFirst" => BuildAlderProjectionTypedDtoFirstCached(engine),
+            "Sequence+SequenceEqual" => BuildAlderSequenceEqualCached(engine),
             "ComplexPredicate" => BuildAlderComplexPredicateCached(engine),
             "Sort+Take+Sum" => BuildAlderSortTakeSumCached(engine),
             "Any+Complex" => BuildAlderAnyComplexCached(engine),
@@ -152,6 +155,46 @@ public class DynamicLinqBenchmarks : BenchmarkBase
         return ps => ps.SelectDynamic(selector).Take(256).Count();
     }
 
+    private static Func<IQueryable<Product>, object?> BuildAlderSetOperatorUnionCountCached(AlderEngine engine)
+    {
+        var activePredicate = ParseAlderPredicate(engine, "IsActive");
+        var expensivePredicate = ParseAlderPredicate(engine, "Price > 500");
+        var selector = ParseAlderSelector<string>(engine, "Category");
+
+        return ps =>
+        {
+            var active = ps.WhereDynamic(activePredicate).SelectDynamic(selector);
+            var expensive = ps.WhereDynamic(expensivePredicate).SelectDynamic(selector);
+            return active.UnionDynamic(expensive).Count();
+        };
+    }
+
+    private static Func<IQueryable<Product>, object?> BuildAlderProjectionTypedDtoFirstCached(AlderEngine engine)
+    {
+        var selector = ParseAlderSelector<object>(engine, "new { Name, Price }");
+        var keySelector = ParseAlderSelector<int>(engine, "Id");
+
+        return ps =>
+        {
+            var projection = ps.OrderByDynamic(keySelector).SelectDynamic(selector).First();
+            return AlderProjectionMaterializer.Materialize<ProductSummaryDto>(projection)!.Price;
+        };
+    }
+
+    private static Func<IQueryable<Product>, object?> BuildAlderSequenceEqualCached(AlderEngine engine)
+    {
+        var predicate = ParseAlderPredicate(engine, "IsActive");
+        var categorySelector = ParseAlderSelector<string>(engine, "Category");
+        var idSelector = ParseAlderSelector<int>(engine, "Id");
+
+        return ps =>
+        {
+            var left = ps.WhereDynamic(predicate).OrderByDynamic(idSelector).Take(128).SelectDynamic(categorySelector);
+            var right = ps.WhereDynamic(predicate).OrderByDynamic(idSelector).Take(128).SelectDynamic(categorySelector);
+            return left.SequenceEqualDynamic(right);
+        };
+    }
+
     private static Func<IQueryable<Product>, object?> BuildAlderComplexPredicateCached(AlderEngine engine)
     {
         var predicate = ParseAlderPredicate(engine, "Price > 50 && Stock > 0 && Rating >= 4.0 && IsActive");
@@ -187,6 +230,9 @@ public class DynamicLinqBenchmarks : BenchmarkBase
             "Projection+DistinctCategoryCount" => BuildProjectionDistinctCategoryCountCached(),
             "Projection+Contains" => BuildProjectionContainsCached(),
             "Projection+AnonymousMaterialization" => BuildProjectionAnonymousMaterializationCached(),
+            "SetOperator+UnionCount" => BuildSetOperatorUnionCountCached(),
+            "Projection+TypedDtoFirst" => BuildProjectionTypedDtoFirstCached(),
+            "Sequence+SequenceEqual" => BuildSequenceEqualCached(),
             "ComplexPredicate" => BuildComplexPredicateCached(),
             "Sort+Take+Sum" => BuildSortTakeSumCached(),
             "Any+Complex" => BuildAnyComplexCached(),
@@ -223,6 +269,46 @@ public class DynamicLinqBenchmarks : BenchmarkBase
     {
         var selector = ParseProductLambda<object>("new (Category, Price)");
         return ps => ps.Select(selector).Take(256).Count();
+    }
+
+    private static Func<IQueryable<Product>, object?> BuildSetOperatorUnionCountCached()
+    {
+        var activePredicate = ParseProductLambda<bool>("IsActive");
+        var expensivePredicate = ParseProductLambda<bool>("Price > 500");
+        var selector = ParseProductLambda<string>("Category");
+
+        return ps =>
+        {
+            var active = ps.Where(activePredicate).Select(selector);
+            var expensive = ps.Where(expensivePredicate).Select(selector);
+            return active.Union(expensive).Count();
+        };
+    }
+
+    private static Func<IQueryable<Product>, object?> BuildProjectionTypedDtoFirstCached()
+    {
+        var selector = ParseProductLambda<object>("new (Name, Price)");
+        var idSelector = ParseProductLambda<int>("Id");
+
+        return ps =>
+        {
+            var projection = ps.OrderBy(idSelector).Select(selector).First();
+            return ReadProjectedDecimal(projection, nameof(ProductSummaryDto.Price));
+        };
+    }
+
+    private static Func<IQueryable<Product>, object?> BuildSequenceEqualCached()
+    {
+        var predicate = ParseProductLambda<bool>("IsActive");
+        var idSelector = ParseProductLambda<int>("Id");
+        var categorySelector = ParseProductLambda<string>("Category");
+
+        return ps =>
+        {
+            var left = ps.Where(predicate).OrderBy(idSelector).Take(128).Select(categorySelector);
+            var right = ps.Where(predicate).OrderBy(idSelector).Take(128).Select(categorySelector);
+            return left.SequenceEqual(right);
+        };
     }
 
     private static Func<IQueryable<Product>, object?> BuildComplexPredicateCached()
@@ -295,6 +381,89 @@ public class DynamicLinqBenchmarks : BenchmarkBase
                 .Count(),
             ps => ps.Select("new (Category, Price)").Take(256).Cast<object>().Count()),
 
+        new("SetOperator+UnionCount",
+            ps => ps
+                .Where(p => p.IsActive)
+                .Select(p => p.Category)
+                .Union(ps.Where(p => p.Price > 500m).Select(p => p.Category))
+                .Count(),
+            (ps, engine) =>
+            {
+                var active = ps.WhereDynamic<Product>(engine, "IsActive").SelectDynamic<Product, string>(engine, "Category");
+                var expensive = ps.WhereDynamic<Product>(engine, "Price > 500").SelectDynamic<Product, string>(engine, "Category");
+                return active.UnionDynamic(expensive).Count();
+            },
+            (ps, engine) =>
+            {
+                var activePredicate = ParseAlderPredicate(engine, "IsActive");
+                var expensivePredicate = ParseAlderPredicate(engine, "Price > 500");
+                var selector = ParseAlderSelector<string>(engine, "Category");
+                var active = ps.WhereDynamic(activePredicate).SelectDynamic(selector);
+                var expensive = ps.WhereDynamic(expensivePredicate).SelectDynamic(selector);
+                return active.UnionDynamic(expensive).Count();
+            },
+            ps => ps.Where("IsActive").Select("Category").Cast<string>()
+                .Union(ps.Where("Price > 500").Select("Category").Cast<string>())
+                .Count()),
+
+        new("Projection+TypedDtoFirst",
+            ps => ps.OrderBy(p => p.Id)
+                .Select(p => new ProductSummaryDto { Name = p.Name, Price = p.Price })
+                .First()
+                .Price,
+            (ps, engine) =>
+            {
+                var projection = ps.OrderByDynamic<Product, int>(engine, "Id")
+                    .SelectDynamic<Product, object>(engine, "new { Name, Price }")
+                    .First();
+                return AlderProjectionMaterializer.Materialize<ProductSummaryDto>(projection)!.Price;
+            },
+            (ps, engine) =>
+            {
+                var keySelector = ParseAlderSelector<int>(engine, "Id");
+                var selector = ParseAlderSelector<object>(engine, "new { Name, Price }");
+                var projection = ps.OrderByDynamic(keySelector).SelectDynamic(selector).First();
+                return AlderProjectionMaterializer.Materialize<ProductSummaryDto>(projection)!.Price;
+            },
+            ps => ReadProjectedDecimal(
+                ps.OrderBy("Id").Select("new (Name, Price)").First(),
+                nameof(ProductSummaryDto.Price))),
+
+        new("Sequence+SequenceEqual",
+            ps =>
+            {
+                var left = ps.Where(p => p.IsActive).OrderBy(p => p.Id).Take(128).Select(p => p.Category);
+                var right = ps.Where(p => p.IsActive).OrderBy(p => p.Id).Take(128).Select(p => p.Category);
+                return left.SequenceEqual(right);
+            },
+            (ps, engine) =>
+            {
+                var left = ps.WhereDynamic<Product>(engine, "IsActive")
+                    .OrderByDynamic<Product, int>(engine, "Id")
+                    .Take(128)
+                    .SelectDynamic<Product, string>(engine, "Category");
+                var right = ps.WhereDynamic<Product>(engine, "IsActive")
+                    .OrderByDynamic<Product, int>(engine, "Id")
+                    .Take(128)
+                    .SelectDynamic<Product, string>(engine, "Category");
+                return left.SequenceEqualDynamic(right);
+            },
+            (ps, engine) =>
+            {
+                var predicate = ParseAlderPredicate(engine, "IsActive");
+                var idSelector = ParseAlderSelector<int>(engine, "Id");
+                var categorySelector = ParseAlderSelector<string>(engine, "Category");
+                var left = ps.WhereDynamic(predicate).OrderByDynamic(idSelector).Take(128).SelectDynamic(categorySelector);
+                var right = ps.WhereDynamic(predicate).OrderByDynamic(idSelector).Take(128).SelectDynamic(categorySelector);
+                return left.SequenceEqualDynamic(right);
+            },
+            ps =>
+            {
+                var left = ps.Where("IsActive").OrderBy("Id").Take(128).Select("Category").Cast<string>();
+                var right = ps.Where("IsActive").OrderBy("Id").Take(128).Select("Category").Cast<string>();
+                return left.SequenceEqual(right);
+            }),
+
         new("ComplexPredicate",
             ps => ps.Count(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive),
             (ps, engine) => ps
@@ -337,6 +506,20 @@ public class DynamicLinqBenchmarks : BenchmarkBase
                 .SumDynamic(ParseAlderSelector<decimal>(engine, "Price")),
             ps => ps.Where("IsActive && Stock > 0").Where("Price > 25").Sum("Price")),
     ];
+
+    private static decimal ReadProjectedDecimal(object projection, string memberName)
+    {
+        var property = projection.GetType().GetProperty(memberName)
+            ?? throw new InvalidOperationException($"Projection did not expose member '{memberName}'.");
+        return (decimal)(property.GetValue(projection)
+            ?? throw new InvalidOperationException($"Projection member '{memberName}' was null."));
+    }
+
+    private sealed class ProductSummaryDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+    }
 }
 
 /// <summary>

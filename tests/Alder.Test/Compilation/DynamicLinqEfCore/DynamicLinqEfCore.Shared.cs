@@ -1,5 +1,4 @@
 using Alder.Test.Integration;
-using Alder.Test._Infrastructure;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 

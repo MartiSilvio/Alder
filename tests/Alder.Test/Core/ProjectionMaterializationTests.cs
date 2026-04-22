@@ -1,4 +1,3 @@
-using Alder;
 using Alder.Diagnostics;
 using Alder.Test.Compilation;
 using Alder.Test._Infrastructure;

@@ -109,26 +109,6 @@ public class DiagnosticFidelityVerificationTests(CompilationMode mode)
             "\"hello\".FakeMethod() should produce CS1061");
     }
 
-    // CS0176 — Accessing static member on instance
-    // string.Empty is static; accessing it on an instance should be an error.
-    [Test]
-    [Explicit("Exploratory probe; not part of the enforced CI contract.")]
-    public void CS0176_StaticMemberOnInstance()
-    {
-        var engine = CreateEngine();
-        engine.SetVariable("s", "hello");
-        // In Roslyn, "hello".Empty is CS0176.
-        try
-        {
-            var result = engine.Evaluate("return s.Empty;");
-            Assert.Pass($"Observed s.Empty result: {result}.");
-        }
-        catch (AlderException ex)
-        {
-            Assert.Pass($"Observed rejection code: {ex.ErrorCode}.");
-        }
-    }
-
     // Verify diagnostics contain proper error codes (not empty/null)
     [Test]
     public void Diagnostics_ContainStructuredErrorCode()

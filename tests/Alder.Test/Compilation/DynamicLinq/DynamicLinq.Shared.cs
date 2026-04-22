@@ -1,6 +1,3 @@
-using Alder.Test.Integration;
-using Alder.Test._Infrastructure;
-
 namespace Alder.Test.Compilation;
 
 public record Product(string Name, decimal Price, string Category, bool InStock);
