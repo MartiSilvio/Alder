@@ -243,7 +243,11 @@ public sealed class DynamicLinqOperatorCatalogGenerator : IIncrementalGenerator
                 EmitForwardingExtension(writer, descriptor);
 
             foreach (var descriptor in lambdaForwardingDescriptors)
+            {
                 EmitLambdaForwardingExtension(writer, descriptor);
+                if (CanEmitPlanForwardingExtension(descriptor))
+                    EmitPlanForwardingExtension(writer, descriptor);
+            }
         }
 
         return writer.ToString();
@@ -320,6 +324,15 @@ public sealed class DynamicLinqOperatorCatalogGenerator : IIncrementalGenerator
         using (writer.Block(BuildLambdaForwardingMethodSignature(descriptor)))
         {
             EmitLambdaForwardingBody(writer, descriptor);
+        }
+        writer.AppendLine();
+    }
+
+    private static void EmitPlanForwardingExtension(SourceWriter writer, LambdaForwardingExtensionDescriptor descriptor)
+    {
+        using (writer.Block(BuildPlanForwardingMethodSignature(descriptor)))
+        {
+            EmitPlanForwardingBody(writer, descriptor);
         }
         writer.AppendLine();
     }
@@ -639,6 +652,35 @@ public sealed class DynamicLinqOperatorCatalogGenerator : IIncrementalGenerator
                + ")";
     }
 
+    private static string BuildPlanForwardingMethodSignature(LambdaForwardingExtensionDescriptor descriptor)
+    {
+        var parameters = new List<string>
+        {
+            "this " + RenderLambdaForwardingTypeShape(descriptor.SourceType, descriptor) + " source",
+            "DynamicQueryPlan plan"
+        };
+
+        var genericParameters = string.IsNullOrWhiteSpace(descriptor.GenericParameters)
+            ? ""
+            : "<" + descriptor.GenericParameters + ">";
+
+        return "public static "
+               + RenderLambdaForwardingTypeShape(descriptor.ReturnType, descriptor)
+               + " "
+               + descriptor.ExtensionMethodName
+               + genericParameters
+               + "("
+               + string.Join(", ", parameters)
+               + ")";
+    }
+
+    private static bool CanEmitPlanForwardingExtension(LambdaForwardingExtensionDescriptor descriptor) =>
+        descriptor.LambdaKind is LambdaForwardingKind.ExpressionPredicate
+            or LambdaForwardingKind.ExpressionSelector
+            or LambdaForwardingKind.ExpressionKeySelector
+            or LambdaForwardingKind.ExpressionCollectionSelector
+            or LambdaForwardingKind.ExpressionDecimalSelector;
+
     private static void EmitLambdaForwardingBody(SourceWriter writer, LambdaForwardingExtensionDescriptor descriptor)
     {
         if (descriptor.SourceKind == SourceKinds.Async)
@@ -665,6 +707,55 @@ public sealed class DynamicLinqOperatorCatalogGenerator : IIncrementalGenerator
             writer.AppendLine("ArgumentNullException.ThrowIfNull(" + descriptor.LambdaParameterName + ");");
 
         writer.AppendLine("return " + invocation + ";");
+    }
+
+    private static void EmitPlanForwardingBody(SourceWriter writer, LambdaForwardingExtensionDescriptor descriptor)
+    {
+        if (descriptor.SourceKind == SourceKinds.Async)
+        {
+            EmitAsyncPlanForwardingBody(writer, descriptor);
+            return;
+        }
+
+        writer.AppendLine("ArgumentNullException.ThrowIfNull(plan);");
+
+        var genericArguments = string.IsNullOrWhiteSpace(descriptor.LinqGenericParameters)
+            ? ""
+            : "<" + descriptor.LinqGenericParameters + ">";
+        var lambdaArg = descriptor.SourceKind == SourceKinds.Enumerable
+            ? "plan.Compile<" + RenderPlanDelegateType(descriptor) + ">()"
+            : "plan.ToExpression<" + RenderPlanDelegateType(descriptor) + ">()";
+
+        writer.AppendLine("return source." + descriptor.LinqMethodName + genericArguments + "(" + lambdaArg + ");");
+    }
+
+    private static void EmitAsyncPlanForwardingBody(SourceWriter writer, LambdaForwardingExtensionDescriptor descriptor)
+    {
+        writer.AppendLine("ArgumentNullException.ThrowIfNull(plan);");
+        var compiled = "plan.Compile<" + RenderPlanDelegateType(descriptor) + ">()";
+        switch (descriptor.LambdaKind)
+        {
+            case LambdaForwardingKind.ExpressionPredicate when descriptor.LinqMethodName == "Where":
+                writer.AppendLine("return AsyncWhereCore(source, " + compiled + ");");
+                break;
+            case LambdaForwardingKind.ExpressionPredicate when descriptor.LinqMethodName == "Any":
+                writer.AppendLine("return AsyncAnyCore(source, " + compiled + ");");
+                break;
+            case LambdaForwardingKind.ExpressionPredicate when descriptor.LinqMethodName == "Count":
+                writer.AppendLine("return AsyncCountCore(source, " + compiled + ");");
+                break;
+            case LambdaForwardingKind.ExpressionSelector when descriptor.LinqMethodName == "Select":
+                writer.AppendLine("return AsyncSelectCore(source, " + compiled + ");");
+                break;
+            case LambdaForwardingKind.ExpressionCollectionSelector when descriptor.LinqMethodName == "SelectMany":
+                writer.AppendLine("return AsyncSelectManyCore(source, " + compiled + ");");
+                break;
+            case LambdaForwardingKind.ExpressionDecimalSelector when descriptor.LinqMethodName == "Sum":
+                writer.AppendLine("return AsyncSumDecimalCore(source, " + compiled + ");");
+                break;
+            default:
+                throw new InvalidOperationException("Unsupported async plan forwarding kind '" + descriptor.LambdaKind + "'.");
+        }
     }
 
     private static void EmitAsyncLambdaForwardingBody(SourceWriter writer, LambdaForwardingExtensionDescriptor descriptor)
@@ -764,6 +855,17 @@ public sealed class DynamicLinqOperatorCatalogGenerator : IIncrementalGenerator
         return lambdaType;
     }
 
+    private static string RenderPlanDelegateType(LambdaForwardingExtensionDescriptor descriptor) =>
+        descriptor.LambdaKind switch
+        {
+            LambdaForwardingKind.ExpressionPredicate => "Func<T, bool>",
+            LambdaForwardingKind.ExpressionSelector => "Func<T, TResult>",
+            LambdaForwardingKind.ExpressionKeySelector => "Func<T, TKey>",
+            LambdaForwardingKind.ExpressionCollectionSelector => "Func<T, IEnumerable<TElement>>",
+            LambdaForwardingKind.ExpressionDecimalSelector => "Func<T, decimal>",
+            _ => throw new InvalidOperationException("Unsupported plan forwarding kind '" + descriptor.LambdaKind + "'.")
+        };
+
     private static string GetLambdaCompileHelperSuffix(LambdaForwardingKind kind) =>
         kind switch
         {
@@ -821,24 +923,27 @@ public sealed class DynamicLinqOperatorCatalogGenerator : IIncrementalGenerator
         string validatedEngine,
         string methodName)
     {
-        var unaryFactory = GetUnaryFactory(descriptor, engine, validatedEngine, queryable: IsQueryable(descriptor.SourceType));
-        writer.AppendLine("return " + source + "." + methodName + "(" + unaryFactory + ");");
+        var queryable = IsQueryable(descriptor.SourceType);
+        var plan = GetUnaryPlanFactory(descriptor, validatedEngine);
+        var lambda = GetUnaryPlanLambda(descriptor, plan, queryable);
+        writer.AppendLine("return " + source + "." + methodName + "(" + lambda + ");");
     }
 
     private static void EmitAsyncTypedStringBody(SourceWriter writer, TypedStringExtensionDescriptor descriptor, bool useEngineOverload)
     {
         var engine = useEngineOverload ? "ValidateEngine(engine)" : "GetGlobalEngine()";
-        var compiledPredicate = "CompilePredicate<T>(" + engine + ", " + descriptor.FirstExpressionParameter + ", variables)";
+        var plan = GetUnaryPlanFactory(descriptor, engine);
+        var compiledPredicate = GetUnaryPlanLambda(descriptor, plan, queryable: false);
         switch (descriptor.LambdaKind)
         {
             case TypedStringLambdaKind.Predicate:
                 writer.AppendLine("return " + GetAsyncPredicateCoreMethodName(descriptor.LinqMethodName) + "(source, " + compiledPredicate + ");");
                 break;
             case TypedStringLambdaKind.MaterializingSelector:
-                writer.AppendLine("return AsyncSelectCore(source, CompileMaterializingSelector<T, TResult>(" + engine + ", " + descriptor.FirstExpressionParameter + ", BuildOrderedValues(variables)));");
+                writer.AppendLine("return AsyncSelectCore(source, CreateMaterializingSelector<T, TResult>(" + plan + ").Compile());");
                 break;
             case TypedStringLambdaKind.CollectionSelector:
-                writer.AppendLine("return AsyncSelectManyCore(source, CompileCollectionSelector<T, TElement>(" + engine + ", " + descriptor.FirstExpressionParameter + ", variables));");
+                writer.AppendLine("return AsyncSelectManyCore(source, " + compiledPredicate + ");");
                 break;
             default:
                 throw new InvalidOperationException("Unsupported async typed string lambda kind '" + descriptor.LambdaKind + "'.");
@@ -873,19 +978,25 @@ public sealed class DynamicLinqOperatorCatalogGenerator : IIncrementalGenerator
     {
         if (IsQueryable(descriptor.SourceType))
         {
+            var engineExpr = engine == "null" ? "GetGlobalEngine()" : "ValidateEngine(" + engine + ")";
+            var collectionPlan = engineExpr + ".ParseSelector<T, IEnumerable<TElement>>(" + descriptor.FirstExpressionParameter + ", BuildOrderedValues(variables))";
+            var resultPlan = engineExpr + ".ParseLambda([Expression.Parameter(typeof(T), \"outer\"), Expression.Parameter(typeof(TElement), \"inner\")], typeof(TResult), " + descriptor.SecondExpressionParameter + ", BuildOrderedValues(variables))";
             EmitReturnInvocation(
                 writer,
                 source + "." + operatorName,
-                "ParseCollectionSelector<T, TElement>(" + engine + ", " + descriptor.FirstExpressionParameter + ", variables)",
-                "ParseBinaryLambda<T, TElement, TResult>(" + engine + ", " + descriptor.SecondExpressionParameter + ", variables, \"outer\", \"inner\")");
+                collectionPlan + ".ToExpression<Func<T, IEnumerable<TElement>>>()",
+                resultPlan + ".ToExpression<Func<T, TElement, TResult>>()");
             return;
         }
 
+        var enumerableEngineExpr = engine == "null" ? "GetGlobalEngine()" : "ValidateEngine(" + engine + ")";
+        var enumerableCollectionPlan = enumerableEngineExpr + ".ParseSelector<T, IEnumerable<TElement>>(" + descriptor.FirstExpressionParameter + ", BuildOrderedValues(variables))";
+        var enumerableResultPlan = enumerableEngineExpr + ".ParseLambda([Expression.Parameter(typeof(T), \"outer\"), Expression.Parameter(typeof(TElement), \"inner\")], typeof(TResult), " + descriptor.SecondExpressionParameter + ", BuildOrderedValues(variables))";
         EmitReturnInvocation(
             writer,
             source + "." + operatorName,
-            "CompileCollectionSelector<T, TElement>(" + engine + ", " + descriptor.FirstExpressionParameter + ", variables)",
-            "CompileBinaryLambda<T, TElement, TResult>(" + engine + ", " + descriptor.SecondExpressionParameter + ", variables, \"outer\", \"inner\")");
+            enumerableCollectionPlan + ".Compile<Func<T, IEnumerable<TElement>>>()",
+            enumerableResultPlan + ".Compile<Func<T, TElement, TResult>>()");
     }
 
     private static void EmitJoinBody(
@@ -896,13 +1007,12 @@ public sealed class DynamicLinqOperatorCatalogGenerator : IIncrementalGenerator
         bool groupJoin)
     {
         var operatorName = groupJoin ? "GroupJoin" : "Join";
-        var resultSelectorFactory = groupJoin
-            ? (IsQueryable(descriptor.SourceType)
-                ? "ParseBinaryLambda<TOuter, IEnumerable<TInner>, TResult>(" + engine + ", " + descriptor.ThirdExpressionParameter + ", variables, \"outer\", \"group\")"
-                : "CompileBinaryLambda<TOuter, IEnumerable<TInner>, TResult>(" + engine + ", " + descriptor.ThirdExpressionParameter + ", variables, \"outer\", \"group\")")
-            : (IsQueryable(descriptor.SourceType)
-                ? "ParseBinaryLambda<TOuter, TInner, TResult>(" + engine + ", " + descriptor.ThirdExpressionParameter + ", variables, \"outer\", \"inner\")"
-                : "CompileBinaryLambda<TOuter, TInner, TResult>(" + engine + ", " + descriptor.ThirdExpressionParameter + ", variables, \"outer\", \"inner\")");
+        var engineExpr = engine == "null" ? "GetGlobalEngine()" : "ValidateEngine(" + engine + ")";
+        var resultRightType = groupJoin ? "IEnumerable<TInner>" : "TInner";
+        var resultRightName = groupJoin ? "group" : "inner";
+        var outerKeyPlan = engineExpr + ".ParseSelector<TOuter, TKey>(" + descriptor.FirstExpressionParameter + ", BuildOrderedValues(variables))";
+        var innerKeyPlan = engineExpr + ".ParseSelector<TInner, TKey>(" + descriptor.SecondExpressionParameter + ", BuildOrderedValues(variables))";
+        var resultPlan = engineExpr + ".ParseLambda([Expression.Parameter(typeof(TOuter), \"outer\"), Expression.Parameter(typeof(" + resultRightType + "), \"" + resultRightName + "\")], typeof(TResult), " + descriptor.ThirdExpressionParameter + ", BuildOrderedValues(variables))";
 
         if (IsQueryable(descriptor.SourceType))
         {
@@ -910,9 +1020,9 @@ public sealed class DynamicLinqOperatorCatalogGenerator : IIncrementalGenerator
                 writer,
                 source + "." + operatorName,
                 descriptor.SecondarySourceName + ".AsQueryable()",
-                "ParseSelector<TOuter, TKey>(" + engine + ", " + descriptor.FirstExpressionParameter + ", variables)",
-                "ParseSelector<TInner, TKey>(" + engine + ", " + descriptor.SecondExpressionParameter + ", variables)",
-                resultSelectorFactory);
+                outerKeyPlan + ".ToExpression<Func<TOuter, TKey>>()",
+                innerKeyPlan + ".ToExpression<Func<TInner, TKey>>()",
+                resultPlan + ".ToExpression<Func<TOuter, " + resultRightType + ", TResult>>()");
             return;
         }
 
@@ -920,37 +1030,51 @@ public sealed class DynamicLinqOperatorCatalogGenerator : IIncrementalGenerator
             writer,
             source + "." + operatorName,
             descriptor.SecondarySourceName,
-            "CompileSelector<TOuter, TKey>(" + engine + ", " + descriptor.FirstExpressionParameter + ", variables)",
-            "CompileSelector<TInner, TKey>(" + engine + ", " + descriptor.SecondExpressionParameter + ", variables)",
-            resultSelectorFactory);
+            outerKeyPlan + ".Compile<Func<TOuter, TKey>>()",
+            innerKeyPlan + ".Compile<Func<TInner, TKey>>()",
+            resultPlan + ".Compile<Func<TOuter, " + resultRightType + ", TResult>>()");
     }
 
-    private static string GetUnaryFactory(
+    private static string GetUnaryPlanFactory(
         TypedStringExtensionDescriptor descriptor,
-        string engine,
-        string validatedEngine,
-        bool queryable)
+        string validatedEngine)
     {
         var expression = descriptor.FirstExpressionParameter;
         return descriptor.LambdaKind switch
         {
-            TypedStringLambdaKind.Predicate => queryable
-                ? "ParsePredicate<T>(" + engine + ", " + expression + ", variables)"
-                : "CompilePredicate<T>(" + engine + ", " + expression + ", variables)",
-            TypedStringLambdaKind.Selector => queryable
-                ? "ParseSelector<T, TKey>(" + engine + ", " + expression + ", variables)"
-                : "CompileSelector<T, TKey>(" + engine + ", " + expression + ", variables)",
-            TypedStringLambdaKind.MaterializingSelector => queryable
-                ? "ParseMaterializingSelector<T, TResult>(" + validatedEngine + ", " + expression + ", BuildOrderedValues(variables))"
-                : "CompileMaterializingSelector<T, TResult>(" + validatedEngine + ", " + expression + ", BuildOrderedValues(variables))",
-            TypedStringLambdaKind.CollectionSelector => queryable
-                ? "ParseCollectionSelector<T, TElement>(" + engine + ", " + expression + ", variables)"
-                : "CompileCollectionSelector<T, TElement>(" + engine + ", " + expression + ", variables)",
-            TypedStringLambdaKind.Grouping => queryable
-                ? "ParseSelector<T, TKey>(" + engine + ", " + expression + ", variables)"
-                : "CompileSelector<T, TKey>(" + engine + ", " + expression + ", variables)",
+            TypedStringLambdaKind.Predicate => validatedEngine + ".ParsePredicate<T>(" + expression + ", BuildOrderedValues(variables))",
+            TypedStringLambdaKind.Selector => validatedEngine + ".ParseSelector<T, TKey>(" + expression + ", BuildOrderedValues(variables))",
+            TypedStringLambdaKind.MaterializingSelector => validatedEngine + ".ParseSelector<T, TResult>(" + expression + ", BuildOrderedValues(variables))",
+            TypedStringLambdaKind.CollectionSelector => validatedEngine + ".ParseSelector<T, IEnumerable<TElement>>(" + expression + ", BuildOrderedValues(variables))",
+            TypedStringLambdaKind.Grouping => validatedEngine + ".ParseSelector<T, TKey>(" + expression + ", BuildOrderedValues(variables))",
             _ => throw new InvalidOperationException("Unsupported unary typed string lambda kind '" + descriptor.LambdaKind + "'.")
         };
+    }
+
+    private static string GetUnaryPlanLambda(
+        TypedStringExtensionDescriptor descriptor,
+        string plan,
+        bool queryable)
+    {
+        var delegateType = descriptor.LambdaKind switch
+        {
+            TypedStringLambdaKind.Predicate => "Func<T, bool>",
+            TypedStringLambdaKind.Selector => "Func<T, TKey>",
+            TypedStringLambdaKind.MaterializingSelector => "Func<T, TResult>",
+            TypedStringLambdaKind.CollectionSelector => "Func<T, IEnumerable<TElement>>",
+            TypedStringLambdaKind.Grouping => "Func<T, TKey>",
+            _ => throw new InvalidOperationException("Unsupported unary typed string lambda kind '" + descriptor.LambdaKind + "'.")
+        };
+
+        if (descriptor.LambdaKind == TypedStringLambdaKind.MaterializingSelector)
+        {
+            var materializer = "CreateMaterializingSelector<T, TResult>(" + plan + ")";
+            return queryable ? materializer : materializer + ".Compile()";
+        }
+
+        return queryable
+            ? plan + ".ToExpression<" + delegateType + ">()"
+            : plan + ".Compile<" + delegateType + ">()";
     }
 
     private static string GetTypedLinqMethodName(TypedStringExtensionDescriptor descriptor)
@@ -1099,6 +1223,9 @@ public sealed class DynamicLinqOperatorCatalogGenerator : IIncrementalGenerator
             DispatcherTypeShape.OrderedSequenceOfT => descriptor.SourceKind == SourceKinds.Queryable ? "IOrderedQueryable<T>" : "IOrderedEnumerable<T>",
             DispatcherTypeShape.IOrderedEnumerableOfT => "IOrderedEnumerable<T>",
             DispatcherTypeShape.IOrderedQueryableOfT => "IOrderedQueryable<T>",
+            DispatcherTypeShape.SequenceOfGrouping => descriptor.SourceKind == SourceKinds.Queryable ? "IQueryable<IGrouping<TKey, T>>" : "IEnumerable<IGrouping<TKey, T>>",
+            DispatcherTypeShape.IEnumerableOfGrouping => "IEnumerable<IGrouping<TKey, T>>",
+            DispatcherTypeShape.IQueryableOfGrouping => "IQueryable<IGrouping<TKey, T>>",
             DispatcherTypeShape.Boolean => "bool",
             DispatcherTypeShape.Int32 => "int",
             DispatcherTypeShape.Int64 => "long",

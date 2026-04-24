@@ -98,10 +98,11 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public async Task Async_WhereDynamic_PreParsedExpression()
+        public async Task Async_WhereDynamic_ParsedPlanExpressionInterop()
         {
-            var predicate = (Expression<Func<Product, bool>>)AlderEval.GetEngine()
-                .ParsePredicateExpression(typeof(Product), "Price > 50m");
+            var predicate = AlderEval.GetEngine()
+                .ParsePredicate<Product>("Price > 50m")
+                .ToExpression<Func<Product, bool>>();
 
             var result = new List<Product>();
             await foreach (var product in ToAsyncEnumerable(Products).WhereDynamic(predicate))

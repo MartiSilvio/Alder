@@ -2,20 +2,36 @@ using System.Linq.Expressions;
 
 namespace Alder.Compiled.DynamicLinq;
 
-public static class DynamicLambdaParser
+public static class DynamicQueryParser
 {
-    public static LambdaExpression ParsePredicateExpression(
+    public static DynamicQueryPlan ParsePredicate<T>(
+        this AlderEngine engine,
+        string expression,
+        IReadOnlyList<KeyValuePair<string, object?>>? values = null,
+        string? itName = null)
+        => engine.ParsePredicate(typeof(T), expression, values, itName);
+
+    public static DynamicQueryPlan ParsePredicate(
         this AlderEngine engine,
         Type itType,
         string expression,
         IReadOnlyList<KeyValuePair<string, object?>>? values = null,
         string? itName = null)
     {
+        ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(itType);
+        ArgumentNullException.ThrowIfNull(expression);
         return DynamicLinqFrontend.ParsePredicate(engine, itType, expression, values, itName);
     }
 
-    public static LambdaExpression ParseSelectorExpression(
+    public static DynamicQueryPlan ParseSelector<T, TResult>(
+        this AlderEngine engine,
+        string expression,
+        IReadOnlyList<KeyValuePair<string, object?>>? values = null,
+        string? itName = null)
+        => engine.ParseSelector(typeof(T), typeof(TResult), expression, values, itName);
+
+    public static DynamicQueryPlan ParseSelector(
         this AlderEngine engine,
         Type itType,
         Type? resultType,
@@ -23,15 +39,13 @@ public static class DynamicLambdaParser
         IReadOnlyList<KeyValuePair<string, object?>>? values = null,
         string? itName = null)
     {
+        ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(itType);
-        return DynamicLinqFrontend.ParseProjection(engine, itType, resultType, expression, values, itName);
+        ArgumentNullException.ThrowIfNull(expression);
+        return DynamicLinqFrontend.ParseSelector(engine, itType, resultType, expression, values, itName);
     }
 
-    /// <summary>
-    /// Parses an expression into a <see cref="LambdaExpression"/> with a single input parameter type.
-    /// Supports both lambda syntax (<c>x =&gt; ...</c>) and body-only syntax (<c>x + 1</c>).
-    /// </summary>
-    public static LambdaExpression ParseLambdaExpression(
+    public static DynamicQueryPlan ParseLambda(
         this AlderEngine engine,
         Type itType,
         Type? resultType,
@@ -41,14 +55,10 @@ public static class DynamicLambdaParser
     {
         ArgumentNullException.ThrowIfNull(itType);
         var parameter = Expression.Parameter(itType, string.IsNullOrWhiteSpace(itName) ? "it" : itName);
-        return DynamicLinqFrontend.ParseLambda(engine, [parameter], resultType, expression, values);
+        return engine.ParseLambda([parameter], resultType, expression, values);
     }
 
-    /// <summary>
-    /// Parses an expression into a <see cref="LambdaExpression"/> with explicit parameter types and names.
-    /// Supports both lambda syntax and body-only syntax.
-    /// </summary>
-    public static LambdaExpression ParseLambdaExpression(
+    public static DynamicQueryPlan ParseLambda(
         this AlderEngine engine,
         IReadOnlyList<Type> parameterTypes,
         IReadOnlyList<string>? parameterNames,
@@ -71,20 +81,19 @@ public static class DynamicLambdaParser
             parameters[i] = Expression.Parameter(parameterTypes[i], name);
         }
 
-        return DynamicLinqFrontend.ParseLambda(engine, parameters, resultType, expression, values);
+        return engine.ParseLambda(parameters, resultType, expression, values);
     }
 
-    /// <summary>
-    /// Parses an expression into a <see cref="LambdaExpression"/> using explicit parameter expressions.
-    /// Supports both lambda syntax and body-only syntax.
-    /// </summary>
-    public static LambdaExpression ParseLambdaExpression(
+    public static DynamicQueryPlan ParseLambda(
         this AlderEngine engine,
         IReadOnlyList<ParameterExpression> parameters,
         Type? resultType,
         string expression,
         IReadOnlyList<KeyValuePair<string, object?>>? values = null)
     {
+        ArgumentNullException.ThrowIfNull(engine);
+        ArgumentNullException.ThrowIfNull(parameters);
+        ArgumentNullException.ThrowIfNull(expression);
         return DynamicLinqFrontend.ParseLambda(engine, parameters, resultType, expression, values);
     }
 }

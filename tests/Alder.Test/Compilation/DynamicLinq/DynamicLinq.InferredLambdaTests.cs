@@ -11,7 +11,7 @@ public partial class DynamicLinqTests
     public class InferredLambda : CompilerFixtureBase
     {
         [Test]
-        public void ParsePredicateExpression_InferredDescriptor_ReportsBoolScalar()
+        public void ParsePredicate_InferredDescriptor_ReportsBoolScalar()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
             var parameter = Expression.Parameter(typeof(Product), "it");
@@ -32,7 +32,7 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void ParseSelectorExpression_InferredDescriptor_ReportsScalarResultType()
+        public void ParseSelector_InferredDescriptor_ReportsScalarResultType()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
             var parameter = Expression.Parameter(typeof(Product), "it");
@@ -52,7 +52,7 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void ParseSelectorExpression_InferredDescriptor_ReportsStructuralResultShape()
+        public void ParseSelector_InferredDescriptor_ReportsStructuralResultShape()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
             var parameter = Expression.Parameter(typeof(Product), "it");
@@ -72,7 +72,7 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void ParseSelectorExpression_InferredDescriptor_ReportsCollectionResultShape()
+        public void ParseSelector_InferredDescriptor_ReportsCollectionResultShape()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
             var parameter = Expression.Parameter(typeof(Customer), "it");
@@ -92,7 +92,7 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void ParseLambdaExpression_InferredDescriptor_ReportsBinarySelectorResultType()
+        public void ParseLambda_InferredDescriptor_ReportsBinarySelectorResultType()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
             var outer = Expression.Parameter(typeof(Customer), "outer");

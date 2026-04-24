@@ -71,20 +71,22 @@ public partial class DynamicLinqTests
             Assert.That(Products.WhereDynamic("Price > @0", 50m).Count(), Is.EqualTo(2));
 
         [Test]
-        public void WhereDynamic_PreParsedExpression()
+        public void WhereDynamic_ParsedPlanExpressionInterop()
         {
-            var predicate = (Expression<Func<Product, bool>>)AlderEval.GetEngine()
-                .ParsePredicateExpression(typeof(Product), "Price > 50m");
+            var predicate = AlderEval.GetEngine()
+                .ParsePredicate<Product>("Price > 50m")
+                .ToExpression<Func<Product, bool>>();
 
             var result = Products.WhereDynamic(predicate).ToList();
             Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Doohickey", "Whatchamacallit" }));
         }
 
         [Test]
-        public void WhereDynamic_PreParsedDelegate()
+        public void WhereDynamic_ParsedPlanCompiledDelegateInterop()
         {
-            var predicate = (Expression<Func<Product, bool>>)AlderEval.GetEngine()
-                .ParsePredicateExpression(typeof(Product), "Price > 50m");
+            var predicate = AlderEval.GetEngine()
+                .ParsePredicate<Product>("Price > 50m")
+                .ToExpression<Func<Product, bool>>();
 
             var result = Products.WhereDynamic(predicate.Compile()).ToList();
             Assert.That(result.Select(p => p.Name), Is.EquivalentTo(new[] { "Doohickey", "Whatchamacallit" }));
@@ -127,10 +129,11 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void SelectDynamic_PreParsedExpression()
+        public void SelectDynamic_ParsedPlanExpressionInterop()
         {
-            var selector = (Expression<Func<Product, decimal>>)AlderEval.GetEngine()
-                .ParseSelectorExpression(typeof(Product), typeof(decimal), "Price");
+            var selector = AlderEval.GetEngine()
+                .ParseSelector<Product, decimal>("Price")
+                .ToExpression<Func<Product, decimal>>();
 
             var result = Products.SelectDynamic(selector).ToList();
             Assert.That(result, Does.Contain(9.99m));
@@ -279,10 +282,11 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void OrderByDynamic_PreParsedExpression()
+        public void OrderByDynamic_ParsedPlanExpressionInterop()
         {
-            var keySelector = (Expression<Func<Product, decimal>>)AlderEval.GetEngine()
-                .ParseSelectorExpression(typeof(Product), typeof(decimal), "Price");
+            var keySelector = AlderEval.GetEngine()
+                .ParseSelector<Product, decimal>("Price")
+                .ToExpression<Func<Product, decimal>>();
 
             var result = Products.OrderByDynamic(keySelector).ToList();
             Assert.That(result[0].Name, Is.EqualTo("Thingamajig"));
@@ -819,10 +823,11 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void SumDynamic_PreParsedExpression()
+        public void SumDynamic_ParsedPlanExpressionInterop()
         {
-            var selector = (Expression<Func<Product, decimal>>)AlderEval.GetEngine()
-                .ParseSelectorExpression(typeof(Product), typeof(decimal), "Price");
+            var selector = AlderEval.GetEngine()
+                .ParseSelector<Product, decimal>("Price")
+                .ToExpression<Func<Product, decimal>>();
 
             Assert.That(Products.SumDynamic(selector), Is.EqualTo(514.95m));
         }

@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compiled.DynamicLinq;
 using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
@@ -32,25 +33,7 @@ internal static class QueryExpressionPreparer
             unwrapBodyOnlyReturn: true);
     }
 
-    internal static PreparedQueryLambda PrepareDynamicLambda(
-        AlderEngine engine,
-        IReadOnlyList<ParameterExpression> parameters,
-        string expression,
-        IReadOnlyList<KeyValuePair<string, object?>>? values,
-        bool enableImplicitReceiver)
-    {
-        var prepared = PrepareDynamicQueryLambda(
-            engine,
-            parameters,
-            expression,
-            values,
-            enableImplicitReceiver,
-            InferKind(parameters.Count, expression));
-
-        return new PreparedQueryLambda(prepared.BoundBody, prepared.Parameters, prepared.CapturedVariables);
-    }
-
-    internal static PreparedDynamicQueryLambda PrepareDynamicQueryLambda(
+    internal static DynamicQueryPlan PrepareDynamicQueryLambda(
         AlderEngine engine,
         IReadOnlyList<ParameterExpression> parameters,
         string expression,
@@ -109,10 +92,13 @@ internal static class QueryExpressionPreparer
             unwrapBodyOnlyReturn,
             InferKind(providedParameters.Count, expression));
 
-        return new PreparedQueryLambda(prepared.BoundBody, prepared.Parameters, prepared.CapturedVariables);
+        return new PreparedQueryLambda(
+            prepared.BoundBody,
+            [.. prepared.Parameters],
+            new Dictionary<string, object?>(prepared.CapturedVariables, StringComparer.Ordinal));
     }
 
-    private static PreparedDynamicQueryLambda PrepareCore(
+    private static DynamicQueryPlan PrepareCore(
         AlderEngine engine,
         string expression,
         IReadOnlyList<QueryParameterBinding> providedParameters,
@@ -185,7 +171,7 @@ internal static class QueryExpressionPreparer
         var exportedLambda = Expression.Lambda(
             new QueryTreeExporter(lambdaParameters, engineVariables).Export(boundBody),
             lambdaParameters);
-        return new PreparedDynamicQueryLambda(
+        return new DynamicQueryPlan(
             expectedKind,
             ClassifyResultShape(boundBody.StaticType.ClrType),
             boundBody.StaticType.ClrType,

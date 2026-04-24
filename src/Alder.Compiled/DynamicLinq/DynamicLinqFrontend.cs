@@ -6,7 +6,7 @@ namespace Alder.Compiled.DynamicLinq;
 
 internal static class DynamicLinqFrontend
 {
-    internal static LambdaExpression ParsePredicate(
+    internal static DynamicQueryPlan ParsePredicate(
         AlderEngine engine,
         Type itType,
         string expression,
@@ -14,7 +14,7 @@ internal static class DynamicLinqFrontend
         string? itName)
     {
         var parameter = CreateItParameter(itType, itName);
-        return ParseLambdaCore(
+        return PrepareLambdaCore(
             engine,
             [parameter],
             typeof(bool),
@@ -24,7 +24,7 @@ internal static class DynamicLinqFrontend
             expectedKind: DynamicQueryLambdaKind.Predicate);
     }
 
-    internal static LambdaExpression ParseProjection(
+    internal static DynamicQueryPlan ParseSelector(
         AlderEngine engine,
         Type itType,
         Type? resultType,
@@ -33,7 +33,7 @@ internal static class DynamicLinqFrontend
         string? itName)
     {
         var parameter = CreateItParameter(itType, itName);
-        return ParseLambdaCore(
+        return PrepareLambdaCore(
             engine,
             [parameter],
             resultType,
@@ -45,7 +45,7 @@ internal static class DynamicLinqFrontend
                 : DynamicQueryLambdaKind.Selector);
     }
 
-    internal static LambdaExpression ParseLambda(
+    internal static DynamicQueryPlan PrepareLambda(
         AlderEngine engine,
         IReadOnlyList<ParameterExpression> parameters,
         Type? resultType,
@@ -53,7 +53,7 @@ internal static class DynamicLinqFrontend
         IReadOnlyList<KeyValuePair<string, object?>>? values)
     {
         var enableImplicitReceiver = parameters.Count == 1;
-        return ParseLambdaCore(
+        return PrepareLambdaCore(
             engine,
             parameters,
             resultType,
@@ -67,7 +67,15 @@ internal static class DynamicLinqFrontend
                     : DynamicQueryLambdaKind.Selector);
     }
 
-    private static LambdaExpression ParseLambdaCore(
+    internal static DynamicQueryPlan ParseLambda(
+        AlderEngine engine,
+        IReadOnlyList<ParameterExpression> parameters,
+        Type? resultType,
+        string expression,
+        IReadOnlyList<KeyValuePair<string, object?>>? values)
+        => PrepareLambda(engine, parameters, resultType, expression, values);
+
+    private static DynamicQueryPlan PrepareLambdaCore(
         AlderEngine engine,
         IReadOnlyList<ParameterExpression> parameters,
         Type? resultType,
@@ -88,35 +96,11 @@ internal static class DynamicLinqFrontend
                 values,
                 enableImplicitReceiver,
                 expectedKind);
-            var body = prepared.ExportedLambda.Body;
-            body = CoerceResult(body, resultType);
-
-            return Expression.Lambda(body, prepared.Parameters);
+            return prepared;
         }
         catch (InsufficientExecutionStackException ex)
         {
             throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded, ex);
-        }
-    }
-
-    private static Expression CoerceResult(Expression body, Type? resultType)
-    {
-        if (resultType == null || body.Type == resultType)
-            return body;
-
-        if (!body.Type.IsValueType && resultType.IsAssignableFrom(body.Type))
-            return body;
-
-        try
-        {
-            return Expression.Convert(body, resultType);
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new AlderException(
-                DiagnosticDescriptors.CantConvAnonMethReturnType,
-                ex,
-                resultType.Name);
         }
     }
 

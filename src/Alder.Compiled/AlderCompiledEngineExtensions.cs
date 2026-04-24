@@ -71,12 +71,12 @@ public static class AlderCompiledEngineExtensions
         => Compile<object?>(engine, expression);
 
     /// <summary>
-    /// Creates a reusable Dynamic LINQ factory bound to this engine.
+    /// Creates a reusable Dynamic LINQ plan factory bound to this engine.
     /// </summary>
-    public static IDynamicLambdaFactory CreateDynamicLambdaFactory(this AlderEngine engine)
+    public static IDynamicQueryPlanFactory CreateDynamicQueryPlanFactory(this AlderEngine engine)
     {
         engine.GetCompiledFeatureAccess().ThrowIfDisposed();
-        return new AlderDynamicLambdaFactory(engine);
+        return new AlderDynamicQueryPlanFactory(engine);
     }
 
     /// <summary>

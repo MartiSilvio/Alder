@@ -18,7 +18,8 @@ public sealed record DynamicLinqQuery(
     Func<IQueryable<Product>, AlderEngine, object?> AlderGeneric,
     Func<AlderEngine, Func<IQueryable<Product>, object?>>? AlderParsedLambda,
     Func<IQueryable<Product>, object?> DynamicCoreString,
-    Func<Func<IQueryable<Product>, object?>>? DynamicCoreParsedLambda)
+    Func<Func<IQueryable<Product>, object?>>? DynamicCoreParsedLambda,
+    Func<AlderEngine, Func<IQueryable<Product>, object?>>? AlderParsedPlan = null)
 {
     public override string ToString() => Name;
 }
@@ -117,19 +118,20 @@ public class DynamicLinqBenchmarks : BenchmarkBase
             expression);
 
     private static Expression<Func<Product, bool>> ParseAlderPredicate(AlderEngine engine, string expression) =>
-        (Expression<Func<Product, bool>>)engine.ParsePredicateExpression(typeof(Product), expression);
+        engine.ParsePredicate<Product>(expression).ToExpression<Func<Product, bool>>();
 
     private static Expression<Func<Product, TResult>> ParseAlderSelector<TResult>(AlderEngine engine, string expression) =>
-        (Expression<Func<Product, TResult>>)engine.ParseSelectorExpression(typeof(Product), typeof(TResult), expression);
+        engine.ParseSelector<Product, TResult>(expression).ToExpression<Func<Product, TResult>>();
 
     private static Expression<Func<TOuter, TInner, TResult>> ParseAlderBinarySelector<TOuter, TInner, TResult>(
         AlderEngine engine,
         string expression) =>
-        (Expression<Func<TOuter, TInner, TResult>>)engine.ParseLambdaExpression(
+        engine.ParseLambda(
             [typeof(TOuter), typeof(TInner)],
             ["outer", "inner"],
             typeof(TResult),
-            expression);
+            expression)
+            .ToExpression<Func<TOuter, TInner, TResult>>();
 
     public static IReadOnlyList<DynamicLinqQuery> GetDynamicLinqQueries() =>
     [
@@ -147,12 +149,17 @@ public class DynamicLinqBenchmarks : BenchmarkBase
             {
                 var predicate = ParseProductLambda<bool>("Price > 100 && IsActive");
                 return ps => ps.Count(predicate);
+            },
+            AlderParsedPlan: engine =>
+            {
+                var predicate = engine.ParsePredicate<Product>("Price > 100 && IsActive");
+                return ps => ps.CountDynamic(predicate);
             }),
 
         new("Filter+Project+Sum",
             ps => ps.Where(p => p.Category == "Electronics").Select(p => p.Price).Sum(),
             (ps, engine) => ps.WhereDynamic(engine, """Category == "Electronics" """).SumDynamic(engine, "Price"),
-            (ps, engine) => ps.WhereDynamic<Product>(engine, """Category == "Electronics" """).SelectDynamic<Product, decimal>(engine, "Price").Sum(),
+            (ps, engine) => ps.WhereDynamic<Product>(engine, """Category == "Electronics" """).SumDynamic<Product, decimal>(engine, "Price"),
             engine =>
             {
                 var predicate = ParseAlderPredicate(engine, """Category == "Electronics" """);
@@ -165,6 +172,12 @@ public class DynamicLinqBenchmarks : BenchmarkBase
                 var predicate = ParseProductLambda<bool>("Category == \"Electronics\"");
                 var selector = ParseProductLambda<decimal>("Price");
                 return ps => ps.Where(predicate).Select(selector).Sum();
+            },
+            AlderParsedPlan: engine =>
+            {
+                var predicate = engine.ParsePredicate<Product>("""Category == "Electronics" """);
+                var selector = engine.ParseSelector<Product, decimal>("Price");
+                return ps => ps.WhereDynamic(predicate).SumDynamic(selector);
             }),
 
         new("Projection+DistinctCategoryCount",
@@ -427,6 +440,11 @@ public class DynamicLinqBenchmarks : BenchmarkBase
                 var keySelector = ParseProductLambda<decimal>("Price");
                 var selector = ParseProductLambda<decimal>("Price");
                 return ps => ps.OrderByDescending(keySelector).Take(10).Select(selector).Sum();
+            },
+            AlderParsedPlan: engine =>
+            {
+                var price = engine.ParseSelector<Product, decimal>("Price");
+                return ps => ps.OrderByDescendingDynamic<Product, decimal>(price).TakeDynamic(10).SumDynamic(price);
             }),
 
         new("Sort+ThenBy+First",
@@ -499,6 +517,14 @@ public class DynamicLinqBenchmarks : BenchmarkBase
                 var price = ParseProductLambda<decimal>("Price");
                 var rating = ParseProductLambda<double>("Rating");
                 return ps => ps.Min(price) + ps.Max(price) + (decimal)ps.Average(rating);
+            },
+            AlderParsedPlan: engine =>
+            {
+                var price = engine.ParseSelector<Product, decimal>("Price");
+                var rating = engine.ParseSelector<Product, double>("Rating");
+                return ps => ps.SelectDynamic<Product, decimal>(price).Min()
+                    + ps.SelectDynamic<Product, decimal>(price).Max()
+                    + (decimal)ps.SelectDynamic<Product, double>(rating).Average();
             }),
 
         new("GroupBy+CategoryCount",
@@ -515,6 +541,11 @@ public class DynamicLinqBenchmarks : BenchmarkBase
             {
                 var selector = ParseProductLambda<string>("Category");
                 return ps => ps.GroupBy(selector).Count();
+            },
+            AlderParsedPlan: engine =>
+            {
+                var selector = engine.ParseSelector<Product, string>("Category");
+                return ps => ps.GroupByDynamic<Product, string>(selector).Count();
             }),
 
         new("Join+SelfCategoryCount",
@@ -699,7 +730,7 @@ public class DynamicLinqBenchmarks : BenchmarkBase
 
     public static IReadOnlyList<DynamicLinqQuery> GetParsedLambdaQueries() =>
         GetDynamicLinqQueries()
-            .Where(query => query.AlderParsedLambda is not null && query.DynamicCoreParsedLambda is not null)
+            .Where(query => query.AlderParsedLambda is not null && query.DynamicCoreParsedLambda is not null && query.AlderParsedPlan is not null)
             .ToArray();
 
     public static IReadOnlyList<DynamicLinqQuery> GetBenchmarkQueries() =>
@@ -707,7 +738,7 @@ public class DynamicLinqBenchmarks : BenchmarkBase
 
     public static IReadOnlyList<DynamicLinqQuery> GetBenchmarkParsedLambdaQueries() =>
         GetBenchmarkQueries()
-            .Where(query => query.AlderParsedLambda is not null && query.DynamicCoreParsedLambda is not null)
+            .Where(query => query.AlderParsedLambda is not null && query.DynamicCoreParsedLambda is not null && query.AlderParsedPlan is not null)
             .ToArray();
 
     public static IReadOnlyList<DynamicLinqQuery> GetBenchmarkColdStartQueries() =>
@@ -770,6 +801,7 @@ public class DynamicLinqParsedLambdaBenchmarks : BenchmarkBase
     private BenchmarkData _data = null!;
     private IQueryable<Product> _productsQuery = null!;
     private AlderEngine _engine = null!;
+    private Func<IQueryable<Product>, object?> _alderParsedPlan = null!;
     private Func<IQueryable<Product>, object?> _alderParsedLambda = null!;
     private Func<IQueryable<Product>, object?> _dynamicCoreParsedLambda = null!;
 
@@ -779,10 +811,12 @@ public class DynamicLinqParsedLambdaBenchmarks : BenchmarkBase
         _data = BenchmarkData.Create(productCount: ScaleFactor);
         _productsQuery = _data.Products.AsQueryable();
         _engine = new AlderEngine(new AlderOptions().UseCompiler());
+        _alderParsedPlan = Query.AlderParsedPlan!(_engine);
         _alderParsedLambda = Query.AlderParsedLambda!(_engine);
         _dynamicCoreParsedLambda = Query.DynamicCoreParsedLambda!();
 
         var native = Query.Native(_productsQuery);
+        VerifyParity(native, _alderParsedPlan(_productsQuery), "AlderParsedPlan");
         VerifyParity(native, _alderParsedLambda(_productsQuery), "AlderParsedLambda");
         VerifyParity(native, _dynamicCoreParsedLambda(_productsQuery), "DynamicCoreParsedLambda");
     }
@@ -796,6 +830,10 @@ public class DynamicLinqParsedLambdaBenchmarks : BenchmarkBase
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Operational/DynamicLinq/PreParsed")]
     public object Native() => Query.Native(_productsQuery)!;
+
+    [Benchmark]
+    [BenchmarkCategory("Operational/DynamicLinq/PreParsed")]
+    public object Alder_DynamicLinq_ParsedPlan() => _alderParsedPlan(_productsQuery)!;
 
     [Benchmark]
     [BenchmarkCategory("Operational/DynamicLinq/PreParsed")]

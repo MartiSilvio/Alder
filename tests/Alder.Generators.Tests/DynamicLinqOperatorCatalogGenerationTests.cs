@@ -159,7 +159,16 @@ public class DynamicLinqOperatorCatalogGenerationTests
         Assert.That(generated, Does.Contain("public static IQueryable<IGrouping<TKey, T>> GroupByDynamic<T, TKey>(this IQueryable<T> source, AlderEngine engine, string keySelector, params object?[] variables)"));
         Assert.That(generated, Does.Contain("public static IEnumerable<TResult> JoinDynamic<TOuter, TInner, TKey, TResult>("));
         Assert.That(generated, Does.Contain("this IQueryable<TOuter> outer,"));
-        Assert.That(generated, Does.Contain("ParseBinaryLambda<TOuter, TInner, TResult>(engine, resultSelector, variables, \"outer\", \"inner\")"));
+        Assert.That(generated, Does.Contain(".ParsePredicate<T>(predicate"));
+        Assert.That(generated, Does.Contain(".ParseSelector<T, TResult>(selector"));
+        Assert.That(generated, Does.Contain(".ParseSelector<T, TKey>(keySelector"));
+        Assert.That(generated, Does.Contain(".ParseLambda("));
+        Assert.That(generated, Does.Not.Contain("private static Expression<Func<T, bool>> ParsePredicate"));
+        Assert.That(generated, Does.Not.Contain("CompilePredicate<T>("));
+        Assert.That(generated, Does.Not.Contain("private static Expression<Func<T, TResult>> ParseSelector"));
+        Assert.That(generated, Does.Not.Contain("CompileSelector<T,"));
+        Assert.That(generated, Does.Not.Contain("ParseBinaryLambda"));
+        Assert.That(generated, Does.Not.Contain("CompileBinaryLambda"));
     }
 
     [Test]
@@ -267,12 +276,18 @@ public class DynamicLinqOperatorCatalogGenerationTests
 
         Assert.That(generated, Does.Contain("public static IEnumerable<T> WhereDynamic<T>(this IEnumerable<T> source, Expression<Func<T, bool>> predicateExpr)"));
         Assert.That(generated, Does.Contain("return source.Where<T>(CompilePredicate(predicateExpr));"));
+        Assert.That(generated, Does.Contain("public static IEnumerable<T> WhereDynamic<T>(this IEnumerable<T> source, DynamicQueryPlan plan)"));
+        Assert.That(generated, Does.Contain("return source.Where<T>(plan.Compile<Func<T, bool>>());"));
         Assert.That(generated, Does.Contain("public static IQueryable<T> WhereDynamic<T>(this IQueryable<T> source, Expression<Func<T, bool>> predicateExpr)"));
+        Assert.That(generated, Does.Contain("public static IQueryable<T> WhereDynamic<T>(this IQueryable<T> source, DynamicQueryPlan plan)"));
+        Assert.That(generated, Does.Contain("return source.Where<T>(plan.ToExpression<Func<T, bool>>());"));
         Assert.That(generated, Does.Contain("ArgumentNullException.ThrowIfNull(predicateExpr);"));
         Assert.That(generated, Does.Contain("public static IEnumerable<T> WhereDynamic<T>(this IEnumerable<T> source, Func<T, bool> predicate)"));
         Assert.That(generated, Does.Contain("return source.Where<T>(predicate);"));
         Assert.That(generated, Does.Contain("public static IEnumerable<TResult> SelectDynamic<T, TResult>(this IEnumerable<T> source, Expression<Func<T, TResult>> selectorExpr)"));
         Assert.That(generated, Does.Contain("return source.Select<T, TResult>(CompileSelector(selectorExpr));"));
+        Assert.That(generated, Does.Contain("public static IEnumerable<TResult> SelectDynamic<T, TResult>(this IEnumerable<T> source, DynamicQueryPlan plan)"));
+        Assert.That(generated, Does.Contain("return source.Select<T, TResult>(plan.Compile<Func<T, TResult>>());"));
         Assert.That(generated, Does.Contain("public static IQueryable<TResult> SelectDynamic<T, TResult>(this IQueryable<T> source, Expression<Func<T, TResult>> selectorExpr)"));
     }
 
@@ -367,7 +382,7 @@ public class DynamicLinqOperatorCatalogGenerationTests
         Assert.That(generated, Does.Contain("public static ValueTask<int> CountDynamic<T>(this IAsyncEnumerable<T> source, AlderEngine engine, string predicate, params object?[] variables)"));
         Assert.That(generated, Does.Contain("public static IAsyncEnumerable<T> SkipDynamic<T>(this IAsyncEnumerable<T> source, int count)"));
         Assert.That(generated, Does.Contain("public static IAsyncEnumerable<T> WhereDynamic<T>(this IAsyncEnumerable<T> source, Func<T, bool> predicate)"));
-        Assert.That(generated, Does.Contain("return AsyncWhereCore(source, CompilePredicate<T>(ValidateEngine(engine), predicate, variables));"));
+        Assert.That(generated, Does.Contain("return AsyncWhereCore(source, ValidateEngine(engine).ParsePredicate<T>(predicate, BuildOrderedValues(variables)).Compile<Func<T, bool>>());"));
     }
 
     [Test]

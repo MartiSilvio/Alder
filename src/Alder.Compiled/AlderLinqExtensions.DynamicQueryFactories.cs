@@ -12,29 +12,12 @@ public static partial class AlderLinqExtensions
         .GetMethod(nameof(AlderTypedResultConverter.Convert), BindingFlags.NonPublic | BindingFlags.Static)!
         .GetGenericMethodDefinition();
 
-    private static Func<T, TResult> CompileMaterializingSelector<T, TResult>(
-        AlderEngine engine,
-        string selector,
-        IReadOnlyList<KeyValuePair<string, object?>>? values)
-        => CreateMaterializingSelector<T, TResult>(engine, selector, values).Compile();
-
-    private static Expression<Func<T, TResult>> ParseMaterializingSelector<T, TResult>(
-        AlderEngine engine,
-        string selector,
-        IReadOnlyList<KeyValuePair<string, object?>>? values)
-    {
-        return CreateMaterializingSelector<T, TResult>(engine, selector, values);
-    }
-
     private static Expression<Func<T, TResult>> CreateMaterializingSelector<T, TResult>(
-        AlderEngine engine,
-        string selector,
-        IReadOnlyList<KeyValuePair<string, object?>>? values)
+        DynamicQueryPlan plan)
     {
-        var prepared = PrepareSingleParameterDynamicLambda<T>(engine, selector, values, DynamicQueryLambdaKind.Selector);
         return Expression.Lambda<Func<T, TResult>>(
-            CreateMaterializingSelectorBody<TResult>(prepared.ExportedLambda.Body),
-            prepared.Parameters[0]);
+            CreateMaterializingSelectorBody<TResult>(plan.ExportedLambda.Body),
+            plan.Parameters[0]);
     }
 
     private static Expression CreateMaterializingSelectorBody<TResult>(Expression body)
@@ -54,7 +37,7 @@ public static partial class AlderLinqExtensions
             boxedBody);
     }
 
-    private static PreparedDynamicQueryLambda PrepareSingleParameterDynamicLambda<T>(
+    private static DynamicQueryPlan PrepareSingleParameterDynamicLambda<T>(
         AlderEngine engine,
         string expression,
         IReadOnlyList<KeyValuePair<string, object?>>? values,
@@ -67,7 +50,7 @@ public static partial class AlderLinqExtensions
             enableImplicitReceiver: true,
             expectedKind: kind);
 
-    private static PreparedDynamicQueryLambda PrepareBinaryDynamicLambda<TOuter, TInner>(
+    private static DynamicQueryPlan PrepareBinaryDynamicLambda<TOuter, TInner>(
         AlderEngine engine,
         string expression,
         IReadOnlyList<KeyValuePair<string, object?>>? values,

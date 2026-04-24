@@ -13,76 +13,76 @@ public partial class DynamicLinqTests
     public class LambdaFactoryShape : CompilerFixtureBase
     {
         [Test]
-        public void ParseLambdaExpression_ItTypeOverload_ReturnsLambdaExpression()
+        public void ParseLambda_ItTypeOverload_ReturnsPlanWithExpressionInterop()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
-            var lambda = engine.ParseLambdaExpression(
+            var plan = engine.ParseLambda(
                 typeof(Product),
                 typeof(bool),
                 "p => p.Price > @0",
                 [new KeyValuePair<string, object?>("__p0", 50m)]);
+            var lambda = plan.ToExpression<Func<Product, bool>>();
 
             Assert.That(lambda, Is.Not.Null);
             Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
             Assert.That(lambda.ReturnType, Is.EqualTo(typeof(bool)));
 
-            var typed = (Expression<Func<Product, bool>>)lambda;
-            var fn = typed.Compile();
+            var fn = lambda.Compile();
             Assert.That(fn(new Product("Test", 75m, "X", true)), Is.True);
         }
 
         [Test]
-        public void ParseLambdaExpression_ParameterTypesOverload_SupportsBodyWithoutLambdaSyntax()
+        public void ParseLambda_ParameterTypesOverload_SupportsBodyWithoutLambdaSyntax()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
-            var lambda = engine.ParseLambdaExpression(
+            var plan = engine.ParseLambda(
                 [typeof(Product), typeof(decimal)],
                 ["p", "threshold"],
                 typeof(bool),
                 "p.Price > threshold");
+            var lambda = plan.ToExpression<Func<Product, decimal, bool>>();
 
             Assert.That(lambda.Parameters, Has.Count.EqualTo(2));
             Assert.That(lambda.ReturnType, Is.EqualTo(typeof(bool)));
 
-            var typed = (Expression<Func<Product, decimal, bool>>)lambda;
-            var fn = typed.Compile();
+            var fn = lambda.Compile();
             Assert.That(fn(new Product("Test", 75m, "X", true), 50m), Is.True);
         }
 
         [Test]
-        public void ParseLambdaExpression_ParameterExpressionOverload_BindsExplicitParameters()
+        public void ParseLambda_ParameterExpressionOverload_BindsExplicitParameters()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
             var left = Expression.Parameter(typeof(int), "left");
             var right = Expression.Parameter(typeof(int), "right");
 
-            var lambda = engine.ParseLambdaExpression(
+            var plan = engine.ParseLambda(
                 [left, right],
                 typeof(int),
                 "left + right");
+            var lambda = plan.ToExpression<Func<int, int, int>>();
 
-            var typed = (Expression<Func<int, int, int>>)lambda;
-            var fn = typed.Compile();
+            var fn = lambda.Compile();
             Assert.That(fn(20, 22), Is.EqualTo(42));
         }
 
         [Test]
-        public void ParseSelectorExpression_ExplicitGenericStaticMethod_IsSupported()
+        public void ParseSelector_ExplicitGenericStaticMethod_IsSupported()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
 
-            var lambda = engine.ParseSelectorExpression(
+            var lambda = engine.ParseSelector(
                 typeof(Product),
                 typeof(int),
-                "Task.FromResult<int>((int)Price).Result");
+                "Task.FromResult<int>((int)Price).Result")
+                .ToExpression<Func<Product, int>>();
 
-            var typed = (Expression<Func<Product, int>>)lambda;
-            var fn = typed.Compile();
+            var fn = lambda.Compile();
             Assert.That(fn(new Product("Test", 42.9m, "X", true)), Is.EqualTo(42));
         }
 
         [Test]
-        public void ParseSelectorExpression_StaticTypePropertyChain_IsSupported()
+        public void ParseSelector_StaticTypePropertyChain_IsSupported()
         {
             using var engine = new AlderEngine(o =>
             {
@@ -90,27 +90,27 @@ public partial class DynamicLinqTests
                 o.IsCaseSensitive = false;
             });
 
-            var lambda = engine.ParseSelectorExpression(
+            var lambda = engine.ParseSelector(
                 typeof(Product),
                 typeof(int),
-                "datetime.minvalue.second");
+                "datetime.minvalue.second")
+                .ToExpression<Func<Product, int>>();
 
-            var typed = (Expression<Func<Product, int>>)lambda;
-            var fn = typed.Compile();
+            var fn = lambda.Compile();
             Assert.That(fn(new Product("Test", 1m, "X", true)), Is.EqualTo(DateTime.MinValue.Second));
         }
 
         [Test]
-        public void ParseSelectorExpression_EfProperty_GenericStaticMethod_IsSupported()
+        public void ParseSelector_EfProperty_GenericStaticMethod_IsSupported()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
 
-            var lambda = engine.ParseSelectorExpression(
+            var typed = engine.ParseSelector(
                 typeof(Product),
                 typeof(decimal),
-                """EF.Property<decimal>(it, "Price")""");
+                """EF.Property<decimal>(it, "Price")""")
+                .ToExpression<Func<Product, decimal>>();
 
-            var typed = (Expression<Func<Product, decimal>>)lambda;
             Assert.That(typed.Body, Is.InstanceOf<MethodCallExpression>());
 
             var call = (MethodCallExpression)typed.Body;
@@ -121,24 +121,24 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void ParsePredicateExpression_JObjectBodyOnlyMemberAccess_IsRejectedInExpressionTreeMode()
+        public void ParsePredicate_JObjectBodyOnlyMemberAccess_IsRejectedInExpressionTreeMode()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
 
             var ex = Assert.Throws<AlderException>(() =>
-                engine.ParsePredicateExpression(typeof(JObject), """City == "Paris" """));
+                engine.ParsePredicate(typeof(JObject), """City == "Paris" """));
 
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
         }
 
         [Test]
-        public void ParseSelectorExpression_ReflectionAssemblyAccess_IsRejected()
+        public void ParseSelector_ReflectionAssemblyAccess_IsRejected()
         {
             using var engine = new AlderEngine(o => o.UseCompiler());
 
             var ex = Assert.Throws<AlderException>(() =>
-                engine.ParseSelectorExpression(typeof(Product), typeof(object), "typeof(DateTime).Assembly"));
+                engine.ParseSelector(typeof(Product), typeof(object), "typeof(DateTime).Assembly"));
 
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));

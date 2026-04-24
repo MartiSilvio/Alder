@@ -29,14 +29,14 @@ internal static partial class DynamicQueryDispatcher
         return method.Invoke(null, new object?[] { source, lambdaArg })!;
     }
 
-    private static PreparedDynamicQueryLambda PrepareSingleParameterLambda<T>(
+    private static DynamicQueryPlan PrepareSingleParameterLambda<T>(
         AlderEngine engine,
         string expression,
         IReadOnlyList<KeyValuePair<string, object?>>? variables,
         DynamicQueryLambdaKind kind)
         => PrepareSingleParameterLambda(engine, typeof(T), expression, variables, kind);
 
-    private static PreparedDynamicQueryLambda PrepareSingleParameterLambda(
+    private static DynamicQueryPlan PrepareSingleParameterLambda(
         AlderEngine engine,
         Type sourceType,
         string expression,
@@ -50,7 +50,7 @@ internal static partial class DynamicQueryDispatcher
             enableImplicitReceiver: true,
             expectedKind: kind);
 
-    private static PreparedDynamicQueryLambda PrepareBinaryLambda(
+    private static DynamicQueryPlan PrepareBinaryLambda(
         AlderEngine engine,
         Type leftType,
         Type rightType,
