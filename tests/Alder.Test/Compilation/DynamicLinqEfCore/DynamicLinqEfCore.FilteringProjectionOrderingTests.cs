@@ -1,8 +1,8 @@
-using Alder.Test.Integration;
 using Alder.Test._Infrastructure;
+using Alder.Test.Integration;
 using Microsoft.EntityFrameworkCore;
 
-namespace Alder.Test.Compilation;
+namespace Alder.Test.Compilation.DynamicLinqEfCore;
 
 public sealed partial class DynamicLinqEfCoreTests
 {
@@ -103,7 +103,15 @@ public sealed partial class DynamicLinqEfCoreTests
             var result = db.Orders.SelectDynamic<EfOrder, string>("Customer")
                 .OrderBy(c => c)
                 .ToList();
+            var nongeneric = db.Orders
+                .SelectDynamic("Customer")
+                .Cast<string>()
+                .OrderBy(c => c)
+                .ToList();
+
             Assert.That(result, Is.EqualTo(new[] { "Alice", "Ari", "Bob", "Cara" }));
+            Assert.That(nongeneric, Is.EqualTo(result));
+            Assert.That(nongeneric[0].GetType(), Is.EqualTo(result[0].GetType()));
         }
 
         [Test]
@@ -112,12 +120,21 @@ public sealed partial class DynamicLinqEfCoreTests
             using var db = new EfOrdersDbContext(DbOptions);
             var result = db.Orders
                 .OrderBy(o => o.Id)
-                .SelectDynamic<EfOrder, object>("new { Customer, Total }")
+                .SelectDynamic<EfOrder, IReadOnlyDictionary<string, object?>>("new { Customer, Total }")
+                .ToList();
+            var nongeneric = db.Orders
+                .OrderByDynamic("Id")
+                .SelectDynamic("new { Customer, Total }")
+                .Cast<IReadOnlyDictionary<string, object?>>()
                 .ToList();
             var first = result[0];
+            var nongenericFirst = nongeneric[0]!;
 
             Assert.That(TestHelpers.ReadProjectedMember(first, "Customer"), Is.EqualTo("Alice"));
             Assert.That(TestHelpers.ReadProjectedMember(first, "Total"), Is.EqualTo(20m));
+            Assert.That(nongenericFirst.GetType(), Is.EqualTo(first.GetType()));
+            Assert.That(TestHelpers.ReadProjectedMember(nongenericFirst, "Customer"), Is.EqualTo("Alice"));
+            Assert.That(TestHelpers.ReadProjectedMember(nongenericFirst, "Total"), Is.EqualTo(20m));
         }
     }
 
@@ -128,9 +145,16 @@ public sealed partial class DynamicLinqEfCoreTests
         public void IQueryable_OrderByDynamic_BodyOnly_KeySelector()
         {
             using var db = new EfOrdersDbContext(DbOptions);
-            var ids = db.Orders.OrderByDynamic<EfOrder, int>("Id")
+            var result = db.Orders.OrderByDynamic<EfOrder, int>("Id")
+                .ToList();
+            var nongeneric = db.Orders
+                .OrderByDynamic("Id")
+                .ToList();
+            var ids = result
                 .Select(o => o.Id)
                 .ToList();
+            Assert.That(nongeneric, Is.EqualTo(result));
+            Assert.That(nongeneric[0].GetType(), Is.EqualTo(result[0].GetType()));
             Assert.That(ids, Is.EqualTo(new[] { 1, 2, 3, 4 }));
         }
 
@@ -138,9 +162,16 @@ public sealed partial class DynamicLinqEfCoreTests
         public void IQueryable_OrderByDescendingDynamic_BodyOnly_KeySelector()
         {
             using var db = new EfOrdersDbContext(DbOptions);
-            var ids = db.Orders.OrderByDescendingDynamic<EfOrder, int>("Id")
+            var result = db.Orders.OrderByDescendingDynamic<EfOrder, int>("Id")
+                .ToList();
+            var nongeneric = db.Orders
+                .OrderByDescendingDynamic("Id")
+                .ToList();
+            var ids = result
                 .Select(o => o.Id)
                 .ToList();
+            Assert.That(nongeneric, Is.EqualTo(result));
+            Assert.That(nongeneric[0].GetType(), Is.EqualTo(result[0].GetType()));
             Assert.That(ids, Is.EqualTo(new[] { 4, 3, 2, 1 }));
         }
 
@@ -151,10 +182,20 @@ public sealed partial class DynamicLinqEfCoreTests
             var ids = db.Orders
                 .OrderByDynamic<EfOrder, bool>("IsActive")
                 .ThenByDynamic<EfOrder, int>("Id")
+                .ToList();
+            var nongeneric = db.Orders
+                .OrderByDynamic("IsActive")
+                .ThenByDynamic("Id")
+                .ToList();
+
+            Assert.That(nongeneric, Is.EqualTo(ids));
+            Assert.That(nongeneric[0].GetType(), Is.EqualTo(ids[0].GetType()));
+
+            var orderedIds = ids
                 .Select(o => o.Id)
                 .ToList();
 
-            Assert.That(ids, Is.EqualTo(new[] { 3, 1, 2, 4 }));
+            Assert.That(orderedIds, Is.EqualTo(new[] { 3, 1, 2, 4 }));
         }
 
         [Test]
@@ -164,10 +205,20 @@ public sealed partial class DynamicLinqEfCoreTests
             var ids = db.Orders
                 .OrderByDynamic<EfOrder, bool>("IsActive")
                 .ThenByDescendingDynamic<EfOrder, int>("Id")
+                .ToList();
+            var nongeneric = db.Orders
+                .OrderByDynamic("IsActive")
+                .ThenByDescendingDynamic("Id")
+                .ToList();
+
+            Assert.That(nongeneric, Is.EqualTo(ids));
+            Assert.That(nongeneric[0].GetType(), Is.EqualTo(ids[0].GetType()));
+
+            var orderedIds = ids
                 .Select(o => o.Id)
                 .ToList();
 
-            Assert.That(ids, Is.EqualTo(new[] { 3, 4, 2, 1 }));
+            Assert.That(orderedIds, Is.EqualTo(new[] { 3, 4, 2, 1 }));
         }
     }
 }

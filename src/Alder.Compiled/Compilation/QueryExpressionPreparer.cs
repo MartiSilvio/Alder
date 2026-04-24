@@ -39,6 +39,25 @@ internal static class QueryExpressionPreparer
         IReadOnlyList<KeyValuePair<string, object?>>? values,
         bool enableImplicitReceiver)
     {
+        var prepared = PrepareDynamicQueryLambda(
+            engine,
+            parameters,
+            expression,
+            values,
+            enableImplicitReceiver,
+            InferKind(parameters.Count, expression));
+
+        return new PreparedQueryLambda(prepared.BoundBody, prepared.Parameters, prepared.CapturedVariables);
+    }
+
+    internal static PreparedDynamicQueryLambda PrepareDynamicQueryLambda(
+        AlderEngine engine,
+        IReadOnlyList<ParameterExpression> parameters,
+        string expression,
+        IReadOnlyList<KeyValuePair<string, object?>>? values,
+        bool enableImplicitReceiver,
+        DynamicQueryLambdaKind expectedKind)
+    {
         var providedParameters = new QueryParameterBinding[parameters.Count];
         for (var i = 0; i < parameters.Count; i++)
         {
@@ -63,7 +82,8 @@ internal static class QueryExpressionPreparer
             allowBodyOnly: true,
             parameterCountDisplay: $"Func<{string.Join(", ", parameters.Select(static p => p.Type.Name))}>",
             lambdaRequiredExample: null,
-            unwrapBodyOnlyReturn: false);
+            unwrapBodyOnlyReturn: false,
+            expectedKind);
     }
 
     private static PreparedQueryLambda PrepareCore(
@@ -76,6 +96,33 @@ internal static class QueryExpressionPreparer
         string parameterCountDisplay,
         string? lambdaRequiredExample,
         bool unwrapBodyOnlyReturn)
+    {
+        var prepared = PrepareCore(
+            engine,
+            expression,
+            providedParameters,
+            additionalValues,
+            enableImplicitReceiver,
+            allowBodyOnly,
+            parameterCountDisplay,
+            lambdaRequiredExample,
+            unwrapBodyOnlyReturn,
+            InferKind(providedParameters.Count, expression));
+
+        return new PreparedQueryLambda(prepared.BoundBody, prepared.Parameters, prepared.CapturedVariables);
+    }
+
+    private static PreparedDynamicQueryLambda PrepareCore(
+        AlderEngine engine,
+        string expression,
+        IReadOnlyList<QueryParameterBinding> providedParameters,
+        IReadOnlyDictionary<string, object?>? additionalValues,
+        bool enableImplicitReceiver,
+        bool allowBodyOnly,
+        string parameterCountDisplay,
+        string? lambdaRequiredExample,
+        bool unwrapBodyOnlyReturn,
+        DynamicQueryLambdaKind expectedKind)
     {
         var access = engine.GetCompiledFeatureAccess();
         access.ThrowIfDisposed();
@@ -135,8 +182,46 @@ internal static class QueryExpressionPreparer
             boundBody = UnwrapReturnValue(boundBody);
 
         boundBody = access.RunCompilationPipeline(boundBody);
-        return new PreparedQueryLambda(boundBody, lambdaParameters, engineVariables);
+        var exportedLambda = Expression.Lambda(
+            new QueryTreeExporter(lambdaParameters, engineVariables).Export(boundBody),
+            lambdaParameters);
+        return new PreparedDynamicQueryLambda(
+            expectedKind,
+            ClassifyResultShape(boundBody.StaticType.ClrType),
+            boundBody.StaticType.ClrType,
+            boundBody,
+            lambdaParameters,
+            engineVariables,
+            exportedLambda);
     }
+
+    private static DynamicQueryLambdaKind InferKind(int parameterCount, string expression)
+    {
+        if (parameterCount == 2)
+            return DynamicQueryLambdaKind.BinarySelector;
+
+        return expression.Contains("=>", StringComparison.Ordinal)
+            ? DynamicQueryLambdaKind.Selector
+            : DynamicQueryLambdaKind.Selector;
+    }
+
+    private static DynamicQueryResultShape ClassifyResultShape(Type resultType)
+    {
+        if (ImplementsGenericInterface(resultType, typeof(IGrouping<,>)))
+            return DynamicQueryResultShape.Grouping;
+
+        if (typeof(StructuralObjectValue).IsAssignableFrom(resultType))
+            return DynamicQueryResultShape.StructuralObject;
+
+        if (resultType != typeof(string) && typeof(IEnumerable).IsAssignableFrom(resultType))
+            return DynamicQueryResultShape.Collection;
+
+        return DynamicQueryResultShape.Scalar;
+    }
+
+    private static bool ImplementsGenericInterface(Type type, Type genericInterface) =>
+        type.IsGenericType && type.GetGenericTypeDefinition() == genericInterface
+        || type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == genericInterface);
 
     private static AlderContext CreateQueryBindingRuntimeContext(AlderConfig config)
     {

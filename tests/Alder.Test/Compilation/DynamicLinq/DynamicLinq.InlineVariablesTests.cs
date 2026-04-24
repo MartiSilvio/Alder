@@ -1,4 +1,4 @@
-namespace Alder.Test.Compilation;
+namespace Alder.Test.Compilation.DynamicLinq;
 
 public partial class DynamicLinqTests
 {
@@ -41,7 +41,9 @@ public partial class DynamicLinqTests
         public void SelectDynamic_WithInlineVariable()
         {
             var result = Products.SelectDynamic<Product, decimal>("p => p.Price * @0", 2m).ToList();
+            var nongeneric = Products.SelectDynamic("p => p.Price * @0", 2m).Cast<decimal>().ToList();
             Assert.That(result, Does.Contain(19.98m));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]

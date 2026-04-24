@@ -1,150 +1,89 @@
 ---
 title: Architecture
-description: Architectural explanation of Alder’s parse-bind-execute pipeline, backend split, and extension surfaces.
+description: Architectural explanation of Alder's parse-bind-execute pipeline, backend split, and integration surfaces.
 ---
 
 # Architecture
 
-## Context
+Alder is a runtime C# expression engine with a single semantic pipeline and two execution backends. The architectural constraint is simple and strict: backend choice must not alter language semantics.
 
-Alder is a runtime C# expression engine with one language pipeline and two execution backends. The public surface centers on `AlderEngine` (`src/Alder/AlderEngine*.cs`) and the static facade `AlderEval` (`src/Alder/AlderEval.cs`).
+An expression is parsed once, bound against the active context, passed through validation and optimization, then executed by either the interpreter or the compiled backend. Both backends consume the same semantic form. Security policy, execution limits, and runtime dispatch rules apply uniformly.
 
-The architecture enforces semantic consistency: parse once, bind once per context version, then execute through interpreter or compiled backend without changing language semantics. Parity tests verify this across interpreted and compiled modes (`tests/Alder.Test/Parity/ParityTests.cs`).
+## Pipeline
 
-## Core design
+Alder evaluation has four stages:
 
-The system uses a staged pipeline:
+1. Parse source text into syntax.
+2. Bind syntax into a semantic form with resolved types, conversions, and operations where possible.
+3. Apply validation and optimization passes.
+4. Execute through the interpreter or compiled backend.
 
-1. Parse source text into AST.
-2. Bind AST into typed bound nodes.
-3. Run bound-tree pipeline passes.
-4. Execute with interpreter or compiled delegate.
+The binder is the semantic center of the system. When static information is sufficient, Alder resolves calls, members, indexes, and conversions during the binding phase. When it is not, Alder preserves a dynamic operation and resolves it at runtime. That boundary keeps Alder aligned with C# semantics without requiring every expression to be statically closed.
 
-The binder is the semantic pivot. It emits resolved nodes when static type information is available and dynamic nodes when it is not.
+## Backend split
 
-- Resolved call path: `BoundResolvedCallExpr` with selected method (`src/Alder/Binding/BoundNodes/BoundResolvedCallExpr.cs`).
-- Dynamic call path: `BoundDynamicCallExpr` fallback (`src/Alder/Binding/Binders/CallBinder.cs`).
+The interpreter executes Alder's bound form directly. It is the default execution path, the broadest compatibility surface, and the path used by asynchronous evaluation.
 
-Security is enforced as a bound-tree pipeline pass (`SecurityValidationPass`) before backend execution. Policy checks are backend-agnostic (`src/Alder/Security/SecurityValidationPass.cs`).
+The compiled backend lowers that same bound form into a compiled delegate and reuses the delegate while the relevant context type surface remains stable. Its purpose is operational efficiency for repeated synchronous evaluation, not a different language contract.
 
-## Component breakdown
+## Semantic consistency
 
-`Alder` (core runtime)
+The parser, binder, sandbox validation, and execution constraints are shared across backends. Differences between interpreter and compiler are therefore engineering gaps, not separate contracts. Alder assumes semantic parity and treats backend divergence as a defect.
 
-- Parsing: lexer/parser produce `Expr` AST (`src/Alder/Parsing/ExpressionParser.cs` and related parsers).
-- Binding: binder and binders produce `BoundExpr` trees (`src/Alder/Binding/*`).
-- Runtime core: context, type resolution, reflection metadata, method/member/index access (`src/Alder/Runtime/*`).
-- Interpreter: `BoundEvaluator` and `EvaluationContext` execute bound nodes (`src/Alder/Interpretation/*`).
-- Security and constraints: sandbox validation pass and runtime enforcement (`src/Alder/Security/*`, `src/Alder/Runtime/Semantics/ExecutionRuntime.cs`).
+## Binding and runtime resolution
 
-`Alder.Compiled` (compiled backend)
+Alder is resolved-first, not resolved-only.
 
-- Compiler registration: `UseCompiler()` (`src/Alder.Compiled/AlderCompiledExtensions.cs`).
-- Compilation path: expression-tree emission and delegate compilation (`src/Alder.Compiled/Compilation/ILExpressionCompiler.cs`, `Emission/*`).
-- Compiled APIs: precompiled wrappers/delegates with standard context semantics (`src/Alder.Compiled/AlderCompiledEngineExtensions.cs`).
+Operations with a deterministic static meaning are fixed during binding. That includes overload selection, member selection, conversion classification, and control-flow legality. Where static information is inconclusive, Alder keeps the operation dynamic and defers resolution to runtime dispatch.
 
-`Alder.Generators` (source generators)
+That division has direct operational consequences:
 
-- Dispatch generators emit switch-based dispatch for binder/evaluator/emitter from attribute-marked classes.
-- AOT generator emits `TypedDispatch` metadata and context glue (`src/Alder.Generators/AlderSourceGenerator.cs`).
+- statically known expressions surface semantic errors earlier and produce more reusable artifacts
+- expressions shaped by `object`, open-ended values, or late-bound members shift more work to runtime resolution
 
-## Execution flow
+## Dispatch and AOT
 
-Entry surfaces:
+Runtime operations use typed dispatch when generated metadata is available and fall back to reflection-based resolution when it is not. The typed path exists to support AOT-oriented deployments and reduce dependence on reflection metadata. It is an execution strategy, not a separate semantic mode.
 
-- Instance API: `AlderEngine.Evaluate(...)`, `EvaluateAsync(...)`, `Parse(...)`, `TryValidate(...)`.
-- Global API: `AlderEval` mirrors engine methods with lazy singleton initialization.
+Generated contexts can cover the types that matter in a trimmed or ahead-of-time build while reflection fallback preserves coverage for shapes outside that metadata set. Alder therefore supports mixed deployments: generated where deliberate, reflective where necessary.
 
-Synchronous evaluation (`AlderEngine.Evaluation.cs`):
+## Configuration model
 
-1. Parse source to `AlderExpression` when needed.
-2. Resolve target engine/context; per-call variables run in a child engine.
-3. Create and reset `ExecutionConstraintState`.
-4. Execute compiled path when compiler is configured; otherwise execute interpreter path.
-5. Unwrap top-level `ControlFlowSignal` at boundary.
+Most integration points are configuration-driven:
 
-Interpreter path:
+- modules expose named member surfaces
+- functions expose global call sites
+- type registration controls type lookup and extension-method discovery
+- AOT registration adds generated type metadata
+- a service provider resolves module instances
+- compiler configuration enables compiled execution
 
-1. Retrieve or create bound expression per `AlderContext` type version (`AlderExpression` cache keyed by context).
-2. Run interpretation pipeline: security, constant folding, dead-branch elimination.
-3. Execute via `BoundEvaluator` and `EvaluationContext.Dispatch(...)`.
+These are the public extension surfaces that shape Alder's runtime model inside an application. They are sufficient for most integrations without requiring knowledge of the internal machinery behind them.
 
-Compiled path:
+## Reuse and invalidation
 
-1. Validate compiled info against context type version.
-2. If stale or missing, bind and run compilation pipeline (includes conversion insertion pass).
-3. Emit expression tree and compile `CompiledExpressionDelegate`.
-4. Invoke delegate with `(AlderContext, AlderConfig, ExecutionConstraintState, CancellationToken)`.
+Alder caches semantic and compiled artifacts, but cache reuse is gated by changes to the context's type surface. Value changes can often reuse prior work. Declared-type changes cannot, because they may alter overload resolution, conversion legality, or the choice between resolved and dynamic execution.
 
-AOT and runtime dispatch path:
+The cache policy is intentionally conservative. Alder prefers rebinding or recompilation to executing against stale semantic assumptions.
 
-- Method/member/index/constructor operations try `TypedDispatch` first (`TypedDispatchHelper`, `MethodInvoker`, `MemberAccess`).
-- On miss, runtime falls back to reflection-based resolution and invocation.
-- Generated contexts integrate through `AlderOptions.Aot.UseGeneratedContext(...)`; tests cover generated dispatch and reflection fallback (`tests/Alder.Test/AOT/GeneratedContextIntegrationTests.cs`).
+## Security and constraints
 
-## Extension points
+Sandbox enforcement and execution limits are separate concerns.
 
-Engine configuration (`AlderOptions`):
-
-- `Modules`: register module types and members.
-- `Functions`: register delegate-based global functions.
-- `Types`: add assemblies/namespaces and extension-method containers.
-- `Aot`: add generated type contexts.
-- `ServiceProvider`: integrate DI-based module instance resolution.
-
-Execution backend:
-
-- `UseCompiler()` enables compiled backend.
-- `IExpressionCompiler` selects expression-tree compilation strategy.
-
-Compile-time extension points:
-
-- `[BindsNode]` contributes binder dispatch cases.
-- `[EvaluatesNode]` contributes interpreter dispatch cases.
-- `[EmitsNode]` contributes compiled emitter dispatch cases.
-- `[AlderRegistered]` contributes AOT type registrations for generated contexts.
-
-## Constraints and invariants
-
-- Context and type-versioning:
-  - Variable declared-type changes increment context version (`AlderContext.Define`).
-  - Bound and compiled artifacts are reused only when version matches.
-- Child scoping model:
-  - Root context uses concurrent storage; child scopes use dictionary storage.
-  - Child engines inherit config and visible variables while isolating additional variable definitions.
-- Try-API behavior:
-  - `TryParse` and `TryEvaluate` suppress ordinary failures.
-  - Cancellation and disposal are never swallowed (`ShouldRethrowTryApiException`).
-- Security invariant:
-  - Security validation runs as a bound-tree pass in both backends.
-- Control-flow invariant:
-  - `ControlFlowSignal` propagates through constructs and is unwrapped only at function/evaluation boundaries.
-- Constraint enforcement:
-  - Statement, loop-iteration, timeout, and cancellation checks execute in runtime semantics (`ExecutionRuntime`).
-  - Compiled invocation uses `ExecutionConstraintState`; tests verify limit enforcement in compiled delegates (`tests/Alder.Test/Core/CompiledDelegateTests.cs`).
+Sandbox validation determines whether an expression is allowed to perform a given operation. Execution constraints bound the amount of work the expression may perform at runtime through statement counts, loop limits, timeouts, and cancellation. Both apply regardless of backend.
 
 ## Tradeoffs
 
-Single semantic pipeline with dual execution backends:
+Alder's architecture makes a few explicit tradeoffs:
 
-- Benefit: one language front-end and shared diagnostics across interpreter and compiler.
-- Cost: backend-specific gaps require continuous parity auditing.
-
-Resolved-first binding with dynamic fallback:
-
-- Benefit: bind-time method/member selection when static types are known.
-- Cost: mixed static/dynamic expressions increase runtime dispatch complexity.
-
-Typed dispatch with reflection fallback:
-
-- Benefit: AOT-safe execution when generated metadata exists.
-- Cost: runtime maintains multiple invocation tiers.
-
-Static facade (`AlderEval`) and instance engine coexistence:
-
-- Benefit: low-friction API plus explicit-engine API.
-- Cost: `AlderEval` configuration is one-shot and stateful.
+- a single semantic pipeline reduces behavioral drift, but requires rigorous parity across execution backends
+- resolved-first binding improves diagnostics and cache reuse, but dynamic scenarios still require a capable runtime dispatch layer
+- typed dispatch improves AOT viability, but reflection fallback must remain semantically aligned
+- the convenience of a global facade coexists with an explicit engine API, but the facade is necessarily more stateful
 
 ## Related pages
 
+- [Binding system](/explanation/binding-system/)
+- [Typed dispatch and AOT](/explanation/typed-dispatch/)
+- [Execution model](/reference/execution-model/)
 - [ECMA-334 conformance](/reference/language/ecma-conformance/)

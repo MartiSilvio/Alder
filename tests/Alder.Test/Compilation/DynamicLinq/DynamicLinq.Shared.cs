@@ -1,4 +1,4 @@
-namespace Alder.Test.Compilation;
+namespace Alder.Test.Compilation.DynamicLinq;
 
 public record Product(string Name, decimal Price, string Category, bool InStock);
 public record WarehouseStock(string Category, int Count);

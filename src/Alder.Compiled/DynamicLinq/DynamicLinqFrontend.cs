@@ -14,7 +14,14 @@ internal static class DynamicLinqFrontend
         string? itName)
     {
         var parameter = CreateItParameter(itType, itName);
-        return ParseLambdaCore(engine, [parameter], typeof(bool), expression, values, enableImplicitReceiver: true);
+        return ParseLambdaCore(
+            engine,
+            [parameter],
+            typeof(bool),
+            expression,
+            values,
+            enableImplicitReceiver: true,
+            expectedKind: DynamicQueryLambdaKind.Predicate);
     }
 
     internal static LambdaExpression ParseProjection(
@@ -26,7 +33,16 @@ internal static class DynamicLinqFrontend
         string? itName)
     {
         var parameter = CreateItParameter(itType, itName);
-        return ParseLambdaCore(engine, [parameter], resultType, expression, values, enableImplicitReceiver: true);
+        return ParseLambdaCore(
+            engine,
+            [parameter],
+            resultType,
+            expression,
+            values,
+            enableImplicitReceiver: true,
+            expectedKind: IsCollectionResult(resultType)
+                ? DynamicQueryLambdaKind.CollectionSelector
+                : DynamicQueryLambdaKind.Selector);
     }
 
     internal static LambdaExpression ParseLambda(
@@ -37,7 +53,18 @@ internal static class DynamicLinqFrontend
         IReadOnlyList<KeyValuePair<string, object?>>? values)
     {
         var enableImplicitReceiver = parameters.Count == 1;
-        return ParseLambdaCore(engine, parameters, resultType, expression, values, enableImplicitReceiver);
+        return ParseLambdaCore(
+            engine,
+            parameters,
+            resultType,
+            expression,
+            values,
+            enableImplicitReceiver,
+            expectedKind: parameters.Count == 2
+                ? DynamicQueryLambdaKind.BinarySelector
+                : IsCollectionResult(resultType)
+                    ? DynamicQueryLambdaKind.CollectionSelector
+                    : DynamicQueryLambdaKind.Selector);
     }
 
     private static LambdaExpression ParseLambdaCore(
@@ -46,21 +73,22 @@ internal static class DynamicLinqFrontend
         Type? resultType,
         string expression,
         IReadOnlyList<KeyValuePair<string, object?>>? values,
-        bool enableImplicitReceiver)
+        bool enableImplicitReceiver,
+        DynamicQueryLambdaKind expectedKind)
     {
         ArgumentNullException.ThrowIfNull(parameters);
         ArgumentNullException.ThrowIfNull(expression);
 
         try
         {
-            var prepared = QueryExpressionPreparer.PrepareDynamicLambda(
+            var prepared = QueryExpressionPreparer.PrepareDynamicQueryLambda(
                 engine,
                 parameters,
                 expression,
                 values,
-                enableImplicitReceiver);
-            var body = new QueryTreeExporter(prepared.Parameters, prepared.CapturedVariables)
-                .Export(prepared.BoundBody);
+                enableImplicitReceiver,
+                expectedKind);
+            var body = prepared.ExportedLambda.Body;
             body = CoerceResult(body, resultType);
 
             return Expression.Lambda(body, prepared.Parameters);
@@ -94,4 +122,9 @@ internal static class DynamicLinqFrontend
 
     private static ParameterExpression CreateItParameter(Type itType, string? itName)
         => Expression.Parameter(itType, string.IsNullOrWhiteSpace(itName) ? "it" : itName);
+
+    private static bool IsCollectionResult(Type? resultType) =>
+        resultType != null &&
+        resultType != typeof(string) &&
+        typeof(IEnumerable).IsAssignableFrom(resultType);
 }

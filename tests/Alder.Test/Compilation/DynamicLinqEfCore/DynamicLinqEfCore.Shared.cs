@@ -2,7 +2,7 @@ using Alder.Test.Integration;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
-namespace Alder.Test.Compilation;
+namespace Alder.Test.Compilation.DynamicLinqEfCore;
 
 [TestFixture]
 [NonParallelizable]

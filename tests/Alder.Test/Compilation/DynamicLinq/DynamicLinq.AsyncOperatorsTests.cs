@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using Alder.Compiled.DynamicLinq;
 
-namespace Alder.Test.Compilation;
+namespace Alder.Test.Compilation.DynamicLinq;
 
 public partial class DynamicLinqTests
 {
@@ -47,12 +47,19 @@ public partial class DynamicLinqTests
         public async Task Async_SelectDynamic_ProjectsStream()
         {
             var names = new List<string>();
+            var nongenericNames = new List<string>();
             await foreach (var name in ToAsyncEnumerable(Products).SelectDynamic<Product, string>("p => p.Name"))
             {
                 names.Add(name);
             }
+            await foreach (var name in ToAsyncEnumerable(Products).SelectDynamic("p => p.Name"))
+            {
+                nongenericNames.Add((string)name!);
+            }
 
             Assert.That(names, Has.Count.EqualTo(5));
+            Assert.That(nongenericNames, Is.EqualTo(names));
+            Assert.That(nongenericNames[0].GetType(), Is.EqualTo(names[0].GetType()));
         }
 
         [TestCase("p => p.Price > 200m", true)]
@@ -83,8 +90,12 @@ public partial class DynamicLinqTests
             Assert.That(await ToAsyncEnumerable(Products).FirstOrDefaultDynamic("p => p.Category == @0", "X"), Is.Null);
 
         [Test]
-        public async Task Async_SumDynamic() =>
-            Assert.That(await ToAsyncEnumerable(Products).SumDynamic("p => p.Price"), Is.EqualTo(514.95m));
+        public async Task Async_SumDynamic()
+        {
+            var result = await ToAsyncEnumerable(Products).SumDynamic("p => p.Price");
+            Assert.That(result, Is.EqualTo(514.95m));
+            Assert.That(result.GetType(), Is.EqualTo(typeof(decimal)));
+        }
 
         [Test]
         public async Task Async_WhereDynamic_PreParsedExpression()
@@ -102,16 +113,28 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public async Task Async_AverageDynamic() =>
-            Assert.That(await ToAsyncEnumerable(Products).AverageDynamic("p => (double)p.Price"), Is.EqualTo(102.99).Within(0.01));
+        public async Task Async_AverageDynamic()
+        {
+            var result = await ToAsyncEnumerable(Products).AverageDynamic("p => (double)p.Price");
+            Assert.That(result, Is.EqualTo(102.99).Within(0.01));
+            Assert.That(result.GetType(), Is.EqualTo(typeof(double)));
+        }
 
         [Test]
-        public async Task Async_MinDynamic() =>
-            Assert.That(await ToAsyncEnumerable(Products).MinDynamic<Product, decimal>("p => p.Price"), Is.EqualTo(4.99m));
+        public async Task Async_MinDynamic()
+        {
+            var result = await ToAsyncEnumerable(Products).MinDynamic("p => p.Price");
+            Assert.That(result, Is.EqualTo(4.99m));
+            Assert.That(result.GetType(), Is.EqualTo(typeof(decimal)));
+        }
 
         [Test]
-        public async Task Async_MaxDynamic() =>
-            Assert.That(await ToAsyncEnumerable(Products).MaxDynamic<Product, decimal>("p => p.Price"), Is.EqualTo(299.99m));
+        public async Task Async_MaxDynamic()
+        {
+            var result = await ToAsyncEnumerable(Products).MaxDynamic("p => p.Price");
+            Assert.That(result, Is.EqualTo(299.99m));
+            Assert.That(result.GetType(), Is.EqualTo(typeof(decimal)));
+        }
 
         [Test]
         public async Task Async_SkipDynamic()
@@ -178,13 +201,19 @@ public partial class DynamicLinqTests
         public async Task Async_SelectManyDynamic()
         {
             var result = new List<Order>();
+            var nongeneric = new List<Order>();
             await foreach (var order in ToAsyncEnumerable(Customers).SelectManyDynamic<Customer, Order>("c => c.Orders"))
             {
                 result.Add(order);
             }
+            await foreach (var order in ToAsyncEnumerable(Customers).SelectManyDynamic("c => c.Orders"))
+            {
+                nongeneric.Add((Order)order!);
+            }
 
             Assert.That(result.Select(o => o.Product), Does.Contain("Laptop"));
             Assert.That(result.Select(o => o.Product), Does.Contain("Phone"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]

@@ -66,6 +66,57 @@ public sealed class ColdStartConfig : ManualConfig
     }
 }
 
+public sealed class DynamicLinqConfig : ManualConfig
+{
+    public DynamicLinqConfig()
+    {
+        var exhaustive = Environment.GetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE") != null;
+        AddJob(exhaustive
+            ? Job.Default
+                .WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
+                .WithLaunchCount(2)
+            : Job.ShortRun.WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80));
+
+        AddDiagnoser(MemoryDiagnoser.Default);
+        AddExporter(MarkdownExporter.GitHub);
+        AddExporter(HtmlExporter.Default);
+        AddExporter(CsvMeasurementsExporter.Default);
+        AddColumnProvider(DefaultColumnProviders.Instance);
+        AddColumn(
+            StatisticColumn.Median,
+            StatisticColumn.StdDev,
+            StatisticColumn.Min,
+            StatisticColumn.Max);
+        WithOrderer(new DefaultOrderer(SummaryOrderPolicy.FastestToSlowest));
+    }
+}
+
+public sealed class DynamicLinqColdStartConfig : ManualConfig
+{
+    public DynamicLinqColdStartConfig()
+    {
+        var exhaustive = Environment.GetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE") != null;
+        AddJob(Job.Default
+            .WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
+            .WithStrategy(RunStrategy.ColdStart)
+            .WithLaunchCount(exhaustive ? 10 : 3)
+            .WithWarmupCount(0)
+            .WithIterationCount(1));
+
+        AddDiagnoser(MemoryDiagnoser.Default);
+        AddExporter(MarkdownExporter.GitHub);
+        AddExporter(HtmlExporter.Default);
+        AddExporter(CsvMeasurementsExporter.Default);
+        AddColumnProvider(DefaultColumnProviders.Instance);
+        AddColumn(
+            StatisticColumn.Median,
+            StatisticColumn.StdDev,
+            StatisticColumn.Min,
+            StatisticColumn.Max);
+        WithOrderer(new DefaultOrderer(SummaryOrderPolicy.FastestToSlowest));
+    }
+}
+
 /// <summary>
 /// Configuration for batch workloads where the benchmark method intentionally owns the inner loop.
 /// Use this only when one benchmark invocation is itself the unit of work being measured.

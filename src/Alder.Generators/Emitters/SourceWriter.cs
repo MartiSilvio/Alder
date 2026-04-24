@@ -33,6 +33,14 @@ internal sealed class SourceWriter
         return new BlockScope(this);
     }
 
+    public BlockScope Block(string header, string closingLine)
+    {
+        AppendLine(header);
+        AppendLine("{");
+        _indent++;
+        return new BlockScope(this, closingLine);
+    }
+
     public BlockScope Block()
     {
         AppendLine("{");
@@ -54,14 +62,25 @@ internal sealed class SourceWriter
     internal struct BlockScope : IDisposable
     {
         private SourceWriter? _writer;
+        private readonly string _closingLine;
 
-        public BlockScope(SourceWriter writer) => _writer = writer;
+        public BlockScope(SourceWriter writer)
+        {
+            _writer = writer;
+            _closingLine = "}";
+        }
+
+        public BlockScope(SourceWriter writer, string closingLine)
+        {
+            _writer = writer;
+            _closingLine = closingLine;
+        }
 
         public void Dispose()
         {
             if (_writer == null) return;
             _writer._indent--;
-            _writer.AppendLine("}");
+            _writer.AppendLine(_closingLine);
             _writer = null;
         }
     }

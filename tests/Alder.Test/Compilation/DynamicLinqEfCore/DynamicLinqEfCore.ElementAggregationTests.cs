@@ -1,6 +1,6 @@
 using Alder.Test.Integration;
 
-namespace Alder.Test.Compilation;
+namespace Alder.Test.Compilation.DynamicLinqEfCore;
 
 public sealed partial class DynamicLinqEfCoreTests
 {
@@ -101,7 +101,9 @@ public sealed partial class DynamicLinqEfCoreTests
         {
             using var db = new EfOrdersDbContext(DbOptions);
             var queryable = db.Orders.ToList().AsQueryable();
-            Assert.That(queryable.SumDynamic("o => o.Total"), Is.EqualTo(275m));
+            var result = queryable.SumDynamic("o => o.Total");
+            Assert.That(result, Is.EqualTo(275m));
+            Assert.That(result.GetType(), Is.EqualTo(typeof(decimal)));
         }
 
         [Test]
@@ -109,7 +111,9 @@ public sealed partial class DynamicLinqEfCoreTests
         {
             using var db = new EfOrdersDbContext(DbOptions);
             var queryable = db.Orders.ToList().AsQueryable();
-            Assert.That(queryable.AverageDynamic("o => (double)o.Total"), Is.EqualTo(68.75d).Within(0.0001));
+            var result = queryable.AverageDynamic("o => (double)o.Total");
+            Assert.That(result, Is.EqualTo(68.75d).Within(0.0001));
+            Assert.That(result.GetType(), Is.EqualTo(typeof(double)));
         }
 
         [Test]
@@ -117,7 +121,11 @@ public sealed partial class DynamicLinqEfCoreTests
         {
             using var db = new EfOrdersDbContext(DbOptions);
             var queryable = db.Orders.ToList().AsQueryable();
-            Assert.That(queryable.MinDynamic<EfOrder, decimal>("o => o.Total"), Is.EqualTo(20m));
+            var typed = queryable.MinDynamic<EfOrder, decimal>("o => o.Total");
+            var nongeneric = queryable.MinDynamic("o => o.Total");
+            Assert.That(typed, Is.EqualTo(20m));
+            Assert.That(nongeneric, Is.EqualTo(typed));
+            Assert.That(nongeneric.GetType(), Is.EqualTo(typed.GetType()));
         }
 
         [Test]
@@ -125,7 +133,11 @@ public sealed partial class DynamicLinqEfCoreTests
         {
             using var db = new EfOrdersDbContext(DbOptions);
             var queryable = db.Orders.ToList().AsQueryable();
-            Assert.That(queryable.MaxDynamic<EfOrder, decimal>("o => o.Total"), Is.EqualTo(120m));
+            var typed = queryable.MaxDynamic<EfOrder, decimal>("o => o.Total");
+            var nongeneric = queryable.MaxDynamic("o => o.Total");
+            Assert.That(typed, Is.EqualTo(120m));
+            Assert.That(nongeneric, Is.EqualTo(typed));
+            Assert.That(nongeneric.GetType(), Is.EqualTo(typed.GetType()));
         }
     }
 }

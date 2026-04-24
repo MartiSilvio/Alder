@@ -1,191 +1,94 @@
 ---
 title: Typed dispatch and AOT
-description: Architectural explanation of Alder's typed dispatch metadata, generated context integration, and reflection fallback model.
+description: How Alder uses generated type metadata for AOT-safe execution and when it falls back to reflection-based runtime dispatch.
 ---
 
 # Typed dispatch and AOT
 
-## Context
+Alder supports ahead-of-time deployment by separating semantic binding from the mechanics of runtime invocation. When generated type metadata is available, Alder uses typed dispatch for common runtime operations. When it is not, or when the generated path does not cover a given shape, Alder falls back to reflection-based dispatch.
 
-Alder runs two execution backends (interpreter and compiled). Both backends rely on the same runtime operations for member access, method invocation, index access, and construction. Typed dispatch is the reflection-free operation layer when metadata is available ahead of time.
+The contract is behavioral equivalence. Typed dispatch exists to improve deployment characteristics, not to define a separate runtime semantics.
 
-The core abstraction is `Alder.Aot.TypedDispatch` (`src/Alder/Aot/TypedDispatch.cs`). It defines operation-specific `Try*` methods (`TryGet`, `TrySet`, `TryGetStatic`, `TryGetIndex`, `TrySetIndex`, `TryCreate`, `TryInvoke`, `TryInvokeStatic`) for one CLR `Type`. Each method is optional and defaults to `false`, so misses are explicit and drive reflection fallback.
+## What typed dispatch covers
 
-`Alder.Aot.AlderTypeContext` (`src/Alder/Aot/AlderTypeContext.cs`) groups dispatch metadata into registrable contexts. A context also returns delegate factories and extension dispatch metadata for AOT closure cases.
+Typed dispatch is a pre-registered operation layer for runtime activities such as:
 
-## Role in execution pipeline
+- member reads and writes
+- method invocation
+- index access
+- construction
 
-Typed dispatch is not a separate pipeline stage. It is a runtime dispatch tier inside evaluation-time operations:
+It allows Alder to execute known operations against known runtime types without performing reflective discovery at the point of execution.
 
-- Interpreter path calls runtime helpers such as `MemberAccess`, `MethodInvoker`, and `ConstructionRuntime`.
-- Compiled path emits direct reflection expressions or routes resolved nodes back through runtime helpers when `PreferResolvedRuntimeDispatch` is enabled (`src/Alder.Compiled/Compilation/Emission/Emitters/*`).
+## Why it exists
 
-`AlderEngine` builds `AlderConfig` with type-dispatch dictionaries and optional extension/delegate maps (`src/Alder/AlderEngine.cs`). Runtime helpers query this config and try typed dispatch before reflection.
+The primary use case is AOT-oriented deployment: NativeAOT, IL2CPP-style environments, aggressive trimming, and any deployment where reflective discovery is constrained or undesirable.
 
-## Core design
+Typed dispatch is also useful outside strict AOT environments when predictable registration and explicit metadata are preferable to open-ended reflective lookup.
 
-The design has four layers:
+## Dispatch order
 
-1. Metadata contract:
-   `TypedDispatch` defines a per-type, per-operation `Try*` contract.
+For operations that support typed dispatch, Alder follows a typed-first, reflective-second policy:
 
-2. Registration and storage:
-   `AlderEngine` materializes context metadata into `Dictionary<Type, TypedDispatch>` and then into `FixedDictionary<Type, TypedDispatch>` in config. Lookup uses `AlderConfig.TryGetDispatch`, which walks runtime type and base types (`src/Alder/Runtime/AlderConfig.cs`).
+1. Attempt a typed dispatch entry for the runtime type.
+2. Reuse compatible base-type metadata where applicable.
+3. Fall back to the standard runtime dispatch path when the typed path declines the operation.
 
-3. Runtime gateway:
-   `TypedDispatchHelper` centralizes typed-dispatch attempts and canonical-name retries for case-insensitive mode (`src/Alder/Runtime/TypedDispatchHelper.cs`).
+A miss on the typed path is not, by itself, an error. It means only that execution continues through the general runtime path.
 
-4. Operation call sites:
-   `MethodInvoker`, `MemberAccess`, and `ConstructionRuntime` call `TypedDispatchHelper` first, then run reflection paths when the typed operation returns `false`.
+## Fallback behavior
 
-Typed dispatch never throws to signal “not handled”; it returns `false`.
+Reflection fallback occurs when:
 
-## Dispatch lifecycle summary
+- no generated metadata is registered for the runtime type
+- the registered metadata does not cover the requested operation shape
+- the call depends on runtime forms that the typed path intentionally does not encode
+- case-insensitive lookup requires canonicalization and still does not produce a typed match
 
-Dispatch lifecycle sequence:
+This additive model makes incremental AOT adoption practical. Generated contexts can cover the critical types in a deployment while reflection continues to service the long tail.
 
-1. Operation request enters runtime helper (`MethodInvoker`, `MemberAccess`, `ConstructionRuntime`).
-2. Helper calls `TypedDispatchHelper` with operation details.
-3. `TypedDispatchHelper` resolves metadata via `AlderConfig.TryGetDispatch(type, out dispatch)`.
-4. If metadata exists, helper calls operation-specific `dispatch.Try*`.
-5. If call succeeds (`true`), runtime returns the result (with reflection-leak guarding on read paths).
-6. If call misses (`false`), runtime executes reflection-based resolution/invocation.
+## Case sensitivity
 
-Fallback decision points:
+Typed dispatch entries are exact. In case-insensitive mode, Alder preserves the external contract by retrying against the canonical member name before leaving the typed path. The user-visible rule remains stable:
 
-- No registered metadata for runtime type (or base chain) -> reflection path.
-- Registered metadata exists but does not implement that operation or signature -> reflection path.
-- Case-insensitive name mismatch -> typed dispatch retries with canonical member name; if retry misses, reflection path.
+- case-sensitive engines require exact casing
+- case-insensitive engines accept equivalent casing when Alder can canonicalize the name
+- unresolved requests continue through the normal runtime path
 
-## Runtime dispatch flow
+## Generated contexts
 
-`TypedDispatchHelper` implements operation-specific entry points:
+Typed dispatch is enabled by registering generated type contexts through engine configuration. Those contexts contribute operation metadata for the types they cover. Later registrations override earlier ones for the same runtime type, which makes user-supplied contexts a practical way to refine or replace built-in coverage.
 
-- Method calls: `TryInvokeInstance`, `TryInvokeStatic`.
-- Member reads/writes: `TryGetMember`, `TryGetStaticMember`, `TrySetMember`.
-- Indexer reads/writes: `TryGetIndex`, `TrySetIndex`.
-- Construction: `TryCreate`.
+That precedence rule matters in real integrations. AOT configuration is not merely additive metadata; it is part of the runtime dispatch policy.
 
-Notable mechanisms:
+## What it does not change
 
-- Case-insensitive canonicalization:
-  When `IsCaseSensitive == false`, helper first tries the user-provided name, then resolves canonical member name through `TypeMetadataProvider` + reflection flags and retries dispatch (`ResolveCanonicalName`).
+Typed dispatch does not change:
 
-- Base-type metadata reuse:
-  `AlderConfig.TryGetDispatch` walks `type -> baseType -> ...` until `object`, so metadata registered for a base class serves derived runtime instances.
+- parsing
+- binding rules
+- overload resolution
+- sandbox policy
+- execution limits
 
-- Guarded read values:
-  Read operations pass returned values through `TypeHelpers.GuardReflectionLeak` to block forbidden reflection objects from escaping runtime/member APIs.
+It changes only how runtime operations are carried out after the semantic decision has already been made.
 
-## Reflection fallback behavior
+## Limits by design
 
-Typed dispatch miss does not fail the operation by itself. Each caller has explicit reflection fallback logic:
-
-- Method calls (`MethodInvoker`):
-  - Instance and static methods attempt typed dispatch first.
-  - On miss, runtime performs overload resolution through reflection metadata and invokes selected `MethodInfo`.
-  - Extension method invocation is interleaved per extension type: typed dispatch first, then reflection resolver.
-
-- Member access (`MemberAccess`):
-  - For ordinary object targets, runtime tries typed member dispatch first.
-  - On miss, runtime resolves property/field by reflection; unresolved names become `MethodRef` for later invocation.
-  - For `Type` targets, runtime attempts static-member dispatch first, then reflection over static members; if static lookup misses, the `Type` instance remains a valid instance target for dynamic calls.
-
-- Index access (`MemberAccess.GetIndex` / `SetIndex`):
-  - Built-in fast paths (string, `IList`, dictionaries) run first.
-  - Then typed index dispatch.
-  - Then reflection indexer matching (`FindMatchingIndexer`) and invocation.
-
-- Constructor invocation (`ConstructionRuntime.InvokeConstructor`):
-  - Runtime calls `TypedDispatchHelper.TryCreate` first.
-  - On miss, runtime uses reflection constructor overload resolution and invokes the selected constructor.
-
-`AotBuilder.ClearBuiltInContext()` states that reflection-based dispatch remains available where runtime permits it (`src/Alder/AlderOptions.cs`).
-
-## Generated context integration
-
-Generated and built-in contexts integrate in `AlderEngine` during config construction:
-
-1. Start with built-in context (`AlderBuiltInContext.Default`) unless cleared.
-2. Merge `GetTypeMetadata()` entries into `Dictionary<Type, TypedDispatch>`.
-3. Merge delegate factories (`GetDelegateFactories()`) and extension dispatches (`GetExtensionDispatches()`).
-4. Apply additional contexts in registration order (`o.Aot.UseGeneratedContext(...)`).
-
-Conflict resolution is overwrite-based (`dictionary[type] = metadata`), so later contexts replace earlier metadata for the same type. `BuiltInContextTests.UseGeneratedContext_UserOverridesBuiltIn` verifies this rule.
-
-Compiled backend integration detail:
-
-- `preferResolvedRuntimeDispatch` is set when dynamic code is unsupported or when additional generated contexts are present (`src/Alder/AlderEngine.cs`).
-- Compiled emitters then route resolved member/call assignments through runtime helpers (`GetResolvedMember`, `SetResolvedMember`, `InvokeResolvedMethod`), so compiled execution still applies typed-dispatch tiers.
-
-## Method, member, and index dispatch
-
-Method dispatch:
-
-- `InvokeResolvedMethod` and `TryInvokeInstanceMethod` attempt typed dispatch before reflection resolution/invocation.
-- Extension methods: `TryInvokeExtensionMethod` checks context-level generated extension dispatches (`ExtensionDispatches`), then typed dispatch on registered extension types, then reflection extension resolution.
-
-Member dispatch:
-
-- `GetMember` and `GetResolvedMember` use typed dispatch for instance/static property-field reads.
-- `SetMember` and `SetResolvedMember` use typed dispatch for writes before reflection writes.
-
-Index dispatch:
-
-- `GetIndex` / `SetIndex` invoke typed index operations after direct native container fast paths and before reflection indexer fallback.
-- Interpreted resolved index evaluator uses direct collection fast paths when binder marks the node as direct; otherwise it routes to `MemberAccess.GetIndex` and still uses typed dispatch.
-
-Constructor dispatch:
-
-- `ConstructionRuntime.InvokeConstructor` is the constructor dispatch hub and uses the same typed-first, reflection-second policy.
-
-## Generator model
-
-The incremental source generator (`AlderSourceGenerator`) builds dispatch metadata from two sources:
-
-- Built-in context symbol (`AlderBuiltInContext`) plus built-in catalog types.
-- User contexts deriving from `AlderTypeContext` and annotated with `[AlderRegistered(typeof(...))]`.
-
-Model extraction (`TypeParser`) records:
-
-- Public properties/fields (instance + static).
-- Constructors.
-- Single-parameter indexers.
-- Methods that are dispatch-safe for generation.
-
-Generation outputs:
-
-- Per-type `TypedDispatch` subclasses (`TypeMetadataEmitter`) implementing operation-specific `Try*` methods.
-- Context partial class with `Default` singleton, `s_metadata`, and `GetTypeMetadata()` override (`ContextEmitter`).
-- Optional extension dispatch class (`LinqValueTypeDispatch`) for LINQ value-type cases.
-- Optional delegate factory map for required delegate shapes.
-- Type roots for closed generic preservation under trimming/AOT.
-
-Key generator filtering/invariants:
-
-- Value-type writable members/indexers are not emitted for `TrySet`/`TrySetIndex` (boxed-mutation correctness issue).
-- Unsupported signatures (for example `ref`/`out` parameters, by-ref returns, unsafe parameter shapes) are skipped.
-- Generic methods are expanded only for supported closed combinations; unresolved shapes stay on reflection paths.
-
-## Constraints and invariants
-
-- `TypedDispatch` is additive, not authoritative. Returning `false` preserves fallback behavior.
-- For a given runtime type, operation, and configuration, dispatch behavior is deterministic.
-- Typed and reflection paths must remain behaviorally equivalent for covered operations.
-- Read-path reflection leak guards apply to typed and reflection results.
-- Dispatch lookup is runtime type + base chain; interfaces are not part of `TryGetDispatch` traversal.
-- Context merge order is deterministic and last-write-wins by type key.
-- Generated dispatch is exact-name based; case-insensitive mode relies on runtime canonical-name retry.
+Typed dispatch is intentionally selective. Some shapes remain on the reflection path because they are awkward to encode safely, would require fragile special cases, or are not worth carrying in generated metadata. Conservative coverage is preferable to a broad but brittle typed layer.
 
 ## Tradeoffs
 
-- Typed-first dispatch reduces runtime dependency on reflection metadata but requires explicit metadata coverage and merge management.
-- Reflection fallback preserves behavior coverage and compatibility but keeps a second execution path that must stay semantically aligned.
-- Case-insensitive canonical retry preserves correctness with generated exact-case metadata but adds reflection metadata lookup on case mismatches.
-- Extension dispatch layering (generated extension dispatch -> typed extension type dispatch -> reflection resolver) preserves AOT behavior for generic-closure edge cases but increases dispatch complexity.
+Typed dispatch trades generality for deployment control:
+
+- it improves AOT viability and can reduce reflection pressure
+- it requires explicit metadata registration and coverage management
+- it preserves overall behavior through fallback, which means the typed and reflective paths must stay aligned
+- it favors exactness over breadth, leaving some uncommon shapes to the general runtime path by design
 
 ## Related pages
 
 - [Architecture](/explanation/architecture/)
 - [Binding system](/explanation/binding-system/)
+- [Configuration](/reference/configuration/)
 - [Execution model](/reference/execution-model/)

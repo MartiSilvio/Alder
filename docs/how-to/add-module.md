@@ -1,21 +1,15 @@
 ---
 title: Add a module
-description: Register a module and access its members from Alder expressions.
+description: Register a module and expose its members to Alder expressions.
 ---
 
 # Add a module
 
-## Goal
-Register a module so expressions can access its members using `ModuleName.Member` syntax.
+Use a module when expressions need a named surface such as `utils.CircleArea(...)` or `Users.CountActiveUsers()`.
 
-## When to use this
-Use this when you need to group related functions and state under a named module.
+## Register
 
-## Register a module
-1. Create a module type with public members.
-2. Create an `AlderEngine`.
-3. Register the module with `Modules.Register`.
-4. Use the module name in expressions.
+Register a module type with `Modules.Register`:
 
 ```csharp
 using Alder;
@@ -32,22 +26,16 @@ var engine = new AlderEngine(o =>
 });
 ```
 
-Name rule:
-- `Modules.Register("utils", ...)` sets the expression name explicitly.
+Call the module by name:
 
-Instance vs static behavior:
-- Static members execute without creating a module instance.
-- Instance members execute on a resolved module instance.
-- If you pass `instance: someObject`, Alder uses that instance.
-- Module instances are resolved per access and are not cached by default.
+```csharp
+var area = engine.Evaluate<double>("utils.CircleArea(5)");
+var tau = engine.Evaluate<double>("utils.Tau");
+```
 
-### Use `IServiceProvider` for module instances
-Use this when module instances require dependencies.
+## Resolve instances from DI
 
-1. Configure your application `IServiceProvider`.
-2. Assign it to `AlderOptions.ServiceProvider`.
-3. Register the module type.
-4. Call module members normally.
+If the module requires application services, configure `IServiceProvider` and register the module type:
 
 ```csharp
 using Alder;
@@ -78,7 +66,6 @@ public class UserRepository
 }
 
 IServiceProvider appServices = /* your app DI provider */;
-// appServices must resolve UserRepository and AppDbContext.
 
 var engine = new AlderEngine(o =>
 {
@@ -89,10 +76,18 @@ var engine = new AlderEngine(o =>
 var active = engine.Evaluate<int>("Users.CountActiveUsers()");
 ```
 
-## Register a module from a type
-1. Add `[AlderModule("Name")]` to the type.
-2. Register it with `Modules.RegisterFromType<T>()`.
-3. Use the attribute name in expressions.
+Instance resolution order:
+
+1. explicit instance supplied at registration
+2. `IServiceProvider`
+3. public parameterless constructor
+4. failure
+
+Static members do not require instance resolution.
+
+## Register from attributes
+
+Use `[AlderModule]` when the type should declare its expression-facing name:
 
 ```csharp
 using Alder;
@@ -111,26 +106,18 @@ var engine = new AlderEngine(o =>
 });
 ```
 
-Name resolution rules:
-- `Register("name", ...)` uses the provided name.
-- `RegisterFromType<T>()` uses `[AlderModule("name")]` when present.
-- If `RegisterFromType` is used on a type without `[AlderModule]`, `[AlderFunction]` methods are registered as global functions, not as a module.
-
-## Access module members from expressions
-Call module members with `ModuleName.Member`.
+Then call it directly:
 
 ```csharp
-var area = engine.Evaluate<double>("utils.CircleArea(5)");
-var tau = engine.Evaluate<double>("utils.Tau");
-
 var square = engine.Evaluate<long>("CustomMath.Square(4)");
 var cube = engine.Evaluate<long>("CustomMath.Cube(3)");
 ```
 
-## Control exposed members
-Use explicit mode when only selected methods must be callable.
+If `RegisterFromType` is used on a type without `[AlderModule]`, methods marked with `[AlderFunction]` are registered as global functions instead.
 
-Option 1: pass `explicitOnly: true` in registration.
+## Restrict exposure
+
+Use explicit mode when only selected methods should be callable from expressions.
 
 ```csharp
 public class SecureModule
@@ -147,15 +134,15 @@ var engine = new AlderEngine(o =>
 });
 ```
 
-Option 2: set `[AlderModule(ExplicitOnly = true)]` on the module type.
+The same behavior is available through `[AlderModule(ExplicitOnly = true)]`.
 
-Rules in explicit mode:
-- Only methods marked with `[AlderFunction]` are exposed.
-- Properties and fields are not exposed.
-- `[AlderFunction("Alias")]` exposes the method under the alias.
+In explicit mode:
 
-## Verify the result
-Evaluate module expressions and check returned values.
+- only methods marked with `[AlderFunction]` are exposed
+- properties and fields are not exposed
+- `[AlderFunction("Alias")]` exposes a method under the alias
+
+## Verify
 
 ```csharp
 if (engine.Evaluate<long>("CustomMath.Square(4)") != 16)
@@ -163,13 +150,14 @@ if (engine.Evaluate<long>("CustomMath.Square(4)") != 16)
 ```
 
 ## Troubleshooting
-- Module not found: confirm the registration runs before `Evaluate`.
-- Wrong module name: check `Register("name", ...)` or `[AlderModule("name")]`.
-- Member not found: confirm the member is public and exposed by explicit-mode rules.
-- Instance module gotcha: module types must be constructible (public parameterless constructor) or resolvable through `IServiceProvider`; otherwise evaluation fails at runtime.
-- Case mismatch: set `IsCaseSensitive = false` or use exact casing in expressions.
+
+- Module not found: ensure registration runs before evaluation.
+- Wrong module name: check the supplied registration name or `[AlderModule(...)]` value.
+- Member not found: confirm the member is public and exposed under the active explicit-mode rules.
+- Instance resolution failure: register an instance, configure `IServiceProvider`, or add a public parameterless constructor.
+- Case mismatch: use exact casing or set `IsCaseSensitive = false`.
 
 ## Related pages
-- [Configuration](/reference/configuration/)
+
 - [Add a function](/how-to/add-function/)
-- [Execution model](/reference/execution-model/)
+- [Configuration](/reference/configuration/)

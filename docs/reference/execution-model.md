@@ -1,268 +1,224 @@
 ---
 title: Execution model
-description: Reference for Alder execution semantics: parse, bind, cache, dispatch, constraints, control-flow, and error propagation.
+description: Reference for Alder execution semantics: parsing, binding, caching, backend selection, constraints, control flow, and error propagation.
 ---
 
 # Execution model
 
-## Purpose
-This page defines Alder runtime execution semantics: entry points, parse and bind stages, cache lifecycles, interpreter and compiled dispatch, context versioning, constraint enforcement, control-flow signaling, and exception propagation.
+This page defines Alder's runtime model: expression lifecycle, cache invalidation, backend selection, constraint enforcement, control-flow handling, and error propagation.
 
-## Execution lifecycle summary
-Execution follows this sequence:
-1. Source is parsed into an AST and wrapped in `AlderExpression`.
-2. Evaluation entry points create or reuse an `AlderContext`, set `ActiveCancellationToken`, and reset `ExecutionConstraintState`.
-3. Binding resolves the AST into a `BoundExpr` for the current context type-inference version.
-4. The bound tree is pipeline-processed and cached by bound-node identity.
-5. Synchronous execution dispatches to compiled mode only when a compiler is configured; otherwise it dispatches to interpreter mode.
-6. Asynchronous execution dispatches to interpreter mode.
-7. Runtime checks enforce cancellation, statement limits, timeout limits, and loop-iteration limits.
-8. Internal control flow propagates through `ControlFlowSignal`; construct evaluators/emitters consume only the signals they own.
-9. Entry-point boundaries unwrap final control-flow state and propagate or normalize exceptions according to API contract.
+## Evaluation lifecycle
+
+Execution proceeds in this order:
+
+1. Parse source text into an expression representation.
+2. Create or reuse an execution context.
+3. Bind the expression against the current context type shape.
+4. Apply validation and optimization passes.
+5. Execute through the compiled backend when available for synchronous evaluation; otherwise execute through the interpreter.
+6. Enforce cancellation and execution limits during runtime.
+7. Unwrap final control-flow state at the evaluation boundary.
 
 ## Entry points
-Primary entry points on `AlderEngine`:
 
-- Parsing: `Parse`, `TryParse`
-- Validation: `TryValidate`
-- Synchronous execution: `Evaluate(...)`, `Evaluate<T>(...)`, `TryEvaluate(...)`, `TryEvaluate<T>(...)`
-- Asynchronous execution: `EvaluateAsync(...)`, `EvaluateAsync<T>(...)`
-- Compilation control: `TryCompile`, `Compile`
-- Trace execution: `EvaluateWithTrace`
+Primary `AlderEngine` entry points:
 
-Static facade entry points on `AlderEval` forward to a lazily initialized singleton `AlderEngine`.
+- `Parse`, `TryParse`
+- `TryValidate`
+- `Evaluate(...)`, `Evaluate<T>(...)`, `TryEvaluate(...)`, `TryEvaluate<T>(...)`
+- `EvaluateAsync(...)`, `EvaluateAsync<T>(...)`
+- `TryCompile`, `Compile`
+- `EvaluateWithTrace`
+
+`AlderEval` exposes the same main operations through a lazily initialized global engine.
 
 ## Parsing
-`AlderEngine.Parse` executes this path:
 
-1. `Lexer.Tokenize()` tokenizes source text.
-2. `ExpressionParser.CreateForSubExpression(tokens, languageMode)` builds the parser.
-3. `Parse()` produces `Expr`.
-4. `AlderExpression` stores source plus AST.
+Parsing converts source text into Alder's internal expression form.
 
-`InsufficientExecutionStackException` is translated to `AlderException(ExpressionNestingDepthExceeded)`.
+### Guarantees
 
-`TryParse` returns `false` for ordinary parse failures and rethrows `OperationCanceledException` and `ObjectDisposedException`.
+- successful parsing preserves the source and parsed structure for later stages
+- ordinary parse failures surface as Alder diagnostics
+- `TryParse` returns `false` for ordinary parse failures
+- `TryParse` rethrows cancellation and disposal exceptions
+- excessive nesting that exhausts the execution stack is normalized to `ExpressionNestingDepthExceeded`
 
 ## Binding
-Binding is entered from `AlderExpression.GetOrCreateBoundExpression(AlderContext)`:
 
-1. `BindingContext` is created from `AlderContext`.
-2. `Binder.Bind(ast, bindingContext)` produces a bound tree.
-3. On `AlderException`, binder recovery (`BindRecovering`) reruns for diagnostics.
-4. If bound diagnostics exist, binding fails with `AlderException(BindingFailed)` and attached diagnostics.
+Binding resolves the expression against the active context.
 
-Binder dispatch is generated from `[BindsNode]` registrations (`BinderDispatchGenerator`).
+### Behavior
 
-`TryGetOrCreateBoundExpression` converts `BindingNotSupportedException` into sticky unavailable state (`_bindingUnavailable` + `_bindingUnavailableReason`). After this state is set, subsequent calls return `false` without rebinding.
+- binding determines types, conversions, call targets, member access, and legality rules
+- binding is sensitive to the current context type shape, not only the source text
+- semantic binding failures surface as `BindingFailed` with diagnostics
+- unsupported binding paths are recorded as unavailable rather than retried indefinitely
 
-## Bound expression lifecycle
-`AlderExpression` stores:
+### Dynamic execution
 
-- source and parsed AST
-- bind execution/fallback counters
-- per-context bound cache entries
-- latest compiled metadata (`CompiledInfo`)
+Binding may intentionally preserve runtime operations when static information is insufficient to make a deterministic decision. That is part of the execution model, not a bind failure.
 
-A bound expression is reused only when both conditions are true:
+## Reuse and invalidation
+
+Alder reuses work conservatively.
+
+### Bound reuse
+
+A bound result is reused only when:
 
 - the same `AlderContext` instance is used
-- cached `Version` equals `context.GetTypeInferenceVersion()`
+- the context's type-inference version still matches
 
-When either condition fails, a new bound expression is created and the cache entry is replaced.
+Otherwise Alder rebinds.
 
-## Caching and invalidation
-Bound cache (`AlderExpression._boundExpressionCacheByContext`):
+### Pipeline reuse
 
-- Type: `ConditionalWeakTable<AlderContext, CachedBoundExpression>`
-- Key: `AlderContext` object identity
-- Validity rule: `CachedBoundExpression.Version == context.GetTypeInferenceVersion()`
-- Invalidation rule: cache entry is invalidated when version check fails; replacement occurs on next bind
+Post-binding pipeline output is reused only for the exact bound-expression instance that produced it.
 
-Pipeline cache (`AlderEngine._pipelineCache`):
+### Compiled reuse
 
-- Type: `ConditionalWeakTable<BoundExpr, BoundExpr>`
-- Key: bound expression object reference
-- Value: post-pipeline bound expression
-- Reuse rule: cached value is reused only for the exact same bound-expression object
-- Invalidation rule: any newly bound `BoundExpr` object bypasses the prior cache entry
+Compiled output is reused only while it remains current for the relevant context type surface. When that surface changes, Alder recompiles before using compiled execution again.
 
-Compiled-info cache (`AlderExpression.CompiledInfo`):
+## Backend selection
 
-- Type: single `CompiledExpressionInfo` slot on `AlderExpression`
-- Validity rule: compiled info is current only when `TypeVersion == null` or `TypeVersion == context.GetTypeInferenceVersion()`
-- Invalidation rule: stale version triggers compile retry in compiled execution path
+### Synchronous evaluation
 
-Compiled-text cache (`ExpressionCache`):
+Synchronous `Evaluate(...)` uses:
 
-- Type: bounded `ConcurrentDictionary<string, CompiledExpressionInfo>` plus FIFO queue
-- Key: expression source text
-- Eviction: approximate FIFO after capacity is exceeded
+- compiled execution when a compiler is configured
+- interpreter execution when no compiler is configured
 
-## Execution dispatch
-Synchronous dispatch (`AlderEngine.Evaluate(AlderExpression, ...)`):
+### Asynchronous evaluation
 
-- Initializes execution context state (`ActiveCancellationToken` + `ExecutionConstraintState.Reset`)
-- Dispatches to compiled execution only when `_config.Compiler != null`
-- Dispatches to interpreter execution when `_config.Compiler == null`
+`EvaluateAsync(...)` uses the interpreter in the current implementation, regardless of compiler configuration.
 
-Asynchronous dispatch (`AlderEngine.EvaluateAsync(AlderExpression, ...)`):
+### Trace evaluation
 
-- Initializes execution context state (`ActiveCancellationToken` + `ExecutionConstraintState.Reset`)
-- Dispatches to `EvaluateAsyncCore`
-- Does not dispatch to compiled execution in the current implementation
+`EvaluateWithTrace` binds the expression, applies security validation, and executes with tracing enabled.
 
-Trace dispatch (`EvaluateWithTrace`):
+## Runtime pipeline
 
-- binds expression
-- runs security-only pipeline (`RunSecurityOnlyPipeline`)
-- executes with `BoundEvaluator` and `EvaluationTracer`
+Interpreter evaluation runs:
 
-## Interpreter execution
-`EvaluateCore` / `EvaluateAsyncCore` executes this sequence:
+1. bind or reuse a bound expression
+2. apply the bound-tree pipeline
+3. execute through the interpreter
+4. update execution counters and fallback metrics
+5. unwrap final control-flow state
 
-1. `TryGetOrCreateBoundExpression(...)`
-2. `_pipelineCache.GetValue(...)` (`RunPipeline` on cache miss)
-3. `BoundEvaluator.Evaluate(...)` or `EvaluateAsync(...)`
-4. expression counters update (`RecordBoundExecution`, `RecordBoundFallback`)
-5. boundary unwrapping via `UnwrapControlFlowSignal`
+Pipeline order:
 
-Interpretation pipeline order is fixed:
+- security validation
+- constant folding
+- dead-branch elimination
 
-- `SecurityValidationPass`
-- `ConstantFoldingPass`
-- `DeadBranchEliminationPass`
+Compiled evaluation runs:
 
-Evaluator dispatch is generated from `[EvaluatesNode]` registrations (`EvaluatorDispatchGenerator`) and routed by `EvaluationContext.Dispatch` / `DispatchAsync`.
+1. check whether compiled output is present and current
+2. compile when required
+3. invoke the compiled delegate
 
-## Compiled execution
-`ExecuteCompiledExpression` executes this sequence:
+Compilation pipeline order:
 
-1. read `expression.CompiledInfo`
-2. validate freshness with `IsCompiledInfoCurrent`
-3. call `TryCompileInternal` when metadata is missing or stale
-4. invoke compiled delegate `CompiledExpressionDelegate(context, config, constraintState, cancellationToken)`
+- security validation
+- constant folding
+- dead-branch elimination
+- conversion insertion
 
-Compilation pipeline order is fixed:
-
-- `SecurityValidationPass`
-- `ConstantFoldingPass`
-- `DeadBranchEliminationPass`
-- `ConversionInsertionPass`
-
-`TryCompileInternal` stores semantic compile failures into `CompiledInfo` and returns `false`; it does not throw for expected failures.
-
-Compiled execution throws when no invocable delegate is available after compile attempt: it throws stored `FailureException` when present, otherwise `StrictCompilationFailed`.
-
-Compiled emitter dispatch is generated from `[EmitsNode]` registrations (`EmitterDispatchGenerator`) and routed by `EmissionContext.Dispatch`.
+If Alder cannot produce an invocable compiled delegate, compiled execution throws the stored failure when available, otherwise `StrictCompilationFailed`.
 
 ## Context versioning
-Context type-inference version comes from `AlderContext._variableTypeVersion` plus parent-chain composition in `GetTypeInferenceVersion()`.
 
-Version increments:
+Context versioning determines whether prior semantic and compiled work remains valid.
 
-- `Define(name, value, inferredType)` only when declared type changes
-- `DefineNew(...)`
-- `ClearScope()`
+The type-inference version increases when the visible declared-type surface changes, including:
 
-Version does not increment on value-only mutation through `Set(...)`.
+- defining a variable with a different declared type
+- introducing a new variable
+- clearing a scope
 
-Version gates reuse of:
+Value-only updates through `Set(...)` do not change the type-inference version.
 
-- bound cache entries (`CachedBoundExpression.Version`)
-- compiled metadata (`CompiledExpressionInfo.TypeVersion`)
-- `AlderCompiledExpression<T>` invocation (`CompiledExpressionStale` on mismatch)
+Version changes invalidate:
 
-## Constraint enforcement
-Per evaluation, the engine creates a new `ExecutionConstraintState` and calls `Reset(constraints)`.
+- bound reuse for that context
+- compiled output tied to that type surface
+- precompiled expressions that depend on the old version
 
-`Reset` behavior:
+## Constraints
 
-- always clears statement and loop counters
-- starts timeout stopwatch only when `MaxTimeout > 0`
+Each evaluation resets constraint state from the configured limits.
 
-Runtime enforcement APIs:
+### Statement and timeout checks
 
-- `ExecutionRuntime.CheckExecutionConstraints(state, constraints, ct)`
-- `ExecutionRuntime.CheckLoopIterationConstraint(state, constraints)`
+Runtime checks:
 
-`CheckExecutionConstraints` guarantees:
+- increment the statement count
+- throw `OperationCanceledException` when cancellation is requested
+- throw `AlderExecutionLimitException(Statements)` when the statement limit is exceeded
+- throw `AlderExecutionLimitException(Timeout)` when the timeout limit is exceeded
 
-- throws `OperationCanceledException` when cancellation is requested
-- increments statement count on each call
-- throws `AlderExecutionLimitException(Statements)` when `MaxStatements` is exceeded
-- throws `AlderExecutionLimitException(Timeout)` when timeout is exceeded
+### Loop checks
 
-`CheckLoopIterationConstraint` guarantees:
+Loop enforcement:
 
-- increments loop-iteration count on each call
-- throws `AlderExecutionLimitException(LoopIterations)` when `MaxLoopIterations` is exceeded
+- increments the loop-iteration count
+- throws `AlderExecutionLimitException(LoopIterations)` when the loop limit is exceeded
 
-Interpreter loop evaluators (`while`, `for`, `foreach`) call statement and loop checks inside loop execution.
+Equivalent checks are applied by both execution backends.
 
-Compiled emitters inject equivalent runtime checks through generated calls that use `ConstraintStateParam` and active constraints.
+## Control flow
 
-## Control flow handling
-Internal non-local control flow is represented by `ControlFlowSignal` with kinds:
+Alder represents non-local control flow internally and propagates it until an owning construct consumes it.
 
-- `Return`
-- `Break`
-- `Continue`
-- `GotoCase`
-- `GotoDefault`
-- `Goto`
-- `YieldReturn`
-- `YieldBreak`
+### Behavior
 
-Interpreter rules:
+- loops consume `Break` and `Continue` that belong to them
+- blocks resolve in-block `goto` targets
+- other constructs propagate control flow they do not own
+- the evaluation boundary unwraps the final control-flow state
 
-- evaluators propagate signals they do not own
-- loop evaluators consume `Break` and `Continue`, and propagate other kinds
-- block evaluator resolves in-block `Goto` by jumping to label index in the same block
+### Boundary rule
 
-Compiled rules:
+At the outer evaluation boundary:
 
-- emission uses `SignalParam` to carry control-flow state
-- block and loop emitters branch on signal kind to consume owned signals and propagate others
-
-Engine boundary rule (`UnwrapControlFlowSignal`):
-
-- non-`Goto` signals return `signal.Value`
-- escaped `Goto` throws `AlderException(LabelNotFound)`
+- non-`Goto` control flow returns its associated value
+- escaped `Goto` becomes `LabelNotFound`
 
 ## Error handling
-Parsing:
 
-- parser/lexer failures propagate as `AlderException`
-- nesting-depth stack faults are translated to `ExpressionNestingDepthExceeded`
+### Parse failures
 
-Binding:
+- ordinary parse failures surface as Alder exceptions
+- stack-exhausting nesting is normalized as described above
 
-- binding failures are normalized to `AlderException(BindingFailed)` with diagnostics
-- `BindingNotSupportedException` is converted to bound-fallback reason by `TryGetOrCreateBoundExpression`
+### Binding failures
 
-Interpreter runtime:
+- semantic failures are normalized to `BindingFailed` with diagnostics
+- unsupported binding is recorded as unavailable state
 
-- `BoundEvaluator` enriches `AlderException` location only when exception span is empty, using `LastEvaluatedExpr`
+### Runtime failures
 
-Compiled runtime:
+- interpreted execution enriches missing source locations from the most recently evaluated expression
+- compiled execution enriches missing source locations from the root expression span
 
-- `ExecuteCompiledExpression` enriches location only when exception span is empty, using root expression span and source position
+### Try APIs
 
-Try APIs (`TryParse`, `TryEvaluate`, `TryValidate`):
+- `TryParse`, `TryEvaluate`, and `TryValidate` return `false` for ordinary failures
+- they rethrow `OperationCanceledException`
+- they rethrow `ObjectDisposedException`
 
-- return `false` for ordinary failures
-- rethrow `OperationCanceledException`
-- rethrow `ObjectDisposedException`
+## Guarantees
 
-## Constraints and guarantees
-- `AlderConfig` is captured at engine construction and used by execution contexts.
-- Security validation runs in interpreter and compiled pipelines.
-- Async execution uses interpreter dispatch in current implementation, regardless of compiler configuration.
-- Root-engine disposal clears root-owned caches (`_expressionCache`, `_typeMetadata`) and marks engine disposed.
-- Child engines share root disposal state and do not execute once root is disposed.
-- Variable storage in contexts uses concurrent dictionaries, but parent-scope mutation does not provide atomic multi-variable snapshots.
+- `AlderConfig` is fixed at engine construction time
+- security validation runs in both interpreter and compiled pipelines
+- asynchronous execution uses the interpreter in the current implementation
+- root-engine disposal prevents further execution through dependent child engines
+- context storage is concurrent, but Alder does not promise atomic multi-variable snapshots across parent-scope mutation
 
 ## Related pages
+
 - [Architecture](/explanation/architecture/)
-- [ECMA-334 conformance](/reference/language/ecma-conformance/)
+- [Binding system](/explanation/binding-system/)
+- [Configuration](/reference/configuration/)

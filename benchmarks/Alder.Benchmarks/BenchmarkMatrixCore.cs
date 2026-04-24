@@ -458,15 +458,18 @@ public static class BenchmarkManifestWriter
     private static IReadOnlyList<BenchmarkMatrixRow> BuildDynamicLinqCatalogRows()
     {
         var rows = new List<BenchmarkMatrixRow>();
-        var scaleFactors = new[] { 100, 1_000, 10_000, 100_000 };
-        var cases = DynamicLinqBenchmarks.GetDynamicLinqQueries();
-        var dynamicPreParsedEvaluators = new[] { "SystemDynamicLinqCore_CachedLambda" };
-        var dynamicWarmEvaluators = new[] { "Native", "Alder_DynamicLinq", "SystemDynamicLinqCore" };
-        var dynamicColdEvaluators = new[] { "Native", "Alder_DynamicLinq", "SystemDynamicLinqCore" };
+        var scaleFactors = DynamicLinqBenchmarks.GetBenchmarkScaleFactors();
+        var coldScaleFactors = DynamicLinqBenchmarks.GetBenchmarkColdStartScaleFactors();
+        var cases = DynamicLinqBenchmarks.GetBenchmarkQueries();
+        var parsedLambdaCases = DynamicLinqBenchmarks.GetBenchmarkParsedLambdaQueries();
+        var coldCases = DynamicLinqBenchmarks.GetBenchmarkColdStartQueries();
+        var dynamicPreParsedEvaluators = new[] { "Native", "Alder_DynamicLinq_ParsedLambda", "SystemDynamicLinqCore_ParsedLambda" };
+        var dynamicWarmEvaluators = new[] { "Native", "Alder_DynamicLinq_NonGeneric", "Alder_DynamicLinq_Generic", "SystemDynamicLinqCore_String" };
+        var dynamicColdEvaluators = new[] { "Native", "Alder_DynamicLinq_NonGeneric", "Alder_DynamicLinq_Generic", "SystemDynamicLinqCore_String" };
 
         foreach (var scale in scaleFactors)
         {
-            foreach (var query in cases)
+            foreach (var query in parsedLambdaCases)
             {
                 var benchCase = new BenchmarkCase(
                     query.Name,
@@ -485,6 +488,17 @@ public static class BenchmarkManifestWriter
                         scale,
                         BenchmarkCapability.Supported()));
                 }
+            }
+
+            foreach (var query in cases)
+            {
+                var benchCase = new BenchmarkCase(
+                    query.Name,
+                    "Operational",
+                    "DynamicLinq",
+                    "Scale",
+                    _ => null,
+                    new BenchmarkExpressionSet(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty));
 
                 foreach (var evaluator in dynamicWarmEvaluators)
                 {
@@ -495,6 +509,20 @@ public static class BenchmarkManifestWriter
                         scale,
                         BenchmarkCapability.Supported()));
                 }
+            }
+        }
+
+        foreach (var scale in coldScaleFactors)
+        {
+            foreach (var query in coldCases)
+            {
+                var benchCase = new BenchmarkCase(
+                    query.Name,
+                    "Operational",
+                    "DynamicLinq",
+                    "Scale",
+                    _ => null,
+                    new BenchmarkExpressionSet(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty));
 
                 foreach (var evaluator in dynamicColdEvaluators)
                 {
@@ -515,10 +543,8 @@ public static class BenchmarkManifestWriter
     {
         if (typeName.Contains("Cold", StringComparison.Ordinal))
             return BenchmarkLane.Cold.ToString();
-        if (typeName.Contains("PreParsed", StringComparison.Ordinal))
-            return BenchmarkLane.PreParsed.ToString();
-        if (typeName.Contains("DynamicLinqBenchmarks", StringComparison.Ordinal) &&
-            methodName.Contains("CachedLambda", StringComparison.Ordinal))
+        if (typeName.Contains("PreParsed", StringComparison.Ordinal) ||
+            typeName.Contains("ParsedLambda", StringComparison.Ordinal))
             return BenchmarkLane.PreParsed.ToString();
         return BenchmarkLane.Warm.ToString();
     }

@@ -1,5 +1,6 @@
 using Alder.Diagnostics;
 using Alder.Test.Compilation;
+using Alder.Test.Compilation.DynamicLinq;
 
 namespace Alder.Test.Core;
 

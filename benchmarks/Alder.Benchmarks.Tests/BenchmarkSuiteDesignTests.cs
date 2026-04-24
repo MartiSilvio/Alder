@@ -55,9 +55,161 @@ public class BenchmarkSuiteDesignTests
             .Select(x => x.Name)
             .ToArray();
 
+        Assert.That(queryNames, Has.Length.GreaterThanOrEqualTo(20));
         Assert.That(queryNames, Does.Contain("SetOperator+UnionCount"));
+        Assert.That(queryNames, Does.Contain("SetOperator+IntersectCount"));
+        Assert.That(queryNames, Does.Contain("SetOperator+ExceptCount"));
         Assert.That(queryNames, Does.Contain("Projection+TypedDtoFirst"));
         Assert.That(queryNames, Does.Contain("Sequence+SequenceEqual"));
+        Assert.That(queryNames, Does.Contain("SelectMany+FlattenNameChars"));
+        Assert.That(queryNames, Does.Contain("GroupBy+CategoryCount"));
+        Assert.That(queryNames, Does.Contain("Join+SelfCategoryCount"));
+        Assert.That(queryNames, Does.Contain("Paging+SkipTakeElementAt"));
+        Assert.That(queryNames, Does.Contain("Aggregate+MinMaxAverage"));
+    }
+
+    [Test]
+    public void DynamicLinqBenchmarks_DefaultRunMatrix_IsBounded()
+    {
+        var previous = Environment.GetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE");
+        try
+        {
+            Environment.SetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE", null);
+            var warmBenchmarks = new DynamicLinqBenchmarks();
+            var parsedBenchmarks = new DynamicLinqParsedLambdaBenchmarks();
+            var coldBenchmarks = new DynamicLinqBenchmarksColdStart();
+
+            Assert.That(warmBenchmarks.Queries().Count(), Is.LessThanOrEqualTo(8));
+            Assert.That(parsedBenchmarks.Queries().Count(), Is.LessThanOrEqualTo(8));
+            Assert.That(coldBenchmarks.Queries().Count(), Is.LessThanOrEqualTo(6));
+            Assert.That(warmBenchmarks.ScaleFactors().Count(), Is.LessThanOrEqualTo(2));
+            Assert.That(parsedBenchmarks.ScaleFactors().Count(), Is.LessThanOrEqualTo(2));
+            Assert.That(coldBenchmarks.ScaleFactors().Count(), Is.EqualTo(1));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE", previous);
+        }
+    }
+
+    [Test]
+    public void DynamicLinqBenchmarks_ExhaustiveRunMatrix_RemainsAvailable()
+    {
+        var previous = Environment.GetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE");
+        try
+        {
+            Environment.SetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE", "1");
+            var warmBenchmarks = new DynamicLinqBenchmarks();
+
+            Assert.That(warmBenchmarks.Queries().Count(), Is.EqualTo(DynamicLinqBenchmarks.GetDynamicLinqQueries().Count));
+            Assert.That(warmBenchmarks.ScaleFactors().Count(), Is.EqualTo(4));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE", previous);
+        }
+    }
+
+    [Test]
+    public void DynamicLinqBenchmarks_SeparateGenericAndNonGenericComparisonLanes()
+    {
+        var warmMethods = typeof(DynamicLinqBenchmarks)
+            .GetMethods()
+            .Where(method => method.GetCustomAttributes(typeof(BenchmarkAttribute), inherit: false).Length > 0)
+            .Select(method => method.Name)
+            .ToArray();
+        var coldMethods = typeof(DynamicLinqBenchmarksColdStart)
+            .GetMethods()
+            .Where(method => method.GetCustomAttributes(typeof(BenchmarkAttribute), inherit: false).Length > 0)
+            .Select(method => method.Name)
+            .ToArray();
+
+        Assert.That(warmMethods, Does.Contain("Alder_DynamicLinq_NonGeneric"));
+        Assert.That(warmMethods, Does.Contain("Alder_DynamicLinq_Generic"));
+        Assert.That(warmMethods, Does.Contain("SystemDynamicLinqCore_String"));
+        Assert.That(coldMethods, Does.Contain("Alder_DynamicLinq_NonGeneric"));
+        Assert.That(coldMethods, Does.Contain("Alder_DynamicLinq_Generic"));
+        Assert.That(coldMethods, Does.Contain("SystemDynamicLinqCore_String"));
+    }
+
+    [Test]
+    public void DynamicLinqParsedLambdaBenchmarks_UseDedicatedParsedLambdaLane()
+    {
+        var parsedLambdaBenchmarkType = typeof(DynamicLinqBenchmarks).Assembly
+            .GetType("Alder.Benchmarks.DynamicLinqParsedLambdaBenchmarks");
+        Assert.That(parsedLambdaBenchmarkType, Is.Not.Null);
+
+        var parsedMethods = parsedLambdaBenchmarkType!
+            .GetMethods()
+            .Where(method => method.GetCustomAttributes(typeof(BenchmarkAttribute), inherit: false).Length > 0)
+            .Select(method => method.Name)
+            .ToArray();
+
+        Assert.That(parsedMethods, Does.Contain("Native"));
+        Assert.That(parsedMethods, Does.Contain("Alder_DynamicLinq_ParsedLambda"));
+        Assert.That(parsedMethods, Does.Contain("SystemDynamicLinqCore_ParsedLambda"));
+    }
+
+    [Test]
+    public void DynamicLinqParsedLambdaBenchmarks_ExcludeNativeExpressionFallbacks()
+    {
+        var parsedQueries = DynamicLinqBenchmarks.GetParsedLambdaQueries()
+            .Select(x => x.Name)
+            .ToArray();
+
+        Assert.That(parsedQueries, Is.Not.Empty);
+        Assert.That(parsedQueries, Does.Not.Contain("Projection+AnonymousMaterialization"));
+        Assert.That(parsedQueries, Does.Not.Contain("Projection+TypedDtoFirst"));
+        Assert.That(parsedQueries, Has.Length.LessThan(DynamicLinqBenchmarks.GetDynamicLinqQueries().Count));
+    }
+
+    [Test]
+    public void DynamicLinqBenchmarks_AllComparisonLanes_AreSemanticallyAligned()
+    {
+        var data = BenchmarkData.Create(productCount: 256);
+        using var engine = new AlderEngine(new AlderOptions().UseCompiler());
+        var products = data.Products.AsQueryable();
+
+        foreach (var query in DynamicLinqBenchmarks.GetDynamicLinqQueries())
+        {
+            var expected = query.Native(products);
+
+            Assert.That(AreEquivalent(expected, query.AlderNonGeneric(products, engine)),
+                Is.True,
+                query.Name + " Alder non-generic");
+            Assert.That(AreEquivalent(expected, query.AlderGeneric(products, engine)),
+                Is.True,
+                query.Name + " Alder generic");
+            Assert.That(AreEquivalent(expected, query.DynamicCoreString(products)),
+                Is.True,
+                query.Name + " System.Linq.Dynamic.Core string");
+        }
+
+        foreach (var query in DynamicLinqBenchmarks.GetParsedLambdaQueries())
+        {
+            var expected = query.Native(products);
+
+            Assert.That(AreEquivalent(expected, query.AlderParsedLambda!(engine)(products)),
+                Is.True,
+                query.Name + " Alder parsed lambda");
+            Assert.That(AreEquivalent(expected, query.DynamicCoreParsedLambda!()(products)),
+                Is.True,
+                query.Name + " System.Linq.Dynamic.Core parsed lambda");
+        }
+    }
+
+    private static bool AreEquivalent(object? expected, object? actual)
+    {
+        if (expected is null || actual is null)
+            return expected is null && actual is null;
+
+        if (expected is decimal expectedDecimal && actual is decimal actualDecimal)
+            return Math.Abs(expectedDecimal - actualDecimal) < 0.0001m;
+
+        if (expected is double expectedDouble && actual is double actualDouble)
+            return Math.Abs(expectedDouble - actualDouble) < 0.0001d;
+
+        return Equals(expected, actual);
     }
 
     [Test]

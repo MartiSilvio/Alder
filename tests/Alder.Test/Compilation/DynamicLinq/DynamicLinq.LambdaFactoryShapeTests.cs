@@ -4,7 +4,7 @@ using Alder.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Linq;
 
-namespace Alder.Test.Compilation;
+namespace Alder.Test.Compilation.DynamicLinq;
 
 public partial class DynamicLinqTests
 {

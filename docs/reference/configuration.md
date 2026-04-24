@@ -1,219 +1,180 @@
 ---
 title: Configuration
-description: Reference for Alder engine configuration, option builders, runtime config materialization, registration surfaces, AOT context integration, and precedence rules.
+description: Reference for Alder engine configuration, option builders, AOT context registration, and precedence rules.
 ---
 
 # Configuration
 
-## Purpose
-This page defines Alder configuration surfaces and runtime configuration behavior for `AlderEngine`, `AlderOptions`, and `AlderConfig`.
+`AlderOptions` is the mutable configuration surface used before engine construction. `AlderConfig` is the immutable runtime snapshot captured by `AlderEngine`.
 
-## Entry points
+## Construction
+
 `AlderEngine` accepts configuration through:
 
 - `AlderEngine()`
 - `AlderEngine(Action<AlderOptions> configure)`
 - `AlderEngine(AlderOptions options)`
 
-`AlderOptions` is the mutable configuration object used before engine construction.
-
-## Configuration lifecycle
-Configuration materialization sequence:
-
-1. Caller mutates `AlderOptions` and nested builders (`Modules`, `Functions`, `Types`, `Aot`).
-2. `AlderEngine` constructor calls `BuildConfig(options)`.
-3. `BuildConfig` copies option state into runtime structures (`AlderConfig`) and merges AOT contexts.
-4. `AlderEngine` stores one `_config` instance.
-5. Runtime contexts (`AlderContext`) are created from `_config` and read configuration from that immutable snapshot.
-
-Mutation boundary:
-
-- `AlderOptions` is mutable before engine construction.
-- `AlderConfig` is immutable after construction.
-- Mutating the original `AlderOptions` after `AlderEngine` construction does not update `_config`.
+Configuration is materialized once, at engine construction time. Mutating the original `AlderOptions` instance afterward has no effect on the engine's runtime model.
 
 ## AlderOptions
-`AlderOptions` defines:
 
-- `IsCaseSensitive`: controls string comparers used for registered names and runtime string comparisons.
-- `LanguageMode`: parser/validation language surface (`Standard` or `Extended`).
-- `Sandbox`: converted to runtime `SecurityPolicy`.
-- `Constraints`: execution limits (statement, loop, timeout).
-- `ExpressionCompiler`: delegate compiler used by compiled backend.
-- `ServiceProvider`: optional `IServiceProvider` for runtime module resolution.
-- `Modules`: module/global-function registration builder.
-- `Functions`: delegate function registration builder.
-- `Types`: type-resolution and extension-method registration builder.
-- `Aot`: generated context registration builder.
+`AlderOptions` exposes these top-level settings:
 
-Internal `Compiler` is configured by compiled-backend extension methods and controls whether compiled execution is available.
+- `IsCaseSensitive`: controls name matching for registered functions, modules, and relevant runtime member lookup.
+- `LanguageMode`: selects the accepted language surface, such as `Standard` or `Extended`.
+- `Sandbox`: defines the security policy used during validation and execution.
+- `Constraints`: sets runtime limits such as statement count, loop iterations, and timeout.
+- `ExpressionCompiler`: selects the delegate compiler used by compiled execution.
+- `ServiceProvider`: supplies module instances through dependency injection.
+- `Modules`: registers named module surfaces.
+- `Functions`: registers delegate-based global functions.
+- `Types`: registers assemblies, namespaces, and extension-method containers for type and method resolution.
+- `Aot`: registers generated type contexts used by typed dispatch.
 
 ## AlderConfig
-`AlderConfig` stores the runtime snapshot consumed by parsing, binding, evaluation, and compilation.
 
-Key fields:
+`AlderConfig` contains the runtime form of that configuration:
 
-- Language/security/casing: `LanguageMode`, `Security`, `IsCaseSensitive`, `Comparer`, `StringComparison`.
-- Execution settings: `Constraints`, `Compiler`, `ExpressionCompiler`.
-- Integration settings: `ServiceProvider`.
-- Registrations: `Functions`, `Modules`, `ExtensionTypes`.
-- Binding/runtime metadata: `TypeMetadata`, `TypeResolver`.
-- AOT dispatch metadata: `TypeDispatch`, `DelegateFactories`, `ExtensionDispatches`.
-- Compiled-runtime routing flag: `PreferResolvedRuntimeDispatch`.
+- language and casing rules
+- security policy
+- execution constraints
+- compiler settings
+- service provider integration
+- function and module registries
+- type-resolution metadata
+- extension-method registries
+- AOT dispatch metadata
 
-`AlderConfig.TryGetDispatch(Type, out TypedDispatch)` resolves typed dispatch by runtime type, then base types up to but excluding `object`.
+`AlderConfig` is shared by contexts created from the same engine instance.
 
-## Module registration
+## Modules
+
 Module registration entry points:
 
 - `Modules.Register<T>(moduleName, explicitOnly = false, instance = default)`
 - `Modules.Register(moduleName, Type, explicitOnly = false, instance = null)`
-- `Modules.Register(moduleName, Type, IReadOnlyDictionary<string, MemberInfo> members)`
+- `Modules.Register(moduleName, Type, IReadOnlyDictionary<string, IReadOnlyCollection<MemberInfo>> members)`
 - `Modules.RegisterFromType(Type|T, instance = null)`
 - `Modules.RegisterFromAssembly(Assembly)`
 
-Registration model:
+### Naming
 
-- Each module registration produces one `RegisteredType`.
-- `BuildConfig` converts module registrations into `ModuleInfo` entries keyed by module name.
-- For `RegisterFromType*`, module name is resolved from `[AlderModule(Name=...)]`.
-- If no module name is present, `[AlderFunction]` methods on that type are registered as global functions.
+- `Register("name", ...)` uses the supplied name.
+- `RegisterFromType` uses `[AlderModule("name")]` when present.
+- If `RegisterFromType` is used on a type without `[AlderModule]`, methods marked with `[AlderFunction]` are registered as global functions rather than as a module.
 
-Member exposure rules:
+### Exposure rules
 
-- Standard registration uses `ModuleMemberMetadata.Build(...)`.
-- `explicitOnly = true` exposes only methods marked with `[AlderFunction]`.
-- Explicit member-map overload exposes only provided `MemberInfo` entries.
-- Engine uses provided explicit member map as-is; comparer behavior depends on the supplied dictionary implementation.
+- standard module registration exposes the default public module surface
+- `explicitOnly = true` exposes only methods marked with `[AlderFunction]`
+- the explicit member-map overload exposes only the members provided in that map
 
-Module instance resolution at runtime (`ModuleInfo.Resolve`):
+### Instance resolution
 
-1. Use pre-registered instance when non-null.
-2. Else call `IServiceProvider.GetService(moduleType)` when provider is configured.
-3. Else create instance through public parameterless constructor.
-4. Else throw `CannotResolveModuleInstance`.
+When an expression needs an instance member, Alder resolves the module instance in this order:
 
-Resolution executes per runtime access; module instances are not cached by `ModuleInfo` when created through step 2 or step 3.
+1. Use the instance supplied at registration time.
+2. Resolve the module type from `IServiceProvider`.
+3. Construct the module through a public parameterless constructor.
+4. Fail if none of those paths succeeds.
 
-## Function registration
+Resolution occurs per access. Alder does not implicitly cache instances created through the service provider or parameterless-constructor path.
+
+## Functions
+
 Function registration entry point:
 
 - `Functions.Register(string name, Func<object?[], object?> function)`
 
-Function model:
+### Behavior
 
-- Registered functions are stored by name in a comparer-aware dictionary.
-- Function registration by the same name overwrites the previous delegate.
-- Attribute-derived global functions (`[AlderFunction]` from `RegisterFromType*` and `RegisterFromAssembly`) are merged into the same function map.
-- Name collisions between delegate functions and attribute-derived functions resolve by last assignment during `BuildConfig`.
+- function names are stored in a comparer derived from `IsCaseSensitive`
+- registering the same name again overwrites the previous function
+- methods discovered through `[AlderFunction]` merge into the same registry
 
-## Type registration
+### Delegate argument model
+
+- expression arguments are evaluated before the delegate is called
+- the delegate receives `object?[]`
+- Alder does not perform automatic conversion on this surface
+- validation and conversion are the delegate author's responsibility
+
+## Types
+
 Type registration entry points:
 
 - `Types.AddAssembly(Assembly)`
 - `Types.AddNamespace(string namespaceName)`
 - `Types.AddExtensionMethods(Type|T)`
 
-Runtime usage:
+### Runtime effect
 
-- `BuildConfig` creates `TypeResolver` from registered assemblies and namespaces with implicit BCL imports enabled.
-- `ExtensionTypes` is copied into `AlderConfig` and consumed by runtime extension-method dispatch.
+- registered assemblies and namespaces extend the type-resolution surface
+- registered extension-method containers participate in method resolution
+- duplicate extension-method registrations are ignored
+- `Enumerable` is included by default
 
-Ordering and uniqueness:
+## AOT
 
-- Assemblies and namespaces preserve insertion order.
-- `AddExtensionMethods` inserts new extension types at the front when not already present.
-- `Enumerable` is present by default.
-- Duplicate extension type inserts are ignored.
-
-## AOT configuration
 AOT entry points:
 
 - `Aot.UseGeneratedContext(AlderTypeContext context)`
 - `Aot.ClearBuiltInContext()`
 
-AOT builder state:
+### Merge behavior
 
-- `BuiltInContext` defaults to `AlderBuiltInContext.Default`.
-- `AdditionalContexts` stores user contexts in insertion order.
+- Alder starts with its built-in generated context unless it is cleared
+- additional contexts are merged in registration order
+- later contexts override earlier typed-dispatch entries for the same runtime type
+- delegate factory collisions are resolved by last registration wins
+- closed delegate roots are merged by set union
 
-`ClearBuiltInContext()` behavior:
+`ClearBuiltInContext()` removes the built-in context and clears any previously queued additional contexts.
 
-- sets `BuiltInContext` to `null`
-- clears `AdditionalContexts`
+## Service provider
 
-AOT merge in `BuildConfig`:
+`AlderOptions.ServiceProvider` is used for module instance resolution. It is not a general-purpose expression dependency injection facility. Its role is to let module-backed expressions obtain instance targets from the host application's container.
 
-1. Merge built-in context metadata when `BuiltInContext` is non-null.
-2. Merge each additional context in insertion order.
-3. Store merged results into `AlderConfig.TypeDispatch`, `AlderConfig.DelegateFactories`, and `AlderConfig.ExtensionDispatches`.
+Child contexts inherit the same service provider unless explicitly replaced.
 
-Merge rules:
+## Case sensitivity
 
-- `TypeDispatch`: keyed by runtime `Type`; later context entries overwrite earlier entries.
-- `DelegateFactories`: keyed by delegate `Type`; later context entries overwrite earlier entries.
-- `ExtensionDispatches`: concatenated in merge order.
+- `IsCaseSensitive = true` requires exact matching
+- `IsCaseSensitive = false` uses case-insensitive matching for registered names and relevant runtime lookups
 
-`PreferResolvedRuntimeDispatch` is `true` when dynamic code is unavailable or when at least one additional generated context is registered.
+This affects both runtime lookup and collision behavior at registration time.
 
-## Service provider integration
-`IServiceProvider` integration points:
+## Precedence rules
 
-- `AlderOptions.ServiceProvider` is copied into `AlderConfig.ServiceProvider`.
-- Root `AlderContext` is created with `_config.ServiceProvider`.
-- Child contexts inherit service provider from parent when one is not explicitly supplied.
-- Module instance resolution uses provider through `ModuleInfo.Resolve`.
+- function collisions: last registration wins
+- module collisions: last registration wins
+- attribute-discovered global function collisions: last registration wins
+- typed-dispatch collisions by runtime type: last merged context wins
+- delegate factory collisions by delegate type: last merged context wins
+- generic static dispatch metadata accumulates in registration order
 
-The service provider is not used for arbitrary expression-level dependency injection; the runtime integration path is module instance resolution.
+## Runtime consequences
 
-## Configuration merge and precedence rules
-Precedence rules:
+- parsing and validation use `LanguageMode`
+- sandbox validation uses `Sandbox`
+- runtime limits use `Constraints`
+- type lookup uses the registered assemblies and namespaces
+- extension method binding uses registered extension-method containers
+- typed dispatch uses registered AOT contexts
+- synchronous execution uses compiled evaluation only when a compiler is configured
+- asynchronous execution uses the interpreter in the current implementation
 
-- Function name collisions: last registration wins.
-- Module name collisions: last registration wins.
-- Global function name collisions from attribute registrations: last assignment wins.
-- AOT typed dispatch collisions by type: last merged context wins.
-- AOT delegate factory collisions by delegate type: last merged context wins.
-- AOT extension dispatches: merged by append; no overwrite phase.
+## Guarantees
 
-Registration-order rules:
-
-- `UseGeneratedContext` merge order is registration order.
-- Built-in context is merged before additional contexts.
-- `ClearBuiltInContext` removes built-in and all previously queued additional contexts.
-
-Case-sensitivity rules:
-
-- `IsCaseSensitive` selects option-level string comparer.
-- Function/module dictionaries use that comparer.
-- Type and namespace resolution comparers use that comparer.
-
-## Runtime effects of configuration
-Configuration effects by subsystem:
-
-- Parsing/validation: `LanguageMode` controls accepted syntax surface.
-- Security and limits: `Sandbox` is converted to `SecurityPolicy` used by validation/runtime checks.
-- Security and limits: `Constraints` is applied to per-evaluation `ExecutionConstraintState` resets.
-- Binding/type resolution: `TypeResolver` uses registered assemblies and namespaces.
-- Binding/type resolution: `ExtensionTypes` contributes extension-method lookup.
-- Dispatch/runtime invocation: `TypeDispatch` enables typed-dispatch lookup before reflection fallback.
-- Dispatch/runtime invocation: `DelegateFactories` and `ExtensionDispatches` are consumed by runtime AOT helper paths.
-- Dispatch/runtime invocation: `IsCaseSensitive` controls runtime name matching behavior.
-- Backend selection: synchronous `Evaluate` uses compiled path only when `Compiler` is non-null.
-- Backend selection: asynchronous evaluation runs interpreter path.
-- Backend selection: `TryCompile` and `Compile` require a configured compiler.
-- Compiled emission behavior: `PreferResolvedRuntimeDispatch` switches resolved member/call emission to runtime helper routing.
-
-## Constraints and guarantees
-- Engine configuration is captured at construction and remains stable for that engine instance.
-- `AlderConfig` is shared across contexts created by the same engine.
-- `AlderConfig` dictionaries are fixed snapshots created during `BuildConfig`.
-- Module instance resolution order is deterministic: registered instance, service provider, parameterless constructor, failure.
-- AOT merge order is deterministic: built-in context first, additional contexts in registration order.
-- Dispatch lookup through `TryGetDispatch` traverses class inheritance only; interface traversal is not part of this lookup.
+- engine configuration is fixed at construction time
+- all contexts created by an engine share the same runtime snapshot
+- module instance resolution order is deterministic
+- AOT merge order is deterministic
+- typed-dispatch lookup begins with exact runtime type matches; broader fallback behavior is handled by Alder's runtime dispatch layer
 
 ## Related pages
-- [Execution model](/reference/execution-model/)
+
 - [Architecture](/explanation/architecture/)
-- [Binding system](/explanation/binding-system/)
 - [Typed dispatch and AOT](/explanation/typed-dispatch/)
+- [Execution model](/reference/execution-model/)

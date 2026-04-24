@@ -3,7 +3,7 @@ using Alder.Compiled.DynamicLinq;
 using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
-namespace Alder.Test.Compilation;
+namespace Alder.Test.Compilation.DynamicLinq;
 
 public partial class DynamicLinqTests
 {
@@ -110,14 +110,20 @@ public partial class DynamicLinqTests
         public void SelectDynamic_ProjectsToString()
         {
             var result = Products.SelectDynamic<Product, string>("p => p.Name").ToList();
+            var nongeneric = Products.SelectDynamic("p => p.Name").Cast<string>().ToList();
             Assert.That(result, Is.EquivalentTo(new[] { "Widget", "Gadget", "Doohickey", "Thingamajig", "Whatchamacallit" }));
+            Assert.That(nongeneric, Is.EqualTo(result));
+            Assert.That(nongeneric[0].GetType(), Is.EqualTo(result[0].GetType()));
         }
 
         [Test]
         public void SelectDynamic_ProjectsToDecimal()
         {
             var result = Products.SelectDynamic<Product, decimal>("p => p.Price").ToList();
+            var nongeneric = Products.SelectDynamic("p => p.Price").Cast<decimal>().ToList();
             Assert.That(result, Does.Contain(9.99m));
+            Assert.That(nongeneric, Is.EqualTo(result));
+            Assert.That(nongeneric[0].GetType(), Is.EqualTo(result[0].GetType()));
         }
 
         [Test]
@@ -135,36 +141,47 @@ public partial class DynamicLinqTests
         public void SelectDynamic_BodyOnly_ImplicitReceiverMember()
         {
             var result = Products.SelectDynamic<Product, string>("Name").ToList();
+            var nongeneric = Products.SelectDynamic("Name").Cast<string>().ToList();
             Assert.That(result, Is.EquivalentTo(new[] { "Widget", "Gadget", "Doohickey", "Thingamajig", "Whatchamacallit" }));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
         public void SelectDynamic_ProjectsStructuralObject()
         {
-            var result = Products.SelectDynamic<Product, object>("new { Name, Price }").ToList();
+            var result = Products.SelectDynamic<Product, IReadOnlyDictionary<string, object?>>("new { Name, Price }").ToList();
+            var nongeneric = Products.SelectDynamic("new { Name, Price }").Cast<IReadOnlyDictionary<string, object?>>().ToList();
             var first = result[0];
+            var nongenericFirst = nongeneric[0];
 
             Assert.That(first, Is.Not.InstanceOf<IDictionary<string, object?>>());
             Assert.That(TestHelpers.ReadProjectedMember(first, "Name"), Is.EqualTo("Widget"));
             Assert.That(TestHelpers.ReadProjectedMember(first, "Price"), Is.EqualTo(9.99m));
+            Assert.That(nongenericFirst.GetType(), Is.EqualTo(first.GetType()));
+            Assert.That(TestHelpers.ReadProjectedMember(nongenericFirst, "Name"), Is.EqualTo("Widget"));
+            Assert.That(TestHelpers.ReadProjectedMember(nongenericFirst, "Price"), Is.EqualTo(9.99m));
         }
 
         [Test]
         public void SelectDynamic_ProjectsStructuralObject_WithAliases()
         {
-            var result = Products.SelectDynamic<Product, object>("new { ProductName = Name, Price }").ToList();
+            var result = Products.SelectDynamic<Product, IReadOnlyDictionary<string, object?>>("new { ProductName = Name, Price }").ToList();
+            var nongeneric = Products.SelectDynamic("new { ProductName = Name, Price }").Cast<IReadOnlyDictionary<string, object?>>().ToList();
             var first = result[0];
+            var nongenericFirst = nongeneric[0];
 
             Assert.That(TestHelpers.ReadProjectedMember(first, "ProductName"), Is.EqualTo("Widget"));
             Assert.That(TestHelpers.ReadProjectedMember(first, "Price"), Is.EqualTo(9.99m));
+            Assert.That(nongenericFirst.GetType(), Is.EqualTo(first.GetType()));
+            Assert.That(TestHelpers.ReadProjectedMember(nongenericFirst, "ProductName"), Is.EqualTo("Widget"));
+            Assert.That(TestHelpers.ReadProjectedMember(nongenericFirst, "Price"), Is.EqualTo(9.99m));
         }
 
         [Test]
-        public void SelectDynamic_StructuralProjection_CanBeMaterializedToRecordDto()
+        public void SelectDynamic_StructuralProjection_MaterializesToRecordDto()
         {
             var result = Products
-                .SelectDynamic<Product, object>("new { Name, Price }")
-                .Select(AlderProjectionMaterializer.Materialize<ProductSummaryRecord>)
+                .SelectDynamic<Product, ProductSummaryRecord>("new { Name, Price }")
                 .ToList();
 
             Assert.That(result[0]!.name, Is.EqualTo("Widget"));
@@ -172,11 +189,10 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void SelectDynamic_StructuralProjection_CanBeMaterializedToClassDto()
+        public void SelectDynamic_StructuralProjection_MaterializesToClassDto()
         {
             var result = Products
-                .SelectDynamic<Product, object>("new { Name, Price }")
-                .Select(AlderProjectionMaterializer.Materialize<ProductSummaryDto>)
+                .SelectDynamic<Product, ProductSummaryDto>("new { Name, Price }")
                 .ToList();
 
             Assert.That(result[0]!.Name, Is.EqualTo("Widget"));
@@ -184,13 +200,11 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void IQueryable_SelectDynamic_StructuralProjection_CanBeMaterializedAfterEnumeration()
+        public void IQueryable_SelectDynamic_StructuralProjection_MaterializesToClassDto()
         {
             var result = Products
                 .AsQueryable()
-                .SelectDynamic<Product, object>("new { Name, Price }")
-                .ToList()
-                .Select(AlderProjectionMaterializer.Materialize<ProductSummaryDto>)
+                .SelectDynamic<Product, ProductSummaryDto>("new { Name, Price }")
                 .ToList();
 
             Assert.That(result[0]!.Name, Is.EqualTo("Widget"));
@@ -206,15 +220,19 @@ public partial class DynamicLinqTests
         public void OrderByDynamic_SortsByKey()
         {
             var result = Products.OrderByDynamic<Product, decimal>("p => p.Price").ToList();
+            var nongeneric = Products.OrderByDynamic("p => p.Price").ToList();
             Assert.That(result[0].Name, Is.EqualTo("Thingamajig"));
             Assert.That(result[^1].Name, Is.EqualTo("Whatchamacallit"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
         public void OrderByDescendingDynamic_SortsByKeyDescending()
         {
             var result = Products.OrderByDescendingDynamic<Product, decimal>("p => p.Price").ToList();
+            var nongeneric = Products.OrderByDescendingDynamic("p => p.Price").ToList();
             Assert.That(result[0].Name, Is.EqualTo("Whatchamacallit"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
@@ -224,8 +242,13 @@ public partial class DynamicLinqTests
                 .OrderByDynamic<Product, string>("p => p.Category")
                 .ThenByDynamic<Product, decimal>("p => p.Price")
                 .ToList();
+            var nongeneric = Products
+                .OrderByDynamic("p => p.Category")
+                .ThenByDynamic("p => p.Price")
+                .ToList();
             Assert.That(result[0].Name, Is.EqualTo("Gadget"));
             Assert.That(result[1].Name, Is.EqualTo("Doohickey"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
@@ -235,17 +258,24 @@ public partial class DynamicLinqTests
                 .OrderByDynamic<Product, string>("p => p.Category")
                 .ThenByDescendingDynamic<Product, decimal>("p => p.Price")
                 .ToList();
+            var nongeneric = Products
+                .OrderByDynamic("p => p.Category")
+                .ThenByDescendingDynamic("p => p.Price")
+                .ToList();
 
             Assert.That(result[0].Name, Is.EqualTo("Doohickey"));
             Assert.That(result[1].Name, Is.EqualTo("Gadget"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
         public void OrderByDynamic_BodyOnly_KeySelector()
         {
             var result = Products.OrderByDynamic<Product, decimal>("Price").ToList();
+            var nongeneric = Products.OrderByDynamic("Price").ToList();
             Assert.That(result[0].Name, Is.EqualTo("Thingamajig"));
             Assert.That(result[^1].Name, Is.EqualTo("Whatchamacallit"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
@@ -340,16 +370,24 @@ public partial class DynamicLinqTests
         public void GroupByDynamic_GroupsByKey()
         {
             var groups = Products.GroupByDynamic<Product, string>("p => p.Category").ToList();
+            var nongeneric = Products.GroupByDynamic("p => p.Category")
+                .Cast<IGrouping<string, Product>>()
+                .ToList();
             Assert.That(groups, Has.Count.EqualTo(3));
             Assert.That(groups.Select(g => g.Key), Is.EquivalentTo(new[] { "Tools", "Electronics", "Premium" }));
+            Assert.That(nongeneric.Select(g => g.Key), Is.EqualTo(groups.Select(g => g.Key)));
         }
 
         [Test]
         public void GroupByDynamic_BodyOnly_KeySelector()
         {
             var groups = Products.GroupByDynamic<Product, string>("Category").ToList();
+            var nongeneric = Products.GroupByDynamic("Category")
+                .Cast<IGrouping<string, Product>>()
+                .ToList();
             Assert.That(groups, Has.Count.EqualTo(3));
             Assert.That(groups.Select(g => g.Key), Is.EquivalentTo(new[] { "Tools", "Electronics", "Premium" }));
+            Assert.That(nongeneric.Select(g => g.Key), Is.EqualTo(groups.Select(g => g.Key)));
         }
     }
 
@@ -685,7 +723,7 @@ public partial class DynamicLinqTests
         public void SkipWhileDynamic_SkipsWhilePredicateMatches()
         {
             var ordered = Products.OrderByDynamic<Product, decimal>("Price");
-            var result = ordered.SkipWhileDynamic("p => p.Price < 10m").Select(p => p.Name).ToList();
+            var result = ordered.SkipWhileDynamic<Product>("p => p.Price < 10m").Select(p => p.Name).ToList();
             Assert.That(result, Is.EqualTo(new[] { "Gadget", "Doohickey", "Whatchamacallit" }));
         }
 
@@ -693,7 +731,7 @@ public partial class DynamicLinqTests
         public void TakeWhileDynamic_TakesWhilePredicateMatches()
         {
             var ordered = Products.OrderByDynamic<Product, decimal>("Price");
-            var result = ordered.TakeWhileDynamic("p => p.Price < 10m").Select(p => p.Name).ToList();
+            var result = ordered.TakeWhileDynamic<Product>("p => p.Price < 10m").Select(p => p.Name).ToList();
             Assert.That(result, Is.EqualTo(new[] { "Thingamajig", "Widget" }));
         }
 
@@ -773,8 +811,12 @@ public partial class DynamicLinqTests
             Assert.That(Products.CountDynamic(predicate), Is.EqualTo(expected));
 
         [Test]
-        public void SumDynamic_SumsValues() =>
-            Assert.That(Products.SumDynamic("p => p.Price"), Is.EqualTo(514.95m));
+        public void SumDynamic_SumsValues()
+        {
+            var result = Products.SumDynamic("p => p.Price");
+            Assert.That(result, Is.EqualTo(514.95m));
+            Assert.That(result.GetType(), Is.EqualTo(typeof(decimal)));
+        }
 
         [Test]
         public void SumDynamic_PreParsedExpression()
@@ -786,16 +828,28 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void AverageDynamic_AveragesValues() =>
-            Assert.That(Products.AverageDynamic("p => (double)p.Price"), Is.EqualTo(102.99).Within(0.01));
+        public void AverageDynamic_AveragesValues()
+        {
+            var result = Products.AverageDynamic("p => (double)p.Price");
+            Assert.That(result, Is.EqualTo(102.99).Within(0.01));
+            Assert.That(result.GetType(), Is.EqualTo(typeof(double)));
+        }
 
         [Test]
-        public void MinDynamic_FindsMinimum() =>
-            Assert.That(Products.MinDynamic<Product, decimal>("p => p.Price"), Is.EqualTo(4.99m));
+        public void MinDynamic_FindsMinimum()
+        {
+            var result = Products.MinDynamic("p => p.Price");
+            Assert.That(result, Is.EqualTo(4.99m));
+            Assert.That(result.GetType(), Is.EqualTo(typeof(decimal)));
+        }
 
         [Test]
-        public void MaxDynamic_FindsMaximum() =>
-            Assert.That(Products.MaxDynamic<Product, decimal>("p => p.Price"), Is.EqualTo(299.99m));
+        public void MaxDynamic_FindsMaximum()
+        {
+            var result = Products.MaxDynamic("p => p.Price");
+            Assert.That(result, Is.EqualTo(299.99m));
+            Assert.That(result.GetType(), Is.EqualTo(typeof(decimal)));
+        }
 
         [Test]
         public void LongCountDynamic_CountsValues() =>
@@ -820,9 +874,14 @@ public partial class DynamicLinqTests
                 .SelectManyDynamic<Customer, Order>("c => c.Orders")
                 .Select(o => o.Product)
                 .ToList();
+            var nongeneric = Customers.SelectManyDynamic("c => c.Orders")
+                .Cast<Order>()
+                .Select(o => o.Product)
+                .ToList();
 
             Assert.That(result, Does.Contain("Laptop"));
             Assert.That(result, Does.Contain("Phone"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
@@ -833,9 +892,16 @@ public partial class DynamicLinqTests
                     "c => c.Orders",
                     """(outer, inner) => outer.Name + ":" + inner.Product""")
                 .ToList();
+            var nongeneric = Customers
+                .SelectManyDynamic(
+                    "c => c.Orders",
+                    """(outer, inner) => outer.Name + ":" + inner.Product""")
+                .Cast<string>()
+                .ToList();
 
             Assert.That(result, Does.Contain("Alice:Laptop"));
             Assert.That(result, Does.Contain("Bob:Monitor"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
@@ -845,9 +911,15 @@ public partial class DynamicLinqTests
                 .SelectManyDynamic<Customer, Order>("c => c.Orders")
                 .Select(o => o.Product)
                 .ToList();
+            var nongeneric = Customers.AsQueryable()
+                .SelectManyDynamic("c => c.Orders")
+                .Cast<Order>()
+                .Select(o => o.Product)
+                .ToList();
 
             Assert.That(result, Does.Contain("Laptop"));
             Assert.That(result, Does.Contain("Phone"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
@@ -859,9 +931,17 @@ public partial class DynamicLinqTests
                 "s => s.Category",
                 """(outer, inner) => outer.Name + ":" + inner.Count""")
                 .ToList();
+            var nongeneric = Products.JoinDynamic(
+                    WarehouseStocks,
+                    "p => p.Category",
+                    "s => s.Category",
+                    """(outer, inner) => outer.Name + ":" + inner.Count""")
+                .Cast<string>()
+                .ToList();
 
             Assert.That(result, Does.Contain("Widget:12"));
             Assert.That(result, Does.Contain("Doohickey:5"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
@@ -873,9 +953,17 @@ public partial class DynamicLinqTests
                 "s => s.Category",
                 """(outer, inner) => outer.Name + ":" + inner.Count""")
                 .ToList();
+            var nongeneric = Products.AsQueryable().JoinDynamic(
+                    WarehouseStocks,
+                    "p => p.Category",
+                    "s => s.Category",
+                    """(outer, inner) => outer.Name + ":" + inner.Count""")
+                .Cast<string>()
+                .ToList();
 
             Assert.That(result, Does.Contain("Widget:12"));
             Assert.That(result, Does.Contain("Doohickey:5"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
@@ -887,9 +975,17 @@ public partial class DynamicLinqTests
                 "s => s.Category",
                 """(outer, group) => outer.Name + ":" + group.Count()""")
                 .ToList();
+            var nongeneric = Products.GroupJoinDynamic(
+                    WarehouseStocks,
+                    "p => p.Category",
+                    "s => s.Category",
+                    """(outer, group) => outer.Name + ":" + group.Count()""")
+                .Cast<string>()
+                .ToList();
 
             Assert.That(result, Does.Contain("Widget:1"));
             Assert.That(result, Does.Contain("Whatchamacallit:1"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
@@ -918,9 +1014,17 @@ public partial class DynamicLinqTests
                 "s => s.Category",
                 """(outer, group) => outer.Name + ":" + group.Count()""")
                 .ToList();
+            var nongeneric = Products.AsQueryable().GroupJoinDynamic(
+                    WarehouseStocks,
+                    "p => p.Category",
+                    "s => s.Category",
+                    """(outer, group) => outer.Name + ":" + group.Count()""")
+                .Cast<string>()
+                .ToList();
 
             Assert.That(result, Does.Contain("Widget:1"));
             Assert.That(result, Does.Contain("Whatchamacallit:1"));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
     }
 

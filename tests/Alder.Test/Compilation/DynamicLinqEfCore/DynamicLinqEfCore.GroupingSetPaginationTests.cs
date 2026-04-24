@@ -1,6 +1,7 @@
+using System.Collections;
 using Alder.Test.Integration;
 
-namespace Alder.Test.Compilation;
+namespace Alder.Test.Compilation.DynamicLinqEfCore;
 
 public sealed partial class DynamicLinqEfCoreTests
 {
@@ -15,19 +16,30 @@ public sealed partial class DynamicLinqEfCoreTests
                 .Select(g => new { g.Key, Count = g.Count() })
                 .OrderBy(g => g.Key)
                 .ToList();
+            var nongeneric = ((IEnumerable)db.Orders.GroupByDynamic("IsActive"))
+                .Cast<IGrouping<bool, EfOrder>>()
+                .Select(g => new { g.Key, Count = g.Count() })
+                .OrderBy(g => g.Key)
+                .ToList();
 
             Assert.That(groups.Count, Is.EqualTo(2));
             Assert.That(groups[0], Has.Property("Key").EqualTo(false));
             Assert.That(groups[0], Has.Property("Count").EqualTo(1));
             Assert.That(groups[1], Has.Property("Key").EqualTo(true));
             Assert.That(groups[1], Has.Property("Count").EqualTo(3));
+            Assert.That(nongeneric, Is.EqualTo(groups));
         }
 
         [Test]
         public void IQueryable_GroupByDynamic_NullCoalesceKey_Composes()
         {
             using var db = new EfOrdersDbContext(DbOptions);
-            var groups = db.Orders.GroupByDynamic<EfOrder, string>("Notes ?? \"none\"")
+            var groups = db.Orders.GroupByDynamic<EfOrder, string>("""Notes ?? "none" """)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .OrderBy(g => g.Key)
+                .ToList();
+            var nongeneric = ((IEnumerable)db.Orders.GroupByDynamic("""Notes ?? "none" """))
+                .Cast<IGrouping<string, EfOrder>>()
                 .Select(g => new { g.Key, Count = g.Count() })
                 .OrderBy(g => g.Key)
                 .ToList();
@@ -37,6 +49,7 @@ public sealed partial class DynamicLinqEfCoreTests
             Assert.That(groups[0], Has.Property("Count").EqualTo(2));
             Assert.That(groups[1], Has.Property("Key").EqualTo("vip"));
             Assert.That(groups[1], Has.Property("Count").EqualTo(2));
+            Assert.That(nongeneric, Is.EqualTo(groups));
         }
     }
 
@@ -71,6 +84,9 @@ public sealed partial class DynamicLinqEfCoreTests
 
             Assert.That(
                 db.Orders.SelectDynamic<EfOrder, string>("Customer").ContainsDynamic("Bob"),
+                Is.True);
+            Assert.That(
+                db.Orders.SelectDynamic("Customer").Cast<string>().ContainsDynamic("Bob"),
                 Is.True);
         }
 
@@ -141,8 +157,15 @@ public sealed partial class DynamicLinqEfCoreTests
                 .DistinctDynamic()
                 .OrderBy(value => value)
                 .ToList();
+            var nongeneric = db.Orders
+                .SelectDynamic("IsActive")
+                .Cast<bool>()
+                .DistinctDynamic()
+                .OrderBy(value => value)
+                .ToList();
 
             Assert.That(result, Is.EqualTo(new[] { false, true }));
+            Assert.That(nongeneric, Is.EqualTo(result));
         }
 
         [Test]
@@ -154,8 +177,14 @@ public sealed partial class DynamicLinqEfCoreTests
                 .ReverseDynamic()
                 .Select(o => o.Id)
                 .ToList();
+            var nongeneric = db.Orders
+                .OrderByDynamic("Id")
+                .ReverseDynamic()
+                .Select(o => o.Id)
+                .ToList();
 
             Assert.That(ids, Is.EqualTo(new[] { 4, 3, 2, 1 }));
+            Assert.That(nongeneric, Is.EqualTo(ids));
         }
     }
 
@@ -170,8 +199,14 @@ public sealed partial class DynamicLinqEfCoreTests
                 .OrderBy(o => o.Id)
                 .SelectDynamic<EfOrder, decimal>("Total")
                 .ElementAtDynamic(2);
+            var nongeneric = db.Orders
+                .OrderBy(o => o.Id)
+                .SelectDynamic("Total")
+                .Cast<decimal>()
+                .ElementAtDynamic(2);
 
             Assert.That(total, Is.EqualTo(120m));
+            Assert.That(nongeneric, Is.EqualTo(total));
         }
 
         [Test]
@@ -182,8 +217,14 @@ public sealed partial class DynamicLinqEfCoreTests
                 .OrderBy(o => o.Id)
                 .SelectDynamic<EfOrder, decimal>("Total")
                 .ElementAtOrDefaultDynamic(99);
+            var nongeneric = db.Orders
+                .OrderBy(o => o.Id)
+                .SelectDynamic("Total")
+                .Cast<decimal>()
+                .ElementAtOrDefaultDynamic(99);
 
             Assert.That(total, Is.EqualTo(0m));
+            Assert.That(nongeneric, Is.EqualTo(total));
         }
 
         [Test]
@@ -257,10 +298,15 @@ public sealed partial class DynamicLinqEfCoreTests
             using var db = new EfOrdersDbContext(DbOptions);
             var query = db.Orders
                 .OrderByDynamic<EfOrder, decimal>("Total")
+                .SkipWhileDynamic<EfOrder>("o => o.Total < 55m")
+                .Select(o => o.Id);
+            var nongeneric = db.Orders
+                .OrderByDynamic("Total")
                 .SkipWhileDynamic("o => o.Total < 55m")
                 .Select(o => o.Id);
 
             Assert.Throws<InvalidOperationException>(() => query.ToList());
+            Assert.Throws<InvalidOperationException>(() => nongeneric.ToList());
         }
 
         [Test]
@@ -269,10 +315,15 @@ public sealed partial class DynamicLinqEfCoreTests
             using var db = new EfOrdersDbContext(DbOptions);
             var query = db.Orders
                 .OrderByDynamic<EfOrder, decimal>("Total")
+                .TakeWhileDynamic<EfOrder>("o => o.Total < 80m")
+                .Select(o => o.Id);
+            var nongeneric = db.Orders
+                .OrderByDynamic("Total")
                 .TakeWhileDynamic("o => o.Total < 80m")
                 .Select(o => o.Id);
 
             Assert.Throws<InvalidOperationException>(() => query.ToList());
+            Assert.Throws<InvalidOperationException>(() => nongeneric.ToList());
         }
     }
 }

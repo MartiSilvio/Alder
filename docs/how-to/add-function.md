@@ -5,17 +5,11 @@ description: Register a function and call it from Alder expressions using delega
 
 # Add a function
 
-## Goal
-Register a function so it can be called by name from expressions.
+Use a function when expressions need a global call site such as `clamp(...)` or `greet(...)`.
 
-## When to use this
-Use this when you need expression code to call application logic that is not built into Alder.
+## Register a delegate
 
-## Register a delegate function
-1. Create an `AlderEngine`.
-2. Call `Functions.Register` during configuration.
-3. Choose the function name used in expressions.
-4. Provide a delegate that reads arguments and returns a value.
+Register a delegate during engine configuration:
 
 ```csharp
 using Alder;
@@ -32,20 +26,13 @@ var engine = new AlderEngine(o =>
 });
 ```
 
-Notes:
-- `Functions.Register` overwrites any existing function with the same name.
-- Argument conversion is your responsibility inside the delegate.
+Delegate-registered functions receive evaluated arguments as `object?[]`. Alder does not perform automatic conversion on this surface. Type checking and conversion are the delegate author's responsibility.
 
-Argument model:
-- Arguments are passed as `object?[]`.
-- Values come from evaluated expression arguments.
-- No automatic type conversion is applied.
-- The delegate must convert values to the required types.
+Registering the same name again replaces the previous entry.
 
-## Register functions from a type
-1. Add methods marked with `[AlderFunction]`.
-2. Register the type with `Modules.RegisterFromType<T>()`.
-3. Call the function name from expressions.
+## Register from attributes
+
+Use `[AlderFunction]` to expose methods from a type as global functions:
 
 ```csharp
 using Alder;
@@ -66,28 +53,28 @@ var engine = new AlderEngine(o =>
 });
 ```
 
-Name rules:
-- `[AlderFunction("name")]` uses the attribute name.
-- `[AlderFunction]` uses the CLR method name.
-- Name matching follows engine case-sensitivity (`IsCaseSensitive`).
+Naming rules:
 
-Argument rules for `[AlderFunction]` methods:
-- Alder maps expression arguments to method parameters.
-- Missing optional parameters use default values.
-- Missing required parameters fail with a runtime error.
+- `[AlderFunction("name")]` uses the supplied name
+- `[AlderFunction]` uses the method name
+- name matching follows `IsCaseSensitive`
 
-## Call the function from an expression
-Use the registered name directly in the expression.
+Argument rules:
+
+- expression arguments are mapped to method parameters
+- optional parameters use their default values when omitted
+- missing required parameters fail at runtime
+
+## Call
 
 ```csharp
-var a = engine.Evaluate<double>("clamp(150, 0, 100)"); // 100
-var b = engine.Evaluate<string>("greet(\"Alice\")");  // Hello, Alice!
-var c = engine.Evaluate<int>("Add(5)");                  // 5
-var d = engine.Evaluate<int>("Add(5, 2)");               // 7
+var a = engine.Evaluate<double>("clamp(150, 0, 100)");
+var b = engine.Evaluate<string>("greet(\"Alice\")");
+var c = engine.Evaluate<int>("Add(5)");
+var d = engine.Evaluate<int>("Add(5, 2)");
 ```
 
-## Verify the result
-Evaluate the expression and verify the returned value matches the expected result.
+## Verify
 
 ```csharp
 if (engine.Evaluate<int>("Add(5, 2)") != 7)
@@ -95,13 +82,14 @@ if (engine.Evaluate<int>("Add(5, 2)") != 7)
 ```
 
 ## Troubleshooting
-- Function not found: confirm the registration runs before `Evaluate`.
-- Wrong name: check `[AlderFunction("...")]` and expression spelling.
-- Case mismatch: set `IsCaseSensitive = false` or call with exact case.
-- Wrong argument type: convert values inside delegate functions.
-- Delegate argument gotcha: delegate functions receive raw objects; incorrect casts or missing conversions fail at runtime.
-- Missing arguments on `[AlderFunction]` methods: provide required parameters or add method defaults.
+
+- Function not found: ensure registration runs before evaluation.
+- Wrong name: check `Functions.Register(...)` or `[AlderFunction(...)]`.
+- Case mismatch: use exact casing or set `IsCaseSensitive = false`.
+- Wrong argument type in a delegate-registered function: convert values explicitly inside the delegate.
+- Missing required parameters on an attribute-registered method: supply the argument or add a default.
 
 ## Related pages
+
+- [Add a module](/how-to/add-module/)
 - [Configuration](/reference/configuration/)
-- [Execution model](/reference/execution-model/)
