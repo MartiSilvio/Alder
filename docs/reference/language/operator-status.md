@@ -1,18 +1,18 @@
 ---
-title: Dynamic LINQ Operator Status
+title: Dynamic LINQ operator status
 description: Support matrix for Alder Dynamic LINQ operators across IEnumerable, IQueryable, and IAsyncEnumerable.
 ---
 
-# Dynamic LINQ Operator Status
+# Dynamic LINQ operator status
 
-This matrix records the current Alder Dynamic LINQ surface across `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`.
+This matrix records Alder's Dynamic LINQ surface across `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. The conceptual explanation belongs in [Dynamic LINQ](/explanation/dynamic-linq/); this page is the lookup table for operator coverage and provider boundaries.
 
 Legend:
 
 - `Supported`: implemented with deliberate API coverage.
 - `Partial`: implemented, but not across every major surface or variant.
-- `Provider-Limited`: implemented in Alder, but some `IQueryable` providers reject the generated query shape.
-- `Not Yet`: no direct dynamic operator yet.
+- `Provider-limited`: available in Alder, but some `IQueryable` providers reject the generated query shape.
+- `Not implemented`: no direct dynamic operator.
 
 ## Core query operators
 
@@ -37,7 +37,7 @@ Legend:
 | `Union` | Supported | Available for `IEnumerable` and `IQueryable`. |
 | `Intersect` | Supported | Available for `IEnumerable` and `IQueryable`. |
 | `Except` | Supported | Available for `IEnumerable` and `IQueryable`. |
-| `OfType` | Provider-Limited | Works in Alder, but the tested EF Core SQLite shape is rejected by the provider. |
+| `OfType` | Provider-limited | Works in Alder, but the tested EF Core SQLite shape is rejected by the provider. |
 | `Cast` | Partial | Available for `IEnumerable` and `IQueryable`; no async variant. |
 | `DefaultIfEmpty` | Partial | Supported for `IEnumerable` and `IQueryable`, but provider support for custom-default query shapes is limited. |
 
@@ -50,13 +50,13 @@ Legend:
 | `First` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
 | `FirstOrDefault` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
 | `Single` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
-| `SingleOrDefault` | Supported | Available for `IEnumerable` and `IQueryable`. |
+| `SingleOrDefault` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
 | `Last` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
-| `LastOrDefault` | Supported | Available for `IEnumerable` and `IQueryable`. |
+| `LastOrDefault` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
 | `Contains` | Supported | Available for `IEnumerable` and `IQueryable`. |
 | `ElementAt` | Supported | Available for `IEnumerable` and `IQueryable`. |
 | `ElementAtOrDefault` | Supported | Available for `IEnumerable` and `IQueryable`. |
-| `SequenceEqual` | Provider-Limited | Works in Alder, but the tested EF Core SQLite query shape is rejected by the provider. |
+| `SequenceEqual` | Provider-limited | Works in Alder, but the tested EF Core SQLite query shape is rejected by the provider. |
 
 ## Aggregation and windowing
 
@@ -68,7 +68,7 @@ Legend:
 | `Average` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
 | `Min` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
 | `Max` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
-| `Aggregate` | Not Yet | Not implemented. |
+| `Aggregate` | Not implemented | No direct dynamic operator. |
 
 ## Paging and sequence control
 
@@ -76,25 +76,25 @@ Legend:
 | --- | --- | --- |
 | `Skip` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
 | `Take` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
-| `SkipWhile` | Provider-Limited | Works in Alder, but the tested EF Core SQLite query shape is rejected by the provider. |
-| `TakeWhile` | Provider-Limited | Works in Alder, but the tested EF Core SQLite query shape is rejected by the provider. |
+| `SkipWhile` | Provider-limited | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`; the tested EF Core SQLite query shape is rejected by the provider. |
+| `TakeWhile` | Provider-limited | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`; the tested EF Core SQLite query shape is rejected by the provider. |
 | `Reverse` | Supported | Available for `IEnumerable`, `IQueryable`, and `IAsyncEnumerable`. |
-| `Append` | Provider-Limited | Works in Alder, but the tested EF Core SQLite query shape is rejected by the provider. |
-| `Prepend` | Provider-Limited | Works in Alder, but the tested EF Core SQLite query shape is rejected by the provider. |
-| `Page` / `PageResult` | Not Yet | Not implemented. |
+| `Append` | Provider-limited | Available for `IEnumerable` and `IQueryable`; the tested EF Core SQLite query shape is rejected by the provider. |
+| `Prepend` | Provider-limited | Available for `IEnumerable` and `IQueryable`; the tested EF Core SQLite query shape is rejected by the provider. |
+| `Page` / `PageResult` | Not implemented | No direct dynamic operator. |
 
 ## Dynamic-LINQ-specific helpers
 
 | Feature | Alder status | Notes |
 | --- | --- | --- |
-| `AsDynamicEnumerable` | Not Yet | No direct equivalent. |
-| `GroupByMany` | Not Yet | No direct equivalent. |
+| `AsDynamicEnumerable` | Not implemented | No direct equivalent. |
+| `GroupByMany` | Not implemented | No direct equivalent. |
 
 ## Surface notes
 
-- `IEnumerable` is the broadest supported surface.
-- `IQueryable` support depends on both Alder and the query provider translating the generated expression tree.
-- `IAsyncEnumerable` support exists only for operators that execute in-process over compiled delegates.
+- `IEnumerable` operators execute in process over delegates.
+- `IQueryable` operators export expression trees and remain subject to provider translation.
+- `IAsyncEnumerable` operators execute in process during asynchronous enumeration.
 - Alder prefers strongly typed, C#-shaped APIs over string-based type-name conveniences.
 - `EF.Property<T>(...)` is supported in exported query trees and Dynamic LINQ predicates and selectors, including provider-safe chained member and method composition.
 - Query-tree export still blocks statically forbidden reflection-leaking members and calls.

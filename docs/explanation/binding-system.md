@@ -28,7 +28,7 @@ Binding produces an executable semantic form that carries:
 - a deferred runtime operation when selection is not deterministic
 - diagnostics for invalid constructs
 
-Unknown static type is treated explicitly, not collapsed into `object` for convenience. That distinction matters because it governs whether an operation can be fixed during binding or must remain open until runtime.
+Unknown static type is treated explicitly instead of being collapsed into `object` for convenience. That distinction matters because it governs whether an operation can be fixed during binding or must remain open until runtime.
 
 ## Resolved versus dynamic binding
 
@@ -64,13 +64,13 @@ Binding distinguishes between invalid input and unsupported engine behavior.
 
 Semantically invalid expressions fail with diagnostics. Typical cases include impossible conversions, illegal control flow, or required members that cannot be resolved.
 
-Unsupported binding is different. It means Alder does not currently represent that construct within its semantic model. That state is recorded as unavailable rather than retried on every execution attempt.
+Unsupported binding is different. It means Alder has no semantic representation for that construct. That state is recorded as unavailable rather than retried on every execution attempt.
 
 Dynamic fallback should not be confused with unsupported binding. A dynamic node is a successful bind result. Unsupported binding is not.
 
 ## Reuse model
 
-Bound results are cached against the active context's type surface rather than against source text alone. Reuse therefore depends on the semantic environment remaining equivalent. Value-only changes can usually reuse a bound result. Declared-type changes cannot, because they may alter overload selection, conversion legality, and dispatch strategy.
+Bound results are cached against the active context's type surface and source text. Reuse therefore depends on the semantic environment remaining equivalent. Value-only changes can usually reuse a bound result. Declared-type changes cannot, because they may alter overload selection, conversion legality, and dispatch strategy.
 
 Cache reuse is gated by correctness, not by maximizing hit rate.
 

@@ -102,7 +102,7 @@ public static partial class AlderLinqExtensions
 
     private static async IAsyncEnumerable<T> AsyncDistinctCore<T>(IAsyncEnumerable<T> source)
     {
-        foreach (var item in Enumerable.Distinct(await ToListAsync(source)))
+        foreach (var item in (await ToListAsync(source)).Distinct())
             yield return item;
     }
 
@@ -113,37 +113,37 @@ public static partial class AlderLinqExtensions
     }
 
     private static async ValueTask<bool> AsyncAnyCore<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
-        => Enumerable.Any(await ToListAsync(source), predicate);
+        => (await ToListAsync(source)).Any(predicate);
 
     private static async ValueTask<bool> AsyncAllCore<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
-        => Enumerable.All(await ToListAsync(source), predicate);
+        => (await ToListAsync(source)).All(predicate);
 
     private static async ValueTask<int> AsyncCountCore<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
-        => Enumerable.Count(await ToListAsync(source), predicate);
+        => (await ToListAsync(source)).Count(predicate);
 
     private static async ValueTask<long> AsyncLongCountCore<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
-        => Enumerable.LongCount(await ToListAsync(source), predicate);
+        => (await ToListAsync(source)).LongCount(predicate);
 
     private static async ValueTask<decimal> AsyncSumDecimalCore<T>(IAsyncEnumerable<T> source, Func<T, decimal> selector)
-        => Enumerable.Sum(Enumerable.Select(await ToListAsync(source), selector));
+        => (await ToListAsync(source)).Select(selector).Sum();
 
     private static async ValueTask<T> AsyncFirstCore<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
-        => Enumerable.First(await ToListAsync(source), predicate);
+        => (await ToListAsync(source)).First(predicate);
 
     private static async ValueTask<T?> AsyncFirstOrDefaultCore<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
-        => Enumerable.FirstOrDefault(await ToListAsync(source), predicate);
+        => (await ToListAsync(source)).FirstOrDefault(predicate);
 
     private static async ValueTask<T> AsyncLastCore<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
-        => Enumerable.Last(await ToListAsync(source), predicate);
+        => (await ToListAsync(source)).Last(predicate);
 
     private static async ValueTask<T?> AsyncLastOrDefaultCore<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
-        => Enumerable.LastOrDefault(await ToListAsync(source), predicate);
+        => (await ToListAsync(source)).LastOrDefault(predicate);
 
     private static async ValueTask<T> AsyncSingleCore<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
-        => Enumerable.Single(await ToListAsync(source), predicate);
+        => (await ToListAsync(source)).Single(predicate);
 
     private static async ValueTask<T?> AsyncSingleOrDefaultCore<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
-        => Enumerable.SingleOrDefault(await ToListAsync(source), predicate);
+        => (await ToListAsync(source)).SingleOrDefault(predicate);
 
     private static async ValueTask<object> AsyncSumObjectCore<T>(
         IAsyncEnumerable<T> source,

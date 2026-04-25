@@ -25,7 +25,7 @@ var result = engine.Evaluate<double>(
     "principal * Math.Pow(1 + rate, years)");
 ```
 
-The generic overload stores the declared type from `T`, not only the runtime value.
+The generic overload stores the declared type from `T` together with the runtime value.
 
 The non-generic overload is different:
 
@@ -155,7 +155,7 @@ A variable introduced only on a child does not appear on the parent later.
 
 ## Understand the binding consequences
 
-The binder caches work against the visible context and its type surface, not only against the expression text. That is why variable shape matters.
+The binder caches work against the visible context, its type surface, and the expression text. That is why variable shape matters.
 
 ### Stable types are reusable
 
@@ -202,7 +202,7 @@ In practice, the choice is usually straightforward:
 
 ### Using the non-generic registration path when the type matters
 
-This is the easiest way to weaken binding accidentally:
+This is the most common way to weaken binding accidentally:
 
 ```csharp
 engine.SetVariable("x", 42);          // object-shaped binding surface

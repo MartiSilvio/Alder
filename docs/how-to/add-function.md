@@ -1,22 +1,22 @@
 ---
 title: Add a function
-description: Register a function and call it from Alder expressions using delegate registration or AlderFunction attributes.
+description: Register a global function for Alder expressions through a delegate or AlderFunction attribute.
 ---
 
 # Add a function
 
-Use a function when expressions need a global call site such as `clamp(...)` or `greet(...)`.
+Use a function when expressions need a global call site owned by the host application: `clamp(...)`, `distance(...)`, `isBusinessDay(...)`, or another operation that should be callable without a module qualifier.
 
 ## Register a delegate
 
-Register a delegate during engine configuration:
+Delegate registration is the most direct path. The function receives evaluated arguments as `object?[]`, and the delegate owns validation and conversion.
 
 ```csharp
 using Alder;
 
-var engine = new AlderEngine(o =>
+var engine = new AlderEngine(options =>
 {
-    o.Functions.Register("clamp", args =>
+    options.Functions.Register("clamp", args =>
     {
         var value = Convert.ToDouble(args[0]);
         var min = Convert.ToDouble(args[1]);
@@ -24,70 +24,52 @@ var engine = new AlderEngine(o =>
         return Math.Min(Math.Max(value, min), max);
     });
 });
+
+var score = engine.Evaluate<double>("clamp(rawScore, 0, 100)", new { rawScore = 127 });
 ```
 
-Delegate-registered functions receive evaluated arguments as `object?[]`. Alder does not perform automatic conversion on this surface. Type checking and conversion are the delegate author's responsibility.
+Registering the same function name again replaces the previous delegate. Name matching follows the engine's `IsCaseSensitive` setting.
 
-Registering the same name again replaces the previous entry.
+## Register attributed methods
 
-## Register from attributes
-
-Use `[AlderFunction]` to expose methods from a type as global functions:
+`[AlderFunction]` exposes methods as global functions when the containing type is registered through `Modules.RegisterFromType(...)` and the type is not an `[AlderModule]`.
 
 ```csharp
 using Alder;
 using Alder.Attributes;
 
-public class GlobalHelpers
+public sealed class GlobalHelpers
 {
     [AlderFunction("greet")]
     public string Greet(string name) => $"Hello, {name}!";
 
     [AlderFunction]
-    public int Add(int a, int b = 0) => a + b;
+    public int Add(int left, int right = 0) => left + right;
 }
 
-var engine = new AlderEngine(o =>
+var engine = new AlderEngine(options =>
 {
-    o.Modules.RegisterFromType<GlobalHelpers>();
+    options.Modules.RegisterFromType<GlobalHelpers>();
 });
+
+var greeting = engine.Evaluate<string>("""greet("Ada")""");
+var total = engine.Evaluate<int>("Add(40, 2)");
 ```
 
-Naming rules:
+`[AlderFunction("name")]` uses the supplied expression-facing name. `[AlderFunction]` without a name uses the CLR method name. Optional parameters use their default values when omitted; missing required parameters fail during invocation.
 
-- `[AlderFunction("name")]` uses the supplied name
-- `[AlderFunction]` uses the method name
-- name matching follows `IsCaseSensitive`
+## Choose the registration shape
 
-Argument rules:
+Use delegate registration when the function is naturally dynamic, already validates its own arguments, or should be assembled inline during engine configuration.
 
-- expression arguments are mapped to method parameters
-- optional parameters use their default values when omitted
-- missing required parameters fail at runtime
-
-## Call
-
-```csharp
-var a = engine.Evaluate<double>("clamp(150, 0, 100)");
-var b = engine.Evaluate<string>("greet(\"Alice\")");
-var c = engine.Evaluate<int>("Add(5)");
-var d = engine.Evaluate<int>("Add(5, 2)");
-```
-
-## Verify
-
-```csharp
-if (engine.Evaluate<int>("Add(5, 2)") != 7)
-    throw new Exception("Function registration failed.");
-```
+Use attributed methods when the function has a stable CLR signature and should participate in Alder's normal method invocation path. That path gives Alder parameter metadata, optional-argument defaults, and normal method dispatch behavior.
 
 ## Troubleshooting
 
-- Function not found: ensure registration runs before evaluation.
-- Wrong name: check `Functions.Register(...)` or `[AlderFunction(...)]`.
-- Case mismatch: use exact casing or set `IsCaseSensitive = false`.
-- Wrong argument type in a delegate-registered function: convert values explicitly inside the delegate.
-- Missing required parameters on an attribute-registered method: supply the argument or add a default.
+- Function not found: ensure registration runs before engine construction finishes and before evaluation begins.
+- Wrong name: check `Functions.Register(...)` or `[AlderFunction(...)]`, including case sensitivity.
+- Wrong argument type in a delegate function: convert or validate values inside the delegate.
+- Missing required parameter on an attributed method: supply the argument or define a default value.
 
 ## Related pages
 

@@ -5,81 +5,69 @@ description: Architectural explanation of Alder's parse-bind-execute pipeline, b
 
 # Architecture
 
-Alder is a runtime C# expression engine with a single semantic pipeline and two execution backends. The architectural constraint is simple and strict: backend choice must not alter language semantics.
+Alder is a runtime C# expression engine built around one semantic pipeline and two execution mechanisms. Source text is parsed into syntax, bound against the active context, validated under the configured sandbox, optimized, and then evaluated by either the interpreter or the compiled backend. Backend selection changes the execution mechanism. It does not define a second language.
 
-An expression is parsed once, bound against the active context, passed through validation and optimization, then executed by either the interpreter or the compiled backend. Both backends consume the same semantic form. Security policy, execution limits, and runtime dispatch rules apply uniformly.
+The important architectural boundary is the bound tree. Everything before that boundary determines what the expression means: types, conversions, overloads, member targets, assignment legality, control-flow shape, and the points where runtime dispatch is still required. Everything after that boundary executes those decisions while preserving Alder's sandbox and execution constraints.
 
-## Pipeline
+## Semantic pipeline
 
-Alder evaluation has four stages:
+Alder evaluation proceeds through these stages:
 
-1. Parse source text into syntax.
-2. Bind syntax into a semantic form with resolved types, conversions, and operations where possible.
-3. Apply validation and optimization passes.
-4. Execute through the interpreter or compiled backend.
+1. Parse source text into Alder syntax.
+2. Bind syntax into a semantic tree against the current context.
+3. Run validation and optimization passes.
+4. Execute the processed tree through the selected backend.
+5. Unwrap final control-flow state at the evaluation boundary.
 
-The binder is the semantic center of the system. When static information is sufficient, Alder resolves calls, members, indexes, and conversions during the binding phase. When it is not, Alder preserves a dynamic operation and resolves it at runtime. That boundary keeps Alder aligned with C# semantics without requiring every expression to be statically closed.
+The binder is the semantic center of the system. When static information is sufficient, it resolves calls, members, indexes, conversions, and construct legality before execution begins. When the declared type surface is deliberately open, such as `object`-typed values or runtime-shaped members, the binder records a dynamic operation and leaves final selection to runtime dispatch.
 
-## Backend split
+That split lets Alder be precise without pretending every host integration is statically closed. Strongly typed contexts produce earlier diagnostics and more reusable bound artifacts. Open contexts preserve runtime flexibility while moving more work into dispatch.
 
-The interpreter executes Alder's bound form directly. It is the default execution path, the broadest compatibility surface, and the path used by asynchronous evaluation.
+## Execution mechanisms
 
-The compiled backend lowers that same bound form into a compiled delegate and reuses the delegate while the relevant context type surface remains stable. Its purpose is operational efficiency for repeated synchronous evaluation, not a different language contract.
+The interpreter evaluates the bound tree directly. It is the default synchronous path and the path used by `EvaluateAsync(...)`.
 
-## Semantic consistency
+The compiled backend lowers the same bound tree to a reusable delegate through `System.Linq.Expressions`. When an engine is configured with `UseCompiler()`, synchronous `Evaluate(...)` uses that delegate path and recompiles when the relevant type surface changes.
 
-The parser, binder, sandbox validation, and execution constraints are shared across backends. Differences between interpreter and compiler are therefore engineering gaps, not separate contracts. Alder assumes semantic parity and treats backend divergence as a defect.
+Both mechanisms share Alder's parser, binder, validation pipeline, sandbox policy, execution limits, and language semantics. Divergence between them is a defect in an execution path, not a separate contract.
 
-## Binding and runtime resolution
+`EvaluateAsync(...)` uses the interpreter because `System.Linq.Expressions` does not provide the async execution model Alder requires. Alder's async path can await expression-level asynchronous work directly instead of wrapping synchronous compiled execution in `Task.Run`.
 
-Alder is resolved-first, not resolved-only.
+## Runtime dispatch
 
-Operations with a deterministic static meaning are fixed during binding. That includes overload selection, member selection, conversion classification, and control-flow legality. Where static information is inconclusive, Alder keeps the operation dynamic and defers resolution to runtime dispatch.
+Runtime dispatch is the counterpart to resolved binding. It handles operations whose final target depends on runtime values, including object-shaped variables, dynamic member access, late-selected overloads, and registered module or function calls.
 
-That division has direct operational consequences:
+Generated typed dispatch participates in that runtime layer. When AOT metadata is registered, Alder tries typed dispatch for covered operations and falls back to reflection-based dispatch when the typed path declines a shape. The generated path improves deployment characteristics for NativeAOT, IL2CPP-style environments, and trimmed applications. It does not alter parsing, binding, overload resolution, sandbox policy, or execution limits.
 
-- statically known expressions surface semantic errors earlier and produce more reusable artifacts
-- expressions shaped by `object`, open-ended values, or late-bound members shift more work to runtime resolution
+## Configuration surfaces
 
-## Dispatch and AOT
+Host integration is expressed through `AlderOptions` before engine construction:
 
-Runtime operations use typed dispatch when generated metadata is available and fall back to reflection-based resolution when it is not. The typed path exists to support AOT-oriented deployments and reduce dependence on reflection metadata. It is an execution strategy, not a separate semantic mode.
-
-Generated contexts can cover the types that matter in a trimmed or ahead-of-time build while reflection fallback preserves coverage for shapes outside that metadata set. Alder therefore supports mixed deployments: generated where deliberate, reflective where necessary.
-
-## Configuration model
-
-Most integration points are configuration-driven:
-
-- modules expose named member surfaces
+- modules expose named object or type surfaces
 - functions expose global call sites
 - type registration controls type lookup and extension-method discovery
-- AOT registration adds generated type metadata
+- AOT registration contributes generated dispatch metadata
 - a service provider resolves module instances
-- compiler configuration enables compiled execution
+- sandbox and constraint options define authority and runtime limits
+- compiler configuration enables compiled synchronous execution
 
-These are the public extension surfaces that shape Alder's runtime model inside an application. They are sufficient for most integrations without requiring knowledge of the internal machinery behind them.
+The engine materializes those options into an immutable runtime configuration. Contexts created by the engine share that configuration while carrying their own variable state.
 
 ## Reuse and invalidation
 
-Alder caches semantic and compiled artifacts, but cache reuse is gated by changes to the context's type surface. Value changes can often reuse prior work. Declared-type changes cannot, because they may alter overload resolution, conversion legality, or the choice between resolved and dynamic execution.
+Alder caches parsed, bound, pipeline, and compiled artifacts where reuse is semantically valid. The critical invalidation signal is the visible declared-type surface of the context. Value-only changes can often reuse prior work. Adding a variable or changing a declared type forces rebinding because overload resolution, conversion legality, and the resolved-versus-dynamic boundary may change.
 
-The cache policy is intentionally conservative. Alder prefers rebinding or recompilation to executing against stale semantic assumptions.
+Compiled delegates follow the same rule. Normal synchronous evaluation recompiles when the compiled artifact is stale. Explicit compiled wrappers capture the type version at compilation time and reject invocation after a type-surface change.
 
 ## Security and constraints
 
-Sandbox enforcement and execution limits are separate concerns.
+Sandbox policy and execution constraints are separate runtime controls. The sandbox validates whether operations such as calls, construction, reads, writes, and metadata access are allowed. Execution constraints bound work through statement counts, loop iteration counts, timeouts, cancellation, and collection-size checks.
 
-Sandbox validation determines whether an expression is allowed to perform a given operation. Execution constraints bound the amount of work the expression may perform at runtime through statement counts, loop limits, timeouts, and cancellation. Both apply regardless of backend.
+Those controls live in the shared pipeline and runtime support code, so they apply to interpreted execution, compiled synchronous execution, and generated dispatch paths.
 
-## Tradeoffs
+## Design tradeoffs
 
-Alder's architecture makes a few explicit tradeoffs:
-
-- a single semantic pipeline reduces behavioral drift, but requires rigorous parity across execution backends
-- resolved-first binding improves diagnostics and cache reuse, but dynamic scenarios still require a capable runtime dispatch layer
-- typed dispatch improves AOT viability, but reflection fallback must remain semantically aligned
-- the convenience of a global facade coexists with an explicit engine API, but the facade is necessarily more stateful
+Alder's architecture deliberately concentrates semantic decisions before execution. That gives the system stable diagnostics, backend parity, reusable artifacts, and a clear place to enforce language rules. The cost is discipline: binding bugs affect both backends, dynamic dispatch must remain semantically aligned with resolved binding, and cache reuse has to prefer correctness over hit rate.
 
 ## Related pages
 

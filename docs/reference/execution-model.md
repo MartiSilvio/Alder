@@ -5,7 +5,7 @@ description: Reference for Alder execution semantics: parsing, binding, caching,
 
 # Execution model
 
-This page defines Alder's runtime model: expression lifecycle, cache invalidation, backend selection, constraint enforcement, control-flow handling, and error propagation.
+Alder evaluation follows a shared runtime model across parsing, semantic binding, validation, optimization, backend selection, constraint enforcement, and error propagation. This reference records the exact lifecycle and the cache boundaries that determine when prior work can be reused.
 
 ## Evaluation lifecycle
 
@@ -15,7 +15,7 @@ Execution proceeds in this order:
 2. Create or reuse an execution context.
 3. Bind the expression against the current context type shape.
 4. Apply validation and optimization passes.
-5. Execute through the compiled backend when available for synchronous evaluation; otherwise execute through the interpreter.
+5. Execute through the compiled backend when configured for synchronous evaluation; otherwise execute through the interpreter.
 6. Enforce cancellation and execution limits during runtime.
 7. Unwrap final control-flow state at the evaluation boundary.
 
@@ -51,7 +51,7 @@ Binding resolves the expression against the active context.
 ### Behavior
 
 - binding determines types, conversions, call targets, member access, and legality rules
-- binding is sensitive to the current context type shape, not only the source text
+- binding is sensitive to the current context type shape and source text
 - semantic binding failures surface as `BindingFailed` with diagnostics
 - unsupported binding paths are recorded as unavailable rather than retried indefinitely
 
@@ -91,7 +91,9 @@ Synchronous `Evaluate(...)` uses:
 
 ### Asynchronous evaluation
 
-`EvaluateAsync(...)` uses the interpreter in the current implementation, regardless of compiler configuration.
+`EvaluateAsync(...)` uses the interpreter regardless of compiler configuration.
+
+This is a runtime-model decision. `System.Linq.Expressions` does not provide the async execution model Alder needs, so asynchronous evaluation awaits inside the interpreter instead of wrapping synchronous compiled execution in `Task.Run`.
 
 ### Trace evaluation
 
@@ -213,7 +215,7 @@ At the outer evaluation boundary:
 
 - `AlderConfig` is fixed at engine construction time
 - security validation runs in both interpreter and compiled pipelines
-- asynchronous execution uses the interpreter in the current implementation
+- asynchronous execution uses the interpreter
 - root-engine disposal prevents further execution through dependent child engines
 - context storage is concurrent, but Alder does not promise atomic multi-variable snapshots across parent-scope mutation
 

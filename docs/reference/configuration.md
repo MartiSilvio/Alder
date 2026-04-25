@@ -5,7 +5,7 @@ description: Reference for Alder engine configuration, option builders, AOT cont
 
 # Configuration
 
-`AlderOptions` is the mutable configuration surface used before engine construction. `AlderConfig` is the immutable runtime snapshot captured by `AlderEngine`.
+`AlderOptions` is the mutable configuration surface used before engine construction. `AlderEngine` captures those options as an immutable runtime model: language mode, sandbox policy, execution limits, registered modules and functions, type-resolution metadata, compiler settings, service-provider integration, and AOT dispatch metadata.
 
 ## Construction
 
@@ -62,7 +62,7 @@ Module registration entry points:
 
 - `Register("name", ...)` uses the supplied name.
 - `RegisterFromType` uses `[AlderModule("name")]` when present.
-- If `RegisterFromType` is used on a type without `[AlderModule]`, methods marked with `[AlderFunction]` are registered as global functions rather than as a module.
+- If `RegisterFromType` is used on a type without `[AlderModule]`, methods marked with `[AlderFunction]` are registered as global functions.
 
 ### Exposure rules
 
@@ -163,7 +163,7 @@ This affects both runtime lookup and collision behavior at registration time.
 - extension method binding uses registered extension-method containers
 - typed dispatch uses registered AOT contexts
 - synchronous execution uses compiled evaluation only when a compiler is configured
-- asynchronous execution uses the interpreter in the current implementation
+- asynchronous execution uses the interpreter
 
 ## Guarantees
 

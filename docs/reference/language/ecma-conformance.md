@@ -3,6 +3,8 @@ title: ECMA-334 conformance
 description: What Alder implements from ECMA-334 (7th edition, December 2023), and what is explicitly out of scope.
 ---
 
+# ECMA-334 conformance
+
 This page defines the ECMA-334 conformance surface for Alder's Standard mode. It records which parts of the language Alder accepts in runtime expressions and statement blocks, and which remain intentionally out of scope.
 
 **Spec edition:** ECMA-334, 7th edition (December 2023).
@@ -120,7 +122,7 @@ ECMA-334 (7th edition) defines declaration, constant, and var patterns. Addition
 | §12.8.16.6 | Delegate creation expressions | Supported | `new D(...)` is supported when `D` is a delegate type. |
 | §12.8.17 | `typeof` | Supported |  |
 | §12.8.20 | Default value expressions | Supported |  |
-| §12.8.21 | Stack allocation | Out of scope | `stackalloc` is not part of Alder's current executable input surface. |
+| §12.8.21 | Stack allocation | Out of scope | `stackalloc` is not part of Alder's executable input surface. |
 | §12.8.22 | `nameof` | Supported |  |
 | §12.9.3 | Unary `+` | Supported |  |
 | §12.9.4 | Unary `-` | Supported |  |

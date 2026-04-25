@@ -21,6 +21,18 @@ Usefulness is the practical test. A page should help a reader evaluate, integrat
 
 Trust is the cumulative result. Good docs feel reliable. They do not overclaim, hedge unnecessarily, or hide complexity behind generic language. Readers should come away with the sense that the system is understood and that the documentation is a dependable guide to it.
 
+Documentation should also reflect the real stature of the system being described. Understatement can mislead just as surely as hype. If a subsystem is broad, technically substantial, or unusually capable, the prose should acknowledge that scale through precision, depth, and confidence. The goal is proportional representation, not marketing.
+
+Weak:
+
+`Alder includes a Dynamic LINQ capability.`
+
+Better:
+
+`Alder provides a Dynamic LINQ system for runtime query composition across in-memory collections, query providers, and async streams.`
+
+The stronger sentence makes a larger claim because the system supports a larger surface. That is not exaggeration. It is accurate hierarchy.
+
 ## Audience
 
 Write for advanced external engineers.
@@ -44,6 +56,8 @@ Alder uses Diátaxis as a practical boundary, not as a labeling exercise. Each p
 
 Explanation pages answer how and why. They establish architecture, design intent, tradeoffs, invariants, and mental models. They should help a strong engineer understand the system's shape and the reasoning behind it.
 
+Explanation pages must not collapse into API inventories. They can survey a broad surface, but they should organize that surface around ideas: execution boundaries, binding contracts, result shapes, provider translation, configuration policy. If exhaustive operator or option coverage matters, split that material into reference.
+
 **Reference**
 
 Reference pages answer what exactly happens. They document contracts, configuration surfaces, guarantees, exact behavior, support matrices, and limits. Reference should be factual, dense, and easy to consult.
@@ -64,6 +78,8 @@ The tone should be confident, precise, calm, technically serious, and non-market
 
 Write as if the system is understood. State behavior directly. Prefer firm verbs: `is`, `uses`, `resolves`, `binds`, `executes`, `falls back`, `requires`, `rejects`, `guarantees`.
 
+Serious engineering deserves calm authority. A page can sound proud of real work when the confidence is earned by accurate detail, clear boundaries, and good examples. Avoid both hype and embarrassed understatement. The desired tone is competence with technical self-respect.
+
 Avoid hype, apology, and timidity.
 
 Do not write:
@@ -79,6 +95,18 @@ Do not write:
 Do not soften clear behavior with nervous prose. "Alder typically tries to..." is weaker than "Alder tries typed dispatch first, then falls back to reflection."
 
 Do not exaggerate either. The docs should never read like product marketing or internal advocacy.
+
+Preserve product hierarchy. Alder is the product and runtime platform. A feature page can describe one subsystem in depth, but it should not redefine the whole product through that feature.
+
+Bad:
+
+`Alder turns strings into LINQ.`
+
+Better:
+
+`Dynamic LINQ is Alder's runtime query-composition system.`
+
+The better sentence gives the feature stature while keeping Alder larger than any one subsystem.
 
 ## Writing style
 
@@ -212,6 +240,7 @@ When in doubt:
 - remove redundancy before removing substance
 - replace generic explanation with exact language
 - keep the caveat if it affects behavior, correctness, integration, or trust
+- preserve the scale of the feature when that scale is part of the truth
 
 ## Headings and structure
 
@@ -232,6 +261,24 @@ Prefer headings that teach something:
 - `Context versioning`
 - `Case sensitivity`
 - `Limits by design`
+
+Strong pages often use authored structure rather than template structure. Organize around the real concepts a reader must carry away.
+
+Good:
+
+- `Execution surfaces`
+- `Provider boundaries`
+- `Prepared plans`
+- `Typed result shapes`
+
+Weak:
+
+- `What it is`
+- `Core operations`
+- `More examples`
+- `Miscellaneous`
+
+The structure should reveal the product's architecture, not merely sort paragraphs into bins.
 
 Every page should open with a strong introductory paragraph after the title. That paragraph should orient the reader quickly: what the page covers, what problem space it belongs to, and what kind of help it provides. Avoid limp openings such as "This page describes..." unless the sentence carries real specificity.
 
@@ -273,6 +320,10 @@ Avoid toy examples unless the concept genuinely requires the smallest possible s
 
 Code samples should demonstrate the thing the page is trying to teach and little else. Do not pad them with ceremony. Do not make them so abstract that they stop feeling like code someone would write.
 
+Use editorial judgment. Examples should prove capability, not flood the page. One strong example per concept is usually better than several near-duplicates. Explanation pages need fewer, more carefully chosen examples; reference pages can be denser because their job is exact lookup. Too many snippets reduce impact by making the reader decide which ones matter.
+
+Good examples do more than compile. They reveal product shape: a runtime boundary, a type contract, a provider limit, a configuration decision, a reusable pattern. If an example does not teach a distinct idea, merge it with a stronger example or remove it.
+
 If an example includes a caveat, the caveat should be accurate and local. Do not make the reader infer hidden constraints from a suspiciously polished snippet.
 
 ## What to avoid
@@ -289,6 +340,8 @@ Do not allow the docs to drift into any of the following:
 - benchmarks used as documentation substance
 - markdown templates that produce lifeless pages
 - headings that organize text without improving comprehension
+- operator catalogs disguised as explanation pages
+- feature pages that accidentally shrink Alder into the feature being discussed
 
 Also avoid two common failure modes that look sophisticated but are not:
 
@@ -327,6 +380,8 @@ Before considering a page done, ask:
 - Is it written for the right audience?
 - Does it respect the page type?
 - Does it preserve the important constraints and tradeoffs?
+- Does it represent the feature's real scale without hype or understatement?
+- Does the structure feel authored around ideas rather than assembled from a template?
 - Would a strong engineer trust it?
 - Does it avoid sounding generated?
 
