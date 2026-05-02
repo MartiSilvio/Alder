@@ -7,7 +7,9 @@ description: Architectural explanation of Alder's parse-bind-execute pipeline, b
 
 Alder is a runtime C# expression engine built around one semantic pipeline and two execution mechanisms. Source text is parsed into syntax, bound against the active context, validated under the configured sandbox, optimized, and then evaluated by either the interpreter or the compiled backend. Backend selection changes the execution mechanism. It does not define a second language.
 
-The important architectural boundary is the bound tree. Everything before that boundary determines what the expression means: types, conversions, overloads, member targets, assignment legality, control-flow shape, and the points where runtime dispatch is still required. Everything after that boundary executes those decisions while preserving Alder's sandbox and execution constraints.
+For exact lifecycle rules, cache boundaries, and error propagation, use [Execution model](/reference/execution-model/). For production operating patterns, use [Execution and reuse](/operations/execution-and-reuse/).
+
+The bound tree is Alder's architectural boundary. Everything before that boundary determines what the expression means: types, conversions, overloads, member targets, assignment legality, control-flow shape, and the points where runtime dispatch is still required. Everything after that boundary executes those decisions while preserving Alder's sandbox and execution constraints.
 
 ## Semantic pipeline
 
@@ -15,13 +17,13 @@ Alder evaluation proceeds through these stages:
 
 1. Parse source text into Alder syntax.
 2. Bind syntax into a semantic tree against the current context.
-3. Run validation and optimization passes.
-4. Execute the processed tree through the selected backend.
+3. Run validation and backend-appropriate preparation passes.
+4. Execute the prepared tree through the selected backend.
 5. Unwrap final control-flow state at the evaluation boundary.
 
 The binder is the semantic center of the system. When static information is sufficient, it resolves calls, members, indexes, conversions, and construct legality before execution begins. When the declared type surface is deliberately open, such as `object`-typed values or runtime-shaped members, the binder records a dynamic operation and leaves final selection to runtime dispatch.
 
-That split lets Alder be precise without pretending every host integration is statically closed. Strongly typed contexts produce earlier diagnostics and more reusable bound artifacts. Open contexts preserve runtime flexibility while moving more work into dispatch.
+That split lets Alder be precise without requiring every host integration to be statically closed. Strongly typed contexts produce earlier diagnostics and more reusable bound artifacts. Open contexts preserve runtime flexibility while moving more work into dispatch.
 
 ## Execution mechanisms
 
@@ -31,7 +33,7 @@ The compiled backend lowers the same bound tree to a reusable delegate through `
 
 Both mechanisms share Alder's parser, binder, validation pipeline, sandbox policy, execution limits, and language semantics. Divergence between them is a defect in an execution path, not a separate contract.
 
-`EvaluateAsync(...)` uses the interpreter because `System.Linq.Expressions` does not provide the async execution model Alder requires. Alder's async path can await expression-level asynchronous work directly instead of wrapping synchronous compiled execution in `Task.Run`.
+`EvaluateAsync(...)` uses the interpreter because `System.Linq.Expressions` does not provide the async execution model Alder requires. Alder's async path awaits expression-level asynchronous work directly inside the evaluated tree.
 
 ## Runtime dispatch
 
@@ -53,6 +55,8 @@ Host integration is expressed through `AlderOptions` before engine construction:
 
 The engine materializes those options into an immutable runtime configuration. Contexts created by the engine share that configuration while carrying their own variable state.
 
+Dynamic LINQ sits above the same semantic pipeline. Its predicates, selectors, keys, joins, projections, provider exports, and query plans are bound fragments adapted into LINQ operators, delegates, or expression trees. That makes query composition another integration surface over the same parser, binder, sandbox, diagnostics, and backend boundaries.
+
 ## Reuse and invalidation
 
 Alder caches parsed, bound, pipeline, and compiled artifacts where reuse is semantically valid. The critical invalidation signal is the visible declared-type surface of the context. Value-only changes can often reuse prior work. Adding a variable or changing a declared type forces rebinding because overload resolution, conversion legality, and the resolved-versus-dynamic boundary may change.
@@ -71,7 +75,8 @@ Alder's architecture deliberately concentrates semantic decisions before executi
 
 ## Related pages
 
-- [Binding system](/explanation/binding-system/)
-- [Typed dispatch and AOT](/explanation/typed-dispatch/)
+- [Binding system](/concepts/binding-system/)
+- [Execution and reuse](/operations/execution-and-reuse/)
+- [AOT and generated dispatch](/operations/aot-and-generated-dispatch/)
 - [Execution model](/reference/execution-model/)
-- [ECMA-334 conformance](/reference/language/ecma-conformance/)
+- [Standard mode language support](/reference/language/standard-mode-language-support/)

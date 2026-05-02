@@ -136,6 +136,7 @@ _NCrunch*
 
 # GSD planning docs (local only)
 .planning/
+docs/meta/
 
 # Claude Code
 .claude/

@@ -5,38 +5,37 @@ description: How Alder's compiled backend changes synchronous execution, delegat
 
 # Compiled backend
 
-Alder has two execution backends: the interpreter and the compiled backend. They share the same parser, binder, security validation, and execution constraints. Compilation changes how a bound tree runs, not what the language means. For synchronous workloads, it is a first-class backend: it turns bound code into reusable delegates, supports delegate-first integration, and exports typed LINQ expression trees for query-oriented workflows.
+Alder has two execution backends: the interpreter and the compiled backend. They share the same parser, binder, security validation, and execution constraints. Compilation changes how a bound tree runs, not what the language means. For synchronous workloads on JIT-capable runtimes, the compiled backend turns bound code into reusable delegates and supports typed delegate integration. The `Alder.Compiled` API surface also exposes typed LINQ expression-tree export for query-oriented workflows.
 
 ## Execution architecture
 
-The interpreter walks the bound tree directly. It is used when no compiler is configured and by `EvaluateAsync(...)`.
+The interpreter walks the bound tree directly. It is used when no compiler is configured, by `EvaluateAsync(...)`, by `EvaluateWithTrace(...)`, and by AOT deployments that run with generated dispatch metadata.
 
-The compilation path is a separate lowering pipeline over the same bound tree. When a compiler is configured, synchronous `Evaluate(...)` dispatches there. Alder still binds first and still runs semantic work before delegate generation. The compilation-specific stages are:
+The compilation path is a separate lowering pipeline over the same bound tree. When a compiler is configured, synchronous `Evaluate(...)` dispatches there. Alder still binds first and still runs semantic work before delegate generation. The pipeline combines shared preparation stages with compiler-specific lowering:
 
-- security validation
-- constant folding
-- dead-branch elimination
-- conversion insertion
+- security validation, constant folding, and dead-branch elimination shared with the interpreter path
+- conversion insertion, runtime lowering, and expression-tree emission for compiled execution
 
-After those passes, the compiled provider emits a LINQ expression tree rooted in Alder's runtime contracts. The configured `IExpressionCompiler` then turns that form into a delegate. Inside emission, Alder plans local promotion and repeated-identifier hoisting before producing the root lambda. This is a real lowering stage, not a thin wrapper around `LambdaExpression.Compile()`.
+The compiled provider emits a LINQ expression tree rooted in Alder's runtime contracts. The configured `IExpressionCompiler` then turns that form into a delegate. Inside emission, Alder plans local promotion and repeated-identifier hoisting before producing the root lambda.
 
-This does not create a second language contract. Both backends consume the same semantic form. Security policy, execution limits, and cancellation still apply.
+Both backends consume the same semantic form. Security policy, execution limits, and cancellation still apply.
 
 ## Enabling compilation with `UseCompiler()`
 
-This backend is opt-in. It is enabled through `Alder.Compiled`:
+This backend is opt-in. It is enabled by importing the compiled namespace and configuring the engine with `UseCompiler()`:
 
+<!-- test: UseCompiler -->
 ```csharp
 using Alder.Compiled;
 
 var engine = new AlderEngine(options => options.UseCompiler());
 ```
 
-`UseCompiler()` installs Alder's compiled provider. The overload that accepts `IExpressionCompiler` keeps Alder's lowering pipeline and replaces only the final expression-tree-to-delegate compiler.
+`UseCompiler()` installs Alder's compiled provider. The overload that accepts `IExpressionCompiler` keeps Alder's lowering pipeline and replaces only the final expression-tree-to-delegate compiler. Interpreted evaluation and generated dispatch remain the AOT-oriented route; compiled execution is the additional JIT-dependent route exposed through the `Alder.Compiled` namespace.
 
 The supported starting point is plain `UseCompiler()`. It uses Alder's default route: Alder lowers the bound tree through its compiled provider, then `DefaultExpressionCompiler` delegates final delegate generation to `LambdaExpression.Compile()`.
 
-Compilation requires dynamic code support. `UseCompiler()` throws `PlatformNotSupportedException` when the runtime does not support dynamic code generation. In AOT environments, Alder's supported synchronous route is the interpreter with AOT metadata.
+Compilation requires dynamic code support. `UseCompiler()` throws `PlatformNotSupportedException` when the runtime does not support dynamic code generation. In NativeAOT, IL2CPP-style, and other dynamic-code-restricted deployments, Alder's supported route is interpreted evaluation with generated dispatch metadata.
 
 ## What changes when compilation is enabled
 
@@ -44,9 +43,9 @@ With no compiler configured, synchronous `Evaluate(...)` binds, validates, optim
 
 With a compiler configured, synchronous `Evaluate(...)` binds, validates, optimizes, compiles when needed, and then invokes the generated delegate. Parsed expressions can also be compiled explicitly through `TryCompile(...)`, `Compile(...)`, or `ParseAndCompile(...)`.
 
-Compilation changes more than execution speed. It turns parsed code into reusable runtime artifacts: cached delegates for repeated `Evaluate(...)`, `AlderCompiledExpression<T>` wrappers, native typed delegates, and exported trees.
+Compilation changes more than execution speed. It turns parsed code into reusable runtime artifacts: cached delegates for repeated `Evaluate(...)`, `AlderCompiledExpression<T>` wrappers, and native typed delegates whose parameter types come from delegate signatures. Expression-tree export is a separate `Alder.Compiled` integration surface for provider-facing workflows; it prepares LINQ trees without selecting synchronous compiled evaluation.
 
-One boundary matters operationally: once the engine is configured for compilation, synchronous evaluation commits to that backend. If Alder cannot produce an invocable delegate, it surfaces the stored compilation failure for that call.
+One boundary matters operationally: once the engine is configured for compilation, synchronous evaluation commits to that backend. If Alder cannot produce an invocable delegate, it surfaces the stored compilation failure for that call as an `AlderException`.
 
 ## Synchronous and asynchronous behavior
 
@@ -56,11 +55,11 @@ Compilation changes synchronous evaluation only.
 - `EvaluateAsync(...)` uses the interpreter, even when the engine is configured with `UseCompiler()`.
 - `EvaluateWithTrace(...)` runs through the interpreter after security validation.
 
-`EvaluateAsync(...)` uses the interpreter because `System.Linq.Expressions` does not provide the async execution model Alder requires. Alder awaits asynchronous expression work inside the evaluator; it does not turn compiled synchronous execution into asynchronous work by scheduling it through `Task.Run`.
+`System.Linq.Expressions` does not provide the async execution model Alder needs, so asynchronous evaluation awaits inside the interpreter. Compiled synchronous execution stays synchronous; hosts own any background scheduling. Tracing follows the same boundary: `EvaluateWithTrace(...)` uses the interpreter so it can capture the evaluated tree, values, types, and errors directly.
 
 ## Public compiled forms
 
-The compiled backend exposes three distinct public forms.
+The `Alder.Compiled` API surface exposes three distinct public forms.
 
 ### Compiled expression wrappers
 
@@ -90,11 +89,12 @@ This path supports both `Func<...>` and `Action<...>` delegates, including custo
 
 ### Expression-tree export
 
-`ParseAsExpression<TDelegate>(...)` exports a typed `Expression<TDelegate>` instead of a compiled runtime delegate:
+`ParseAsExpression<TDelegate>(...)` exports a typed `Expression<TDelegate>` for LINQ provider and expression-tree integration:
 
+<!-- test: ParseAsExpression -->
 ```csharp
 Expression<Func<int, bool>> predicate =
-    engine.ParseAsExpression<Func<int, bool>>("x => x > minAge");
+    engine.ParseAsExpression<Func<int, bool>>("x => x > 18 && x < 65");
 ```
 
 `CompileExpression<TDelegate>(...)` is the direct `ParseAsExpression(...).Compile()` path.
@@ -103,17 +103,17 @@ Expression<Func<int, bool>> predicate =
 
 Typed delegate compilation and expression-tree export solve different problems.
 
-`Compile<TDelegate>(...)` produces a native delegate for repeated in-process invocation. It accepts a code body, not lambda syntax, and binds parameter types from the delegate signature.
+`Compile<TDelegate>(...)` produces a native delegate for repeated in-process invocation. It accepts a code body, not lambda syntax, and binds parameter types from the delegate signature. That makes the delegate signature the stable API between the host and the compiled expression.
 
 `ParseAsExpression<TDelegate>(...)` produces a LINQ expression tree for providers, `IQueryable`, and explicit downstream compilation. It parses in Standard mode regardless of the engine's `LanguageMode`. Engine variables visible during export are captured into the resulting tree as constants. That gives Alder a direct integration boundary with external LINQ systems.
 
-The export flow has its own preparation sequence. Alder creates typed parameter bindings from the target delegate. It binds the lambda or body-only form against a query-specific runtime context, reruns the compilation pipeline over the bound body, and then exports the supported node set into a provider-facing tree.
+The export flow has its own preparation sequence. Alder creates typed parameter bindings from the target delegate, binds the lambda against a query-specific runtime context, reruns the compilation pipeline over the bound body, and then exports the supported node set into a provider-facing tree. Zero-parameter delegates may use body-only input; parameterized delegates use lambda syntax.
 
 This export path serves a different integration target than direct evaluation. Unsupported shapes are rejected during export. Dynamic call shapes, unsupported node kinds, and expression-tree-incompatible constructs fail there. Block-bodied lambdas are one concrete example. Reflection-oriented types are also blocked from this route.
 
-Provider translation is a separate boundary. Alder can export a valid tree and an `IQueryable` provider can still reject it.
+Provider translation is a separate boundary. Alder can export a valid tree and an `IQueryable` provider can still reject it according to that provider's translation rules.
 
-### Advanced compiler hook
+### Custom delegate compiler
 
 `IExpressionCompiler` is a narrow extension point for hosts with a specific reason to replace `LambdaExpression.Compile()`. Alder still parses, binds, validates, optimizes, and lowers the expression through its own compiled provider; the custom component receives the generated `Expression<TDelegate>` and returns a delegate.
 
@@ -143,16 +143,17 @@ For parsed expressions, Alder stores compiled output in per-expression runtime s
 
 Bound trees are cached separately from compiled delegates, and lowered output is cached per bound tree. Value changes follow a different rule. Changing a variable's value without changing its declared type does not invalidate compiled output. The next invocation sees the new value because compiled delegates close over the engine context by reference and run inside a fresh child execution context.
 
-`AlderCompiledExpression<T>` is stricter than `Evaluate(AlderExpression)`. It captures the type version from the moment of compilation. If visible variable types change later, `Invoke(...)` throws `ALDR0003` instead of recompiling automatically. In that case, use normal `Evaluate(AlderExpression)` for automatic recompilation or compile again explicitly.
+`AlderCompiledExpression<T>` is stricter than `Evaluate(AlderExpression)`. It captures the type version from the moment of compilation. If visible variable types change later, `Invoke(...)` throws `ALDR0003`. In that case, use normal `Evaluate(AlderExpression)` for automatic recompilation or compile again explicitly.
 
 ## Where compilation pays off
 
-This backend pays off most when the same synchronous logic runs many times against a stable type surface.
+The compiled backend pays off most when the same synchronous logic runs many times against a stable type surface. Expression-tree export matters when the next stage consumes a LINQ tree for provider translation or downstream compilation.
 
 - hot synchronous evaluation paths
 - reusable business rules exposed as typed delegates
 - zero-parameter rules reused through `CompileToFunc(...)`
-- Dynamic LINQ and `IQueryable` composition through expression-tree export
+- in-process Dynamic LINQ over materialized sequences
+- `IQueryable` composition through expression-tree export
 
 It also changes how Alder fits into a host application. `Compile<TDelegate>(...)` moves parameter typing to the delegate signature and avoids rebinding parameter shapes on each call. `ParseAsExpression<TDelegate>(...)` lets Alder participate in LINQ pipelines and query providers without forcing the host to treat every rule as a string to be evaluated at the edge.
 
@@ -163,15 +164,15 @@ Backend selection is narrow and deterministic.
 - synchronous `Evaluate(...)` uses the compiled backend when a compiler is configured
 - `EvaluateAsync(...)` stays on the interpreter
 - `EvaluateWithTrace(...)` stays on the interpreter after security validation
-- AOT environments cannot enable `UseCompiler()` and run through the interpreter with AOT metadata instead
+- AOT and dynamic-code-restricted environments run through the interpreter with generated dispatch metadata
 
-Failure behavior is equally explicit. `TryCompile(...)` is a probe: it records binding or lowering failure and returns `false`. `Compile(...)` and synchronous `Evaluate(...)` are strict once this backend is selected. If Alder cannot produce an invocable delegate, it surfaces the stored compilation failure. Compiled exceptions are also enriched with source positions before they are rethrown when the emitted code path only has an empty span.
+Failure behavior is equally explicit. `TryCompile(...)` is a probe: it records binding or lowering failure and returns `false`. `Compile(...)` and synchronous `Evaluate(...)` are strict once this backend is selected. If Alder cannot produce an invocable delegate, it surfaces the stored compilation failure as an `AlderException`. Compiled exceptions are also enriched with source positions before they are rethrown when the emitted code path only has an empty span.
 
 ## Practical boundary
 
-The compiled backend is Alder's supported synchronous delegate-oriented execution path. It has its own lowering stages, its own reuse and invalidation rules, and a separate export surface for expression-tree-driven integration. The interpreter remains the async path, the tracing path, and the execution mode for runtimes where dynamic code generation is unavailable or intentionally avoided.
+The compiled backend is Alder's supported synchronous delegate-oriented execution path. It has its own lowering stages and reuse rules. Expression-tree export is a separate `Alder.Compiled` integration surface for query providers and downstream compilation. The interpreter remains the async path, the tracing path, and the execution mode for runtimes where dynamic code generation is unavailable or intentionally avoided.
 
 ## Related pages
 
-- [Architecture](/explanation/architecture/)
+- [Architecture](/concepts/architecture/)
 - [Execution model](/reference/execution-model/)

@@ -1,11 +1,11 @@
 ---
 title: Execution model
-description: Reference for Alder execution semantics: parsing, binding, caching, backend selection, constraints, control flow, and error propagation.
+description: "Reference for Alder execution semantics: parsing, binding, caching, backend selection, constraints, control flow, and error propagation."
 ---
 
 # Execution model
 
-Alder evaluation follows a shared runtime model across parsing, semantic binding, validation, optimization, backend selection, constraint enforcement, and error propagation. This reference records the exact lifecycle and the cache boundaries that determine when prior work can be reused.
+Alder evaluation follows a shared runtime model across parsing, semantic binding, validation, optimization, backend selection, constraint enforcement, and error propagation. The exact lifecycle and cache boundaries determine when prior work can be reused. For guidance on engine lifetime, parsed-expression reuse, compiled artifacts, and production usage patterns, see [Execution and reuse](/operations/execution-and-reuse/).
 
 ## Evaluation lifecycle
 
@@ -53,7 +53,7 @@ Binding resolves the expression against the active context.
 - binding determines types, conversions, call targets, member access, and legality rules
 - binding is sensitive to the current context type shape and source text
 - semantic binding failures surface as `BindingFailed` with diagnostics
-- unsupported binding paths are recorded as unavailable rather than retried indefinitely
+- unsupported binding paths are recorded as unavailable and skipped on later execution attempts
 
 ### Dynamic execution
 
@@ -93,7 +93,7 @@ Synchronous `Evaluate(...)` uses:
 
 `EvaluateAsync(...)` uses the interpreter regardless of compiler configuration.
 
-This is a runtime-model decision. `System.Linq.Expressions` does not provide the async execution model Alder needs, so asynchronous evaluation awaits inside the interpreter instead of wrapping synchronous compiled execution in `Task.Run`.
+`System.Linq.Expressions` does not provide the async execution model Alder needs, so asynchronous evaluation awaits inside the interpreter. Compiled synchronous execution stays synchronous; hosts own any background scheduling.
 
 ### Trace evaluation
 
@@ -129,6 +129,41 @@ Compilation pipeline order:
 - conversion insertion
 
 If Alder cannot produce an invocable compiled delegate, compiled execution throws the stored failure when available, otherwise `StrictCompilationFailed`.
+
+## Typed result conversion
+
+`Evaluate<T>(...)`, `EvaluateAsync<T>(...)`, and compiled wrappers execute the expression first, then convert the final value to `T` at the evaluation boundary.
+
+The conversion path is:
+
+- `null` returns `default(T)`
+- values already assignable to `T` are returned directly
+- Alder lambda values can convert to supported `Func<>` and `Action<>` delegate shapes
+- structural projections can materialize into DTO or record targets
+- remaining scalar values use `Convert.ChangeType(...)`
+
+Structural projection materialization applies when an expression returns a shape such as `new { Name, Price }` and the caller asks for a concrete DTO or record:
+
+<!-- test: TypedResultConversion_MaterializesStructuralProjection -->
+```csharp
+using Alder;
+
+public sealed class ProductSummary
+{
+    public string Name { get; init; } = "";
+    public decimal Price { get; init; }
+}
+
+var engine = new AlderEngine();
+
+var summary = engine.Evaluate<ProductSummary>("""
+    return new { Name = "Widget", Price = 9.99m };
+    """);
+```
+
+Materialization matches projection members to public constructor parameters and writable public properties by name. Matching is case-insensitive. Member values must already be assignable or convertible to the target member type, and nested structural projections can materialize into nested supported DTO or record targets.
+
+Projection materialization is a reflection-based boundary over public constructors and public properties. In trimming-sensitive or NativeAOT deployments, prefer explicit DTO shapes that are rooted by the application and verify the published artifact. If materialization cannot find a compatible constructor or property mapping, Alder reports `ProjectionMaterializationFailed`.
 
 ## Context versioning
 
@@ -221,6 +256,7 @@ At the outer evaluation boundary:
 
 ## Related pages
 
-- [Architecture](/explanation/architecture/)
-- [Binding system](/explanation/binding-system/)
+- [Architecture](/concepts/architecture/)
+- [Execution and reuse](/operations/execution-and-reuse/)
+- [Binding system](/concepts/binding-system/)
 - [Configuration](/reference/configuration/)

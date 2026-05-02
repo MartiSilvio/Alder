@@ -1,18 +1,40 @@
 ---
-title: ECMA-334 conformance
-description: What Alder implements from ECMA-334 (7th edition, December 2023), and what is explicitly out of scope.
+title: Standard mode language support
+description: The C# language surface Alder supports in Standard mode for runtime expressions and statement blocks.
 ---
 
-# ECMA-334 conformance
+# Standard mode language support
 
-This page defines the ECMA-334 conformance surface for Alder's Standard mode. It records which parts of the language Alder accepts in runtime expressions and statement blocks, and which remain intentionally out of scope.
+Standard mode is Alder's default language mode. It evaluates C#-shaped expressions and statement blocks with C#-aligned semantics for binding, conversions, overload resolution, member access, control flow, lambdas, query expressions, pattern matching, and CLR type interaction.
+
+The language surface is scoped to code that can run inside an embedded runtime expression engine: expressions, statement blocks, local state, calls into exposed CLR objects, and control flow over host-provided data. It is suitable for stored rules, formulas, policy checks, configurable calculations, runtime filters, and application scripting points that benefit from C# semantics.
+
+At runtime, Alder binds Standard-mode code against the current host context: variables, registered functions, modules, type registrations, and extension-method containers. Sandbox policy validates the bound operations, and execution constraints govern runtime work. Strongly typed inputs produce earlier diagnostics and more precise overload selection; object-shaped inputs preserve runtime flexibility. The same bound semantics feed interpreted execution, async execution, optional compiled execution, and AOT metadata-backed dispatch, while backend-specific pages document narrower execution, export, and deployment surfaces.
+
+Standard mode accepts expression and statement-block input. Full-program declarations such as types, namespaces, members, attributes, access modifiers, and preprocessor directives are outside the input surface.
+
+The ECMA mapping records Standard-mode support against ECMA-334 sections. The C# specification remains the authority for the semantics Alder implements.
+
+`Supported` means Alder can parse, bind, validate, and evaluate the construct inside its expression and statement-block input model. It covers runtime input, not complete compilation units, type/member declaration support, compiled-delegate support for every construct, or expression-tree export for every runtime construct. Provider-facing export, including Dynamic LINQ `IQueryable<T>` paths, has a narrower node surface because it must produce ordinary LINQ expression trees.
+
+Extended mode builds on this baseline. It adds Alder-specific convenience syntax such as pipelines, inclusive and exclusive range helpers, collection literals without target types, regex predicates, SQL-style comparison helpers, date arithmetic sugar, and concise aggregate helpers. Extended-only syntax is documented separately and is excluded from the ECMA mapping here.
 
 **Spec edition:** ECMA-334, 7th edition (December 2023).
-**Last verified:** 2026-04-22.
+**Last verified:** 2026-05-01.
 
-## Scope and non-goals
+## Standard mode at a glance
 
-Alder evaluates expressions and statement blocks from strings. It does not compile full C# programs.
+| Area | Support |
+| --- | --- |
+| Expressions | Arithmetic, comparison, logical operators, casts, conversions, member access, index access, calls, object creation, lambdas, query expressions, tuples, interpolation, `typeof`, `nameof`, `default`, `await`, and throw expressions inside Alder input. |
+| Statement blocks | Local variables, constants, assignment, `if`, `switch`, loops, `break`, `continue`, `goto case`, `goto default`, `return`, `throw`, `try/catch/finally`, exception filters, `using`, `lock`, and iterators. |
+| Type system | CLR primitive types, reference types, nullable types, tuples, constructed generic types, interfaces, delegates, enums, `dynamic` as object-shaped runtime binding, overload resolution, extension methods, user-defined conversions, and user-defined operators. |
+| Host integration | Variables, registered functions, modules, type registration, extension-method containers, sandbox policy, execution constraints, and optional compiled execution all apply to Standard-mode code. |
+| Excluded constructs | Type/member declarations, namespaces, attributes, preprocessor directives, unsafe program structure, and constructs that require a C# compilation unit. |
+
+## Scope and boundaries
+
+Alder evaluates expressions and statement-block fragments from strings.
 
 These language areas are intentionally out of scope for Alder input:
 
@@ -20,19 +42,30 @@ These language areas are intentionally out of scope for Alder input:
 | --- | --- | --- |
 | Type declarations | Out of scope | `class`, `struct`, `interface`, `enum`, and `namespace` declarations are not part of the input surface. |
 | Attributes | Out of scope | Attribute syntax is not part of the input surface. |
-| Member declarations | Out of scope | Methods, properties, fields, events, and access modifiers are not declared inside Alder expressions. |
+| Type member declarations | Out of scope | Type-level methods, properties, fields, events, and access modifiers are not declared inside Alder expressions. Local functions are statement-level declarations and are covered separately. |
 | Preprocessor directives | Out of scope | `#if`, `#define`, and related directives are not supported. |
 
-Extended mode adds syntax outside ECMA-334 and is therefore excluded from this table.
+Extended mode adds syntax outside ECMA-334; that syntax belongs to the Extended language reference, outside the Standard ECMA mapping.
+
+## Standard features outside the ECMA mapping
+
+Alder's Standard mode also supports C# forms that are part of modern C# practice but sit outside the ECMA-334 7th edition table used below. These are Standard-mode features, not Extended-mode features.
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Switch expressions | Supported | Includes pattern arms, discard arms, `when` guards, non-exhaustive diagnostics, and arm-local pattern-variable scope. |
+| Relational, logical, and property patterns | Supported | Available in `is` expressions and switch-expression arms. ECMA-334 7th edition only defines declaration, constant, and var patterns. |
+| C# range expressions (`..`) | Supported | Produces `System.Range` when used as a C# range expression. Alder-specific inclusive and exclusive range helpers belong to Extended mode. |
 
 ## Status meanings
 
 | Status | Meaning |
 | --- | --- |
-| Supported | Implemented as part of Alder's Standard mode surface. |
-| Partial | Implemented with documented constraints. |
+| Supported | Implemented for Standard-mode runtime input, subject to any backend, sandbox, AOT, or export boundary documented on the relevant operations page. |
+| Partial | Implemented with documented constraints in Alder's input model. |
 | Out of scope | Not part of Alder's input surface by design. |
-| Notes | Clarifies constraints, edge cases, or integration expectations. |
+
+The `Notes` column clarifies constraints, edge cases, or integration expectations for the listed language area.
 
 ## Lexical and parsing (Chapter 6)
 
@@ -40,7 +73,7 @@ Extended mode adds syntax outside ECMA-334 and is therefore excluded from this t
 | --- | --- | --- | --- |
 | §6.4.5 | Literals | Supported | Includes numeric, character, string, boolean, and null literals that are part of Alder input. |
 | §6.4.3 | Verbatim identifiers (`@name`) | Supported |  |
-| §6.4.4 | Contextual keywords | Supported | Contextual keywords are interpreted by context rather than treated as always-reserved words. |
+| §6.4.4 | Contextual keywords | Supported | Contextual keywords are interpreted according to parse context. |
 | §6.4.5.3 | Integer literal type and promotion rules | Supported |  |
 | §6.4.5.4 | Real literals that start with `.` | Supported |  |
 | §6.4.5.5 | Character literals | Supported | Includes supported escape sequences. |
@@ -78,11 +111,11 @@ Extended mode adds syntax outside ECMA-334 and is therefore excluded from this t
 
 ## Patterns and pattern matching (Chapter 11)
 
-ECMA-334 (7th edition) defines declaration, constant, and var patterns. Additional pattern forms supported elsewhere in Alder are not counted here as ECMA conformance.
+ECMA-334 (7th edition) defines declaration, constant, and var patterns. Additional pattern forms supported by Alder are still Standard-mode behavior, but they are not counted as ECMA-334 conformance rows.
 
 | ECMA section | Area | Status | Notes |
 | --- | --- | --- | --- |
-| §11.2 | Pattern forms | Supported | Alder supports the ECMA pattern forms listed below. |
+| §11.2 | Pattern forms | Supported | Alder supports declaration, constant, and var patterns. |
 | §11.2.1 | General | Supported |  |
 | §11.2.2 | Declaration pattern | Supported |  |
 | §11.2.3 | Constant pattern | Supported |  |
@@ -164,6 +197,7 @@ ECMA-334 (7th edition) defines declaration, constant, and var patterns. Addition
 | §13.3 | Blocks and statement lists | Supported |  |
 | §13.6.2 | Local variable declarations | Supported | Includes multi-declarator forms such as `int x = 1, y = 2;`. |
 | §13.6.3 | Local constant declarations | Supported | `const` locals must be initialized with a compile-time constant expression. |
+| §13.6.4 | Local function declarations | Partial | Local functions are lowered to lambda-backed locals and support closures, recursion, mutual recursion, and iterator local functions. Generic local functions, `static`, `ref`, `out`, `params`, default parameter values, named-argument local-function calls, and forward references are outside the current surface. |
 | §13.8.2 | `if` statement | Supported |  |
 | §13.8.3 | `switch` statement | Supported | Includes `case` labels and `default`. |
 | §13.9.2-§13.9.5 | Iteration statements (`while`, `do`, `for`, `foreach`) | Supported |  |
@@ -206,4 +240,5 @@ ECMA-334 (7th edition) defines declaration, constant, and var patterns. Addition
 
 | ECMA section | Area | Status | Notes |
 | --- | --- | --- | --- |
-| §23.6.9 | The sizeof operator | Supported | `sizeof(T)` is supported for supported type-name forms in Alder input. |
+| §23.6.9 | The sizeof operator | Partial | `sizeof(T)` is supported for the predefined primitive value-type forms Alder maps directly: `bool`, integer types, `char`, floating-point types, and `decimal`. Other unsafe `sizeof` forms are outside the input surface. |
+| Chapter 23 | Unsafe blocks, pointer types, and unsafe declarations | Out of scope | Unsafe program structure is outside Alder's expression and statement-block input surface. |

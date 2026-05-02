@@ -32,6 +32,22 @@ Configuration is materialized once, at engine construction time. Mutating the or
 - `Types`: registers assemblies, namespaces, and extension-method containers for type and method resolution.
 - `Aot`: registers generated type contexts used by typed dispatch.
 
+## Compiler configuration
+
+Compiled execution is enabled by calling `UseCompiler()` from the `Alder.Compiled` namespace during engine configuration:
+
+```csharp
+using Alder.Compiled;
+
+var engine = new AlderEngine(options => options.UseCompiler());
+```
+
+That call installs Alder's compiled provider for synchronous `Evaluate(...)` and typed delegate compilation. It requires runtime dynamic-code support. NativeAOT, IL2CPP-style, and other dynamic-code-restricted deployments should use interpreted evaluation with generated dispatch metadata.
+
+The `Alder.Compiled` namespace also exposes Dynamic LINQ and expression-tree export APIs. String-based Dynamic LINQ operators use compiled delegates for in-process sequence execution. `IQueryable<T>` operators export expression trees and call the matching `Queryable` operators; provider translation remains downstream. Direct `ParseAsExpression<TDelegate>(...)` export prepares LINQ expression trees without calling `UseCompiler()`, although compiling those trees to delegates still requires dynamic code support.
+
+`ExpressionCompiler` controls only the final expression-tree-to-delegate compiler used after Alder has parsed, bound, validated, optimized, and lowered the expression. Setting an `ExpressionCompiler` without calling `UseCompiler()` does not make asynchronous evaluation, tracing, or AOT execution use compiled delegates.
+
 ## AlderConfig
 
 `AlderConfig` contains the runtime form of that configuration:
@@ -136,7 +152,7 @@ AOT entry points:
 
 `AlderOptions.ServiceProvider` is used for module instance resolution. It is not a general-purpose expression dependency injection facility. Its role is to let module-backed expressions obtain instance targets from the host application's container.
 
-Child contexts inherit the same service provider unless explicitly replaced.
+Child contexts inherit the same service provider.
 
 ## Case sensitivity
 
@@ -175,6 +191,8 @@ This affects both runtime lookup and collision behavior at registration time.
 
 ## Related pages
 
-- [Architecture](/explanation/architecture/)
-- [Typed dispatch and AOT](/explanation/typed-dispatch/)
+- [Architecture](/concepts/architecture/)
+- [Register types and extension methods](/guides/type-registration/)
+- [Deploy with NativeAOT](/guides/nativeaot-deployment/)
+- [AOT and generated dispatch](/operations/aot-and-generated-dispatch/)
 - [Execution model](/reference/execution-model/)

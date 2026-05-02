@@ -7,9 +7,11 @@ description: How Alder assigns semantic meaning to parsed syntax, and where it r
 
 Alder's binder is the semantic boundary between syntax and execution. It determines types, conversions, overloads, member access, control-flow legality, and the boundary between statically resolved and dynamically resolved execution.
 
+For lifecycle reference, use [Execution model](/reference/execution-model/). For task guidance about input shapes that affect binding, use [Variables, context, and child engines](/guides/variables-context-and-child-engines/).
+
 ## Role in the pipeline
 
-Both execution backends depend on the same bound representation. Binding is therefore the phase where most language behavior is fixed. If a rule belongs to semantic interpretation rather than raw syntax, it belongs here.
+Both execution backends depend on the same bound representation. Binding is therefore the phase where most language behavior is fixed. Semantic interpretation rules belong here; raw syntax rules belong in the parser.
 
 This includes:
 
@@ -28,15 +30,17 @@ Binding produces an executable semantic form that carries:
 - a deferred runtime operation when selection is not deterministic
 - diagnostics for invalid constructs
 
-Unknown static type is treated explicitly instead of being collapsed into `object` for convenience. That distinction matters because it governs whether an operation can be fixed during binding or must remain open until runtime.
+Unknown static type remains explicit. Alder does not collapse it into `object` for convenience, because that distinction governs whether an operation can be fixed during binding or must remain open until runtime.
 
 ## Resolved versus dynamic binding
 
-Dynamic binding is a valid execution path, not a recovery mechanism.
+Dynamic binding is the execution path for operations that need runtime values before the final target can be selected.
 
-If the target type, argument types, and available conversions make an operation deterministic, Alder binds it as resolved. If they do not, Alder preserves a dynamic form and lets runtime dispatch decide against the actual values involved. That usually occurs with `object`-typed values, ambiguous overload sets, or member access that depends on runtime shape rather than declared type.
+If the target type, argument types, and available conversions make an operation deterministic, Alder binds it as resolved. If they do not, Alder preserves a dynamic form and lets runtime dispatch decide against the actual values involved. That usually occurs with `object`-typed values, open runtime-shaped targets, or member access where runtime shape governs the target.
 
-This split is fundamental to the engine's binding contract. Alder does not guess when static information is inconclusive.
+This split is fundamental to the engine's binding contract. Alder does not guess when static information is inconclusive; it records the operation as dynamic.
+
+Statically ambiguous overload sets remain diagnostics when the declared type surface contains enough information to prove the ambiguity. Dynamic binding is for open runtime shapes, not for hiding ordinary semantic errors.
 
 ## Type resolution
 
@@ -64,9 +68,9 @@ Binding distinguishes between invalid input and unsupported engine behavior.
 
 Semantically invalid expressions fail with diagnostics. Typical cases include impossible conversions, illegal control flow, or required members that cannot be resolved.
 
-Unsupported binding is different. It means Alder has no semantic representation for that construct. That state is recorded as unavailable rather than retried on every execution attempt.
+Unsupported binding is different. It means Alder has no semantic representation for that construct. That state is recorded as unavailable and skipped on later execution attempts.
 
-Dynamic fallback should not be confused with unsupported binding. A dynamic node is a successful bind result. Unsupported binding is not.
+Dynamic fallback and unsupported binding are different states. A dynamic node is a successful bind result. Unsupported binding records unavailable behavior.
 
 ## Reuse model
 
@@ -86,6 +90,8 @@ Several public configuration surfaces feed directly into binding:
 
 These settings define the binder's world view. They are not incidental runtime options.
 
+Dynamic LINQ uses the same binding boundary for query fragments. A runtime filter, selector, key, join predicate, or projection is still parsed and bound against a CLR type surface before it becomes a delegate, expression tree, or reusable query plan.
+
 ## Tradeoffs
 
 The binding system is conservative by design:
@@ -97,7 +103,10 @@ The binding system is conservative by design:
 
 ## Related pages
 
-- [Architecture](/explanation/architecture/)
-- [Typed dispatch and AOT](/explanation/typed-dispatch/)
+- [Architecture](/concepts/architecture/)
+- [Register types and extension methods](/guides/type-registration/)
+- [Variables, context, and child engines](/guides/variables-context-and-child-engines/)
+- [AOT and generated dispatch](/operations/aot-and-generated-dispatch/)
+- [Configuration](/reference/configuration/)
 - [Execution model](/reference/execution-model/)
-- [ECMA-334 conformance](/reference/language/ecma-conformance/)
+- [Standard mode language support](/reference/language/standard-mode-language-support/)

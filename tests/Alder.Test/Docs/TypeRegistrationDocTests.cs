@@ -1,4 +1,5 @@
 using Alder.Test._Infrastructure;
+using Billing;
 
 namespace Alder.Test.Docs;
 
@@ -8,14 +9,46 @@ namespace Alder.Test.Docs;
 public class TypeRegistrationDocTests(CompilationMode mode)
 {
     [Test]
-    public void AddNamespace()
+    public void TypeRegistration_AddAssembly_ResolvesQualifiedType()
     {
-        var engine = TestEngineFactory.Create(mode, o =>
+        using var engine = TestEngineFactory.Create(mode, options =>
         {
-            o.Types.AddNamespace("System.Text.RegularExpressions");
+            options.Types.AddAssembly(typeof(Money).Assembly);
         });
 
-        var result = engine.Evaluate<bool>("""Regex.IsMatch("hello123", @"\d+")""");
-        Assert.That(result, Is.True);
+        var value = engine.Evaluate<decimal>(
+            "Billing.Money.FromDollars(125m).Amount");
+
+        Assert.That(value, Is.EqualTo(125m));
+    }
+
+    [Test]
+    public void TypeRegistration_AddNamespace_ResolvesUnqualifiedType()
+    {
+        using var engine = TestEngineFactory.Create(mode, options =>
+        {
+            options.Types.AddAssembly(typeof(Money).Assembly);
+            options.Types.AddNamespace("Billing");
+        });
+
+        var value = engine.Evaluate<decimal>(
+            "Money.FromDollars(125m).Amount");
+
+        Assert.That(value, Is.EqualTo(125m));
+    }
+
+    [Test]
+    public void TypeRegistration_AddExtensionMethods_ResolvesExtensionMethod()
+    {
+        using var engine = TestEngineFactory.Create(mode, options =>
+        {
+            options.Types.AddExtensionMethods(typeof(MoneyExtensions));
+        });
+
+        var accepted = engine.Evaluate<bool>(
+            "money.IsHighValue(100m)",
+            new { money = new Money(125m) });
+
+        Assert.That(accepted, Is.True);
     }
 }

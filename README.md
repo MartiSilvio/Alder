@@ -210,13 +210,13 @@ Power (`**`), pipeline (`|>`), comprehensions, bare math (`sin`, `cos`, `sqrt`),
 
 ## Documentation
 
-- **[Getting Started](docs/getting-started.md)** - Install, evaluate, inject variables, compile, secure, deploy
-- **[Standard Mode](docs/language/standard.md)** - Full ECMA-334 language reference
-- **[Extended Mode](docs/language/extended.md)** - Power, pipeline, comprehensions, bare math, SQL operators
-- **[Engine API](docs/engine/index.md)** - AlderEngine, AlderOptions, variables, compilation, modules, diagnostics
-- **[Security](docs/security/sandbox.md)** - Sandbox presets, type blocking, execution limits
-- **[AOT](docs/aot/overview.md)** - Source generators, typed dispatch, NativeAOT/IL2CPP
-- **[Architecture](docs/architecture/index.md)** - Pipeline internals: binder, overload resolution, type inference, compiler
+- **[Architecture](docs/concepts/architecture.md)** - Pipeline internals, backend split, and integration surfaces
+- **[Standard mode language support](docs/reference/language/standard-mode-language-support.md)** - C# language surface supported by Standard mode
+- **[Extended language mode](docs/concepts/extended-language-mode.md)** - Power, pipeline, comprehensions, bare math, and SQL operators
+- **[Configuration](docs/reference/configuration.md)** - AlderEngine, AlderOptions, variables, compilation, modules, and dispatch metadata
+- **[Security model](docs/operations/security-model.md)** - Sandbox policy, type blocking, execution limits, and reflection boundaries
+- **[AOT and generated dispatch](docs/operations/aot-and-generated-dispatch.md)** - Source generators, typed dispatch, NativeAOT, and IL2CPP-style deployments
+- **[Use Dynamic LINQ](docs/guides/use-dynamic-linq.md)** - Runtime query composition over IEnumerable and IQueryable sources
 
 ## License
 

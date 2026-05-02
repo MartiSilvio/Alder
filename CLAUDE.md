@@ -32,7 +32,7 @@ Alder targets Roslyn-grade engineering. Every subsystem should be designed as if
 
 ## Code Style
 
-- **Documentation follows the writing guidelines.** Before creating or revising documentation, read `docs/meta/writing-guidelines.md` and treat it as authoritative for tone, audience, structure, and prose quality. Prefer affirmative capability-driven prose. Avoid defensive `is not` comparison language except when documenting real limits, compatibility boundaries, safety warnings, or unsupported scenarios.
+- **Documentation follows the writing guidelines.** Before creating or revising documentation, read `docs/meta/writing-guidelines.md` and treat it as authoritative for tone, audience, structure, and prose quality. Follow its rules even during small edits. Prefer affirmative capability-driven prose. Do not use negation to prove value or depth. Avoid defensive `is not` comparison language except when documenting real limits, compatibility boundaries, safety warnings, or unsupported scenarios.
 - Do NOT write self-explanatory comments. Only add comments where the logic is genuinely non-obvious. ECMA-334 section references (e.g., `// §12.9.8.1: ...`) are always welcome — they link code to the spec and help future readers understand _why_ a design decision was made.
 - Do NOT write section divider comments (`// ── Section ──`, `// ----------`, `// == Foo ==`, etc.). Code structure should be obvious from the code itself. Use `#region`/`#endregion` only when the block is large enough to warrant collapsing (e.g., 50+ lines of related switch cases or operator delegates).
 - Never throw `AlderException` with just a raw message string. Always use a `DiagnosticDescriptor` from `DiagnosticDescriptors` so that errors have proper codes and structured formatting.
