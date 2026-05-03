@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest a new Alder capability or documentation improvement.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem or integration need does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the desired behavior or documentation change.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Language semantics / parity
+        - Extended mode syntax
+        - Runtime API
+        - Compiled backend
+        - Dynamic LINQ / IQueryable
+        - AOT / generated dispatch
+        - Security sandbox
+        - Documentation
+        - Build / packaging
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility and boundaries
+      description: Note any expected C# semantics, backend parity, AOT, sandbox, trimming, provider/export, or breaking-change concerns.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: What workarounds or alternative designs have you considered?
+    validations:
+      required: false
+title: "[Feature]: "

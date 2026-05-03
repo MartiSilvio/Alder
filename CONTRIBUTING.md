@@ -1,6 +1,6 @@
 # Contributing to Alder
 
-Alder is a C# runtime expression engine. Changes need to preserve C# semantics, keep the interpreted and compiled backends aligned, and avoid adding runtime dependencies.
+Alder is an embeddable C# runtime engine with compiler-style parsing and semantic binding. Changes need to preserve C# semantics, keep the interpreted and compiled backends aligned, and avoid adding runtime dependencies.
 
 ## Start Here
 

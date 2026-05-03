@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Alder.Aot;
 using Alder.Diagnostics;
 using Alder.Runtime.Collections;
 
@@ -63,8 +65,8 @@ internal static class LambdaDelegateConverter
 
         var rootedDelegateTypes = lambda switch
         {
-            CompiledLambdaValue compiledLambda => compiledLambda.Closure.Config.ClosedDelegateTypes,
-            LambdaValue interpretedLambda => interpretedLambda.Closure.Config.ClosedDelegateTypes,
+            CompiledLambdaValue compiledLambda => compiledLambda.Closure.Config.RootedDelegateTypes,
+            LambdaValue interpretedLambda => interpretedLambda.Closure.Config.RootedDelegateTypes,
             _ => null
         };
 
@@ -123,10 +125,11 @@ internal static class LambdaDelegateConverter
             : Delegate.CreateDelegate(delegateType, method);
     }
 
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
     private static Type? BuildFuncActionType(
         Type[] paramTypes,
         Type returnType,
-        IReadOnlyCollection<Type>? rootedDelegateTypes)
+        IReadOnlyCollection<RootedType>? rootedDelegateTypes)
     {
         if (returnType == typeof(void))
         {

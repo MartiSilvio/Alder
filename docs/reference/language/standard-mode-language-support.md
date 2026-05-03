@@ -1,17 +1,17 @@
 ---
 title: Standard mode language support
-description: The C# language surface Alder supports in Standard mode for runtime expressions and statement blocks.
+description: The C# syntax Alder supports in Standard mode for runtime expressions and statement blocks.
 ---
 
 # Standard mode language support
 
-Standard mode is Alder's default language mode. It evaluates C#-shaped expressions and statement blocks with C#-aligned semantics for binding, conversions, overload resolution, member access, control flow, lambdas, query expressions, pattern matching, and CLR type interaction.
+Standard mode is Alder's default language mode. It evaluates C# expressions and statement blocks with C# semantics for binding, conversions, overload resolution, member access, control flow, lambdas, query expressions, pattern matching, and CLR type interaction.
 
-The language surface is scoped to code that can run inside an embedded runtime expression engine: expressions, statement blocks, local state, calls into exposed CLR objects, and control flow over host-provided data. It is suitable for stored rules, formulas, policy checks, configurable calculations, runtime filters, and application scripting points that benefit from C# semantics.
+The supported syntax is scoped to code that runs inside an embeddable C# runtime engine: expressions, statement blocks, local state, calls into exposed CLR objects, and control flow over host-provided data. It is suitable for stored rules, formulas, policy checks, configurable calculations, runtime filters, and application scripting points that benefit from C# semantics.
 
 At runtime, Alder binds Standard-mode code against the current host context: variables, registered functions, modules, type registrations, and extension-method containers. Sandbox policy validates the bound operations, and execution constraints govern runtime work. Strongly typed inputs produce earlier diagnostics and more precise overload selection; object-shaped inputs preserve runtime flexibility. The same bound semantics feed interpreted execution, async execution, optional compiled execution, and AOT metadata-backed dispatch, while backend-specific pages document narrower execution, export, and deployment surfaces.
 
-Standard mode accepts expression and statement-block input. Full-program declarations such as types, namespaces, members, attributes, access modifiers, and preprocessor directives are outside the input surface.
+Standard mode accepts expression and statement-block input. Full-program declarations such as types, namespaces, members, attributes, access modifiers, and preprocessor directives are outside the accepted input.
 
 The ECMA mapping records Standard-mode support against ECMA-334 sections. The C# specification remains the authority for the semantics Alder implements.
 
@@ -197,7 +197,7 @@ ECMA-334 (7th edition) defines declaration, constant, and var patterns. Addition
 | §13.3 | Blocks and statement lists | Supported |  |
 | §13.6.2 | Local variable declarations | Supported | Includes multi-declarator forms such as `int x = 1, y = 2;`. |
 | §13.6.3 | Local constant declarations | Supported | `const` locals must be initialized with a compile-time constant expression. |
-| §13.6.4 | Local function declarations | Partial | Local functions are lowered to lambda-backed locals and support closures, recursion, mutual recursion, and iterator local functions. Generic local functions, `static`, `ref`, `out`, `params`, default parameter values, named-argument local-function calls, and forward references are outside the current surface. |
+| §13.6.4 | Local function declarations | Partial | Local functions are lowered to lambda-backed locals and support closures, recursion, mutual recursion, and iterator local functions. Generic local functions, `static`, `ref`, `out`, `params`, default parameter values, named-argument local-function calls, and forward references are outside the supported input. |
 | §13.8.2 | `if` statement | Supported |  |
 | §13.8.3 | `switch` statement | Supported | Includes `case` labels and `default`. |
 | §13.9.2-§13.9.5 | Iteration statements (`while`, `do`, `for`, `foreach`) | Supported |  |

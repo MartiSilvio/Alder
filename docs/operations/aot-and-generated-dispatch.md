@@ -163,7 +163,7 @@ public partial class AsyncRulesAotContext : AlderTypeContext
 
 That gives `await Task.FromResult(42)` and `await Task.FromResult("done")` a generated route for those exact result types. Other result types need their own roots.
 
-Delegate factories cover closed delegate types that must be constructible without runtime generic closure. The source generator does not synthesize factories from delegate-typed parameters; factories come from `AlderTypeContext.GetDelegateFactories()`. Each entry maps a closed delegate type to a factory that wraps an Alder lambda in that delegate type. Built-in contexts can root common delegate shapes, and custom contexts can provide application-specific ones:
+Delegate factories cover closed delegate types that must be constructible without runtime generic closure. The source generator does not synthesize factories from delegate-typed parameters; factories come from `AlderTypeContext.GetDelegateFactories()`. Each entry maps a rooted closed delegate type to a factory that wraps an Alder lambda in that delegate type:
 
 ```csharp
 public sealed class RulesDelegateContext(
@@ -171,10 +171,10 @@ public sealed class RulesDelegateContext(
 {
     public override IReadOnlyList<TypedDispatch> GetTypeMetadata() => [];
 
-    public override IReadOnlyDictionary<Type, Func<object, Delegate>> GetDelegateFactories() =>
-        new Dictionary<Type, Func<object, Delegate>>
+    public override IReadOnlyDictionary<RootedType, Func<object, Delegate>> GetDelegateFactories() =>
+        new Dictionary<RootedType, Func<object, Delegate>>
         {
-            [typeof(Func<int, bool>)] = lambda => createPredicate(lambda)
+            [new RootedType(typeof(Func<int, bool>))] = lambda => createPredicate(lambda)
         };
 }
 ```
@@ -253,7 +253,7 @@ JIT deployments can use both paths. NativeAOT deployments depend on the generate
 
 ## Related pages
 
-- [Deploy with NativeAOT](/guides/nativeaot-deployment/)
-- [Compiled backend](/concepts/compiled-backend/)
-- [Execution and reuse](/operations/execution-and-reuse/)
-- [Configuration](/reference/configuration/)
+- [Deploy with NativeAOT](../guides/nativeaot-deployment.md)
+- [Compiled backend](../concepts/compiled-backend.md)
+- [Execution and reuse](./execution-and-reuse.md)
+- [Configuration](../reference/configuration.md)

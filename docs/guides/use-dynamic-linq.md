@@ -565,6 +565,6 @@ Joins, group joins, ordering, grouping, `Concat`, `Union`, `Intersect`, `Except`
 
 ## Related pages
 
-- [Dynamic LINQ](/concepts/dynamic-linq/)
-- [Compiled backend](/concepts/compiled-backend/)
-- [Configuration](/reference/configuration/)
+- [Dynamic LINQ](../concepts/dynamic-linq.md)
+- [Compiled backend](../concepts/compiled-backend.md)
+- [Configuration](../reference/configuration.md)

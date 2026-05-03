@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using DynamicExpresso;
 using Flee.PublicTypes;
@@ -304,6 +305,20 @@ public static class BenchmarkManifestWriter
         return manifest;
     }
 
+    public static BenchmarkRunManifest BuildRunManifest(
+        IEnumerable<object> summaries,
+        BenchmarkRunProfile profile,
+        IReadOnlyList<string> commandArgs)
+    {
+        var manifest = BuildRunManifest(summaries);
+        manifest.Profile = profile.ToString();
+        manifest.CommandLine = BuildCommandLine(commandArgs);
+        manifest.RepositoryCommit = ReadProcessOutput("git", "rev-parse HEAD");
+        manifest.DotNetInfo = ReadProcessOutput("dotnet", "--info");
+        manifest.CpuModel = ReadCpuModel();
+        return manifest;
+    }
+
     public static string WriteManifest(BenchmarkRunManifest manifest, string? outputDirectory = null)
     {
         var directory = outputDirectory ?? Path.Combine(Directory.GetCurrentDirectory(), "BenchmarkDotNet.Artifacts", "results");
@@ -329,11 +344,70 @@ public static class BenchmarkManifestWriter
         return $"Runtime={runtime}; OS={os}; Arch={arch}; Cores={cores}";
     }
 
+    private static string BuildCommandLine(IReadOnlyList<string> commandArgs)
+    {
+        var suffix = commandArgs.Count == 0
+            ? string.Empty
+            : " -- " + string.Join(' ', commandArgs);
+        return "dotnet run -c Release --project benchmarks/Alder.Benchmarks/Alder.Benchmarks.csproj" + suffix;
+    }
+
+    private static string ReadProcessOutput(string fileName, string arguments)
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(fileName, arguments)
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            });
+
+            if (process is null)
+                return "unknown";
+
+            if (!process.WaitForExit(5_000))
+            {
+                process.Kill(entireProcessTree: true);
+                return "unknown";
+            }
+
+            var output = process.StandardOutput.ReadToEnd().Trim();
+            return string.IsNullOrWhiteSpace(output) ? "unknown" : output;
+        }
+        catch
+        {
+            return "unknown";
+        }
+    }
+
+    private static string ReadCpuModel()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            var model = ReadProcessOutput("sysctl", "-n machdep.cpu.brand_string");
+            if (model != "unknown")
+                return model;
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && File.Exists("/proc/cpuinfo"))
+        {
+            var modelLine = File.ReadLines("/proc/cpuinfo")
+                .FirstOrDefault(line => line.StartsWith("model name", StringComparison.OrdinalIgnoreCase));
+            var separator = modelLine?.IndexOf(':') ?? -1;
+            if (separator >= 0)
+                return modelLine![(separator + 1)..].Trim();
+        }
+
+        return Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER")
+            ?? $"{RuntimeInformation.ProcessArchitecture}; {Environment.ProcessorCount} cores";
+    }
+
     private static BenchmarkManifestRow ToManifestRow(BenchmarkMatrixRow row)
     {
         return new BenchmarkManifestRow
         {
-            Suite = row.Suite,
+            Suite = row.BenchmarkCase.WorkloadType == "DynamicLinq" ? "DynamicLinq" : row.Suite,
             Category = row.Category,
             Lane = row.LaneName,
             CaseId = row.CaseId,
@@ -383,29 +457,14 @@ public static class BenchmarkManifestWriter
                 if (foundMatrixRowForReport)
                     continue;
 
-                var queryCase = TryGetParameterValue(parameters, "Query");
-                if (queryCase is not null)
-                {
-                    var caseName = ReflectProperty(queryCase, "Name") as string ?? "unknown";
-                    var scaleValue = TryGetParameterValue(parameters, "ScaleFactor");
-                    var scale = scaleValue is int i ? i : 1;
-                    var descriptor = ReflectProperty(benchmarkCase, "Descriptor");
-                    var workloadMethod = descriptor is null ? null : ReflectProperty(descriptor, "WorkloadMethod");
-                    var methodName = workloadMethod is null ? "unknown" : ReflectProperty(workloadMethod, "Name") as string ?? "unknown";
-                    var typeValue = descriptor is null ? null : ReflectProperty(descriptor, "Type");
-                    var typeName = typeValue is Type t ? t.Name : string.Empty;
-                    var lane = ResolveExecutedLane(typeName, methodName);
-                    rows.Add(new BenchmarkManifestRow
-                    {
-                        Suite = "DynamicLinq",
-                        Category = "Operational",
-                        Lane = lane,
-                        CaseId = caseName,
-                        EvaluatorId = methodName,
-                        Scale = scale,
-                        Capability = BenchmarkCapabilityStatus.Supported.ToString()
-                    });
-                }
+                var descriptor = ReflectProperty(benchmarkCase, "Descriptor");
+                var workloadMethod = descriptor is null ? null : ReflectProperty(descriptor, "WorkloadMethod");
+                var methodName = workloadMethod is null ? "unknown" : ReflectProperty(workloadMethod, "Name") as string ?? "unknown";
+                var typeValue = descriptor is null ? null : ReflectProperty(descriptor, "Type");
+                var typeName = typeValue is Type t ? t.Name : string.Empty;
+                var executedRow = BuildExecutedBenchmarkRow(typeName, methodName, parameters);
+                if (executedRow is not null)
+                    rows.Add(executedRow);
             }
         }
 
@@ -463,7 +522,7 @@ public static class BenchmarkManifestWriter
         var cases = DynamicLinqBenchmarks.GetBenchmarkQueries();
         var parsedLambdaCases = DynamicLinqBenchmarks.GetBenchmarkParsedLambdaQueries();
         var coldCases = DynamicLinqBenchmarks.GetBenchmarkColdStartQueries();
-        var dynamicPreParsedEvaluators = new[] { "Native", "Alder_DynamicLinq_ParsedLambda", "SystemDynamicLinqCore_ParsedLambda" };
+        var dynamicPreParsedEvaluators = new[] { "Native", "Alder_DynamicLinq_ParsedPlan", "Alder_DynamicLinq_ParsedLambda", "SystemDynamicLinqCore_ParsedLambda" };
         var dynamicWarmEvaluators = new[] { "Native", "Alder_DynamicLinq_NonGeneric", "Alder_DynamicLinq_Generic", "SystemDynamicLinqCore_String" };
         var dynamicColdEvaluators = new[] { "Native", "Alder_DynamicLinq_NonGeneric", "Alder_DynamicLinq_Generic", "SystemDynamicLinqCore_String" };
 
@@ -539,6 +598,105 @@ public static class BenchmarkManifestWriter
         return rows;
     }
 
+    private static BenchmarkManifestRow? BuildExecutedBenchmarkRow(
+        string typeName,
+        string methodName,
+        IEnumerable parameters)
+    {
+        if (string.IsNullOrWhiteSpace(typeName) || string.IsNullOrWhiteSpace(methodName))
+            return null;
+
+        var caseId = ResolveExecutedCaseId(parameters, methodName);
+        var scale = ResolveExecutedScale(parameters);
+        var lane = ResolveExecutedLane(typeName, methodName);
+        var suite = ResolveExecutedSuite(typeName);
+        var category = ResolveExecutedCategory(typeName);
+
+        return new BenchmarkManifestRow
+        {
+            Suite = suite,
+            Category = category,
+            Lane = lane,
+            CaseId = caseId,
+            EvaluatorId = methodName,
+            Scale = scale,
+            Capability = BenchmarkCapabilityStatus.Supported.ToString()
+        };
+    }
+
+    private static string ResolveExecutedCaseId(IEnumerable parameters, string methodName)
+    {
+        var queryCase = TryGetParameterValue(parameters, "Query");
+        var queryName = queryCase is null ? null : ReflectProperty(queryCase, "Name") as string;
+        if (!string.IsNullOrWhiteSpace(queryName))
+            return queryName;
+
+        var scenario = TryGetParameterValue(parameters, "Scenario");
+        var scenarioName = scenario is null ? null : ReflectProperty(scenario, "Name") as string;
+        if (!string.IsNullOrWhiteSpace(scenarioName))
+            return scenarioName;
+
+        var ruleCount = TryGetParameterValue(parameters, "RuleCount");
+        var entityCount = TryGetParameterValue(parameters, "EntityCount");
+        if (ruleCount is int rules && entityCount is int entities)
+            return $"RuleCount={rules};EntityCount={entities}";
+
+        var threadCount = TryGetParameterValue(parameters, "ThreadCount");
+        if (threadCount is int threads)
+            return $"ThreadCount={threads}";
+
+        var reuseCount = TryGetParameterValue(parameters, "ReuseCount");
+        if (reuseCount is int reuse)
+            return $"ReuseCount={reuse}";
+
+        var scaleFactor = TryGetParameterValue(parameters, "ScaleFactor");
+        if (scaleFactor is int scale)
+            return $"ScaleFactor={scale}";
+
+        return methodName;
+    }
+
+    private static int ResolveExecutedScale(IEnumerable parameters)
+    {
+        var scaleFactor = TryGetParameterValue(parameters, "ScaleFactor");
+        if (scaleFactor is int scale)
+            return scale;
+
+        var entityCount = TryGetParameterValue(parameters, "EntityCount");
+        if (entityCount is int entities)
+            return entities;
+
+        var threadCount = TryGetParameterValue(parameters, "ThreadCount");
+        if (threadCount is int threads)
+            return threads;
+
+        var reuseCount = TryGetParameterValue(parameters, "ReuseCount");
+        if (reuseCount is int reuse)
+            return reuse;
+
+        return 1;
+    }
+
+    private static string ResolveExecutedSuite(string typeName)
+    {
+        if (typeName == nameof(DynamicLinqBenchmarks) ||
+            typeName == nameof(DynamicLinqParsedLambdaBenchmarks) ||
+            typeName == nameof(DynamicLinqBenchmarksColdStart))
+            return "DynamicLinq";
+
+        const string suffix = "Benchmarks";
+        return typeName.EndsWith(suffix, StringComparison.Ordinal)
+            ? typeName[..^suffix.Length]
+            : typeName;
+    }
+
+    private static string ResolveExecutedCategory(string typeName) =>
+        typeName is nameof(AdvancedLanguageBenchmarks)
+            or nameof(ExtendedSyntaxBenchmarks)
+            or nameof(ExpressionTreeBenchmarks)
+            ? "Capability"
+            : "Operational";
+
     private static string ResolveExecutedLane(string typeName, string methodName)
     {
         if (typeName.Contains("Cold", StringComparison.Ordinal))
@@ -554,6 +712,11 @@ public sealed class BenchmarkRunManifest
 {
     public string SchemaVersion { get; set; } = BenchmarkManifestWriter.SchemaVersion;
     public DateTime GeneratedAtUtc { get; set; }
+    public string Profile { get; set; } = string.Empty;
+    public string CommandLine { get; set; } = string.Empty;
+    public string RepositoryCommit { get; set; } = string.Empty;
+    public string DotNetInfo { get; set; } = string.Empty;
+    public string CpuModel { get; set; } = string.Empty;
     public string EnvironmentFingerprint { get; set; } = string.Empty;
     public IReadOnlyList<BenchmarkManifestRow> Rows { get; set; } = [];
     public IReadOnlyList<BenchmarkManifestRow> UnsupportedRows { get; set; } = [];
@@ -701,6 +864,10 @@ public static class CrossEngineEvaluatorCatalog
         {
             if (string.IsNullOrWhiteSpace(benchmarkCase.Expressions.Alder))
                 return BenchmarkCapability.NotSupported("n/a-use-native-equivalent");
+
+            if (_mode == CompilationMode.CompiledFec &&
+                BenchmarkFecPolicy.IsUnsupportedExpression(benchmarkCase.Id, benchmarkCase.Expressions.Alder))
+                return BenchmarkCapability.NotSupported(BenchmarkFecPolicy.UnsupportedReasonCode);
 
             return lane switch
             {

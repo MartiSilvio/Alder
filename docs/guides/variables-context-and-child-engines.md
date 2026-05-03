@@ -7,11 +7,11 @@ description: Register variables, choose the right context shape, isolate per-cal
 
 Alder has more than one way to supply values to an expression, and the choice changes real behavior. It affects the visible variable set, the static types available to binding, whether a value survives after the call, and whether work stays isolated from the parent engine. Use engine-level variables for durable shared context, typed object-backed inputs when binding precision matters, per-call values for temporary inputs, and child engines when you need inheritance plus isolation.
 
-For the broader runtime model behind engine lifetime, parsed-expression reuse, compiled reuse, and concurrency, see [Execution and reuse](/operations/execution-and-reuse/).
+For the broader runtime model behind engine lifetime, parsed-expression reuse, compiled reuse, and concurrency, see [Execution and reuse](../operations/execution-and-reuse.md).
 
 ## Register values on the engine
 
-Use `SetVariable<T>` when you know the variable's intended static type and want Alder to bind against that type:
+Use `SetVariable("name", value)` for ordinary engine variables. C# normally selects Alder's generic overload and infers `T` from the value expression, so the binder sees that compile-time type:
 
 <!-- test: FluentChaining -->
 ```csharp
@@ -20,23 +20,31 @@ using Alder;
 var engine = new AlderEngine();
 
 engine
-    .SetVariable<double>("rate", 0.05)
-    .SetVariable<int>("years", 10)
-    .SetVariable<double>("principal", 1000.0);
+    .SetVariable("rate", 0.05)
+    .SetVariable("years", 10)
+    .SetVariable("principal", 1000.0);
 
 var result = engine.Evaluate<double>(
     "principal * Math.Pow(1 + rate, years)");
 ```
 
-The generic overload stores the declared type from `T` together with the runtime value.
+These calls bind `rate` as `double`, `years` as `int`, and `principal` as `double`.
 
-The non-generic overload is different:
+Use explicit `SetVariable<T>` when you need to force a particular binding surface that inference would not choose:
 
 ```csharp
-engine.SetVariable("x", 42);
+engine.SetVariable<IReadOnlyList<Order>>("orders", orderList);
+engine.SetVariable<object>("payload", value);
+engine.SetVariable<string?>("name", null);
 ```
 
-That path stores `x` as `object` for binding purposes. The runtime value is still `42`, but the binding surface is looser.
+Object-shaped binding happens when the selected overload's `T` is `object`, or when the argument is already typed as `object`:
+
+```csharp
+object value = 42;
+engine.SetVariable("x", value);      // object-shaped binding surface
+engine.SetVariable<object>("y", 42); // object-shaped binding surface
+```
 
 ## Choose the right value shape
 
@@ -46,7 +54,8 @@ Choose variables by lifetime and binding surface. Engine variables and child-eng
 
 These paths preserve useful static type information for binding:
 
-- `SetVariable<T>(...)`
+- `SetVariable("name", value)` when generic type inference can infer the intended type
+- `SetVariable<T>(...)` when you need to force an interface, base type, `object`, or typed `null`
 - `Evaluate(..., new { ... })`
 - `Evaluate(..., expression, new { ... })`
 
@@ -62,7 +71,8 @@ var eligible = engine.Evaluate<bool>(
 
 These paths expose values by name, but bind them as `object`:
 
-- `SetVariable(string, object?)`
+- `SetVariable("name", value)` when `value` is already statically typed as `object`
+- `SetVariable<object>(...)`
 - `SetVariables(IDictionary<string, object?>)`
 - `Evaluate(..., IDictionary<string, object?>)`
 - positional variables such as `Evaluate("...", 1, 2, 3)`
@@ -116,7 +126,7 @@ Per-call values live in a child binding context created for that evaluation. The
 <!-- test: PerCallVariables_DoNotPersist -->
 ```csharp
 var engine = new AlderEngine();
-engine.SetVariable<int>("x", 10);
+engine.SetVariable("x", 10);
 
 var total = engine.Evaluate<int>("x + y", new { y = 20 });
 ```
@@ -152,13 +162,13 @@ Positional variables are convenient for short argument lists. Stable named input
 <!-- test: ChildEngines -->
 ```csharp
 var parent = new AlderEngine();
-parent.SetVariable<double>("baseFee", 50.0);
+parent.SetVariable("baseFee", 50.0);
 
 var tenantA = parent.CreateChild();
-tenantA.SetVariable<double>("discount", 0.1);
+tenantA.SetVariable("discount", 0.1);
 
 var tenantB = parent.CreateChild();
-tenantB.SetVariable<double>("discount", 0.25);
+tenantB.SetVariable("discount", 0.25);
 
 var a = tenantA.Evaluate<double>("baseFee * (1 - discount)");
 var b = tenantB.Evaluate<double>("baseFee * (1 - discount)");
@@ -195,18 +205,19 @@ The binder caches work against the visible context, its type surface, and the ex
 ```csharp
 var expression = engine.Parse("(long)x");
 
-engine.SetVariable<int>("x", 42);
+engine.SetVariable("x", 42);
 engine.Evaluate(expression);   // succeeds
 
 engine.SetVariable<object>("x", 42);
 engine.Evaluate(expression);   // fails under object unboxing rules
 ```
 
-That is the practical reason to prefer `SetVariable<T>` or typed object-backed inputs when the type is known and semantically important. For the full reuse and invalidation model, see [Execution and reuse](/operations/execution-and-reuse/).
+That is the practical reason to preserve the intended static type. Ordinary calls usually do that through generic inference; explicit `SetVariable<T>` is for cases where you need to force a surface that inference would not choose. For the full reuse and invalidation model, see [Execution and reuse](../operations/execution-and-reuse.md).
 
 ## Pick the narrowest tool that matches the job
 
-- Use `SetVariable<T>` for durable engine state with a meaningful static type.
+- Use `SetVariable("name", value)` for durable engine state when the value expression already has the intended static type.
+- Use explicit `SetVariable<T>` for typed `null`, interfaces, base types, or deliberate `object` binding.
 - Use `Evaluate(..., new { ... })` for temporary typed inputs.
 - Use `Evaluate(..., IDictionary<string, object?>)` when the input is naturally object-shaped and temporary.
 - Use `SetVariablesPreservingRuntimeTypes(...)` when the input arrives as a dictionary but the runtime types still matter for binding.
@@ -215,16 +226,17 @@ That is the practical reason to prefer `SetVariable<T>` or typed object-backed i
 
 ## Common mistakes
 
-### Using the non-generic registration path when the type matters
+### Accidentally object-shaping a value when the type matters
 
-The non-generic path weakens binding when the static type matters:
+Object-shaped inputs weaken binding when the static type matters:
 
 ```csharp
-engine.SetVariable("x", 42);          // object-shaped binding surface
-engine.SetVariable<int>("x", 42);     // typed binding surface
+engine.SetVariable("x", 42);          // inferred as int
+engine.SetVariable("x", (object)42);  // object-shaped binding surface
+engine.SetVariable<object>("x", 42);  // object-shaped binding surface
 ```
 
-If overload selection, casts, member access, or numeric behavior depend on the static type, use the generic overload or a typed object-backed call surface.
+If overload selection, casts, member access, or numeric behavior depend on the static type, avoid passing values through `object` unless that loose surface is intentional.
 
 ### Expecting per-call values to persist
 
@@ -246,8 +258,8 @@ Parsed-expression reuse preserves syntax. When the visible variable type changes
 
 ```csharp
 var engine = new AlderEngine();
-engine.SetVariable<double>("interestRate", 0.05);
-engine.SetVariable<int>("years", 30);
+engine.SetVariable("interestRate", 0.05);
+engine.SetVariable("years", 30);
 
 var payment = engine.Evaluate<double>(
     "principal * Math.Pow(1 + interestRate, years)",
@@ -278,6 +290,6 @@ var total = request.Evaluate<double>("baseFee * (1 - discount)");
 
 ## Related pages
 
-- [Execution and reuse](/operations/execution-and-reuse/)
-- [Binding system](/concepts/binding-system/)
-- [Configuration](/reference/configuration/)
+- [Execution and reuse](../operations/execution-and-reuse.md)
+- [Binding system](../concepts/binding-system.md)
+- [Configuration](../reference/configuration.md)

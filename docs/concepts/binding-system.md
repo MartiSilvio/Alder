@@ -7,7 +7,7 @@ description: How Alder assigns semantic meaning to parsed syntax, and where it r
 
 Alder's binder is the semantic boundary between syntax and execution. It determines types, conversions, overloads, member access, control-flow legality, and the boundary between statically resolved and dynamically resolved execution.
 
-For lifecycle reference, use [Execution model](/reference/execution-model/). For task guidance about input shapes that affect binding, use [Variables, context, and child engines](/guides/variables-context-and-child-engines/).
+For lifecycle reference, use [Execution model](../reference/execution-model.md). For task guidance about input shapes that affect binding, use [Variables, context, and child engines](../guides/variables-context-and-child-engines.md).
 
 ## Role in the pipeline
 
@@ -103,10 +103,10 @@ The binding system is conservative by design:
 
 ## Related pages
 
-- [Architecture](/concepts/architecture/)
-- [Register types and extension methods](/guides/type-registration/)
-- [Variables, context, and child engines](/guides/variables-context-and-child-engines/)
-- [AOT and generated dispatch](/operations/aot-and-generated-dispatch/)
-- [Configuration](/reference/configuration/)
-- [Execution model](/reference/execution-model/)
-- [Standard mode language support](/reference/language/standard-mode-language-support/)
+- [Architecture](./architecture.md)
+- [Register types and extension methods](../guides/type-registration.md)
+- [Variables, context, and child engines](../guides/variables-context-and-child-engines.md)
+- [AOT and generated dispatch](../operations/aot-and-generated-dispatch.md)
+- [Configuration](../reference/configuration.md)
+- [Execution model](../reference/execution-model.md)
+- [Standard mode language support](../reference/language/standard-mode-language-support.md)

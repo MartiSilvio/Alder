@@ -5,7 +5,7 @@ description: How to operate Alder engines, parsed expressions, compiled delegate
 
 # Execution and reuse
 
-Alder is designed to be operated as a reusable runtime component. An application configures an `AlderEngine`, gives it a stable type and policy surface, and evaluates parsed expressions, compiled artifacts, and query plans many times. The performance model follows from that lifecycle: configure once, parse where code enters the system, and keep high-throughput calls on reusable artifacts. The exact evaluation lifecycle and cache semantics belong in [Execution model](/reference/execution-model/).
+Alder is designed to be operated as a reusable runtime component. An application configures an `AlderEngine`, gives it a stable type and policy surface, and evaluates parsed expressions, compiled artifacts, and query plans many times. The performance model follows from that lifecycle: configure once, parse where code enters the system, and keep high-throughput calls on reusable artifacts. The exact evaluation lifecycle and cache semantics belong in [Execution model](../reference/execution-model.md).
 
 The core distinction is between source text, parsed syntax, bound semantics, and executable form. `AlderExpression` preserves parsed syntax. The engine caches bound and compiled state during evaluation. Compiled wrappers and Dynamic LINQ plans expose explicit artifacts for hot paths and query composition.
 
@@ -135,12 +135,12 @@ Both calls can use the same semantic shape because `x` remains an `int`. If `x` 
 Engine variables live in the engine context and are visible to later evaluations:
 
 ```csharp
-engine.SetVariable<int>("threshold", 80);
+engine.SetVariable("threshold", 80);
 
 var passed = engine.Evaluate<bool>("score >= threshold", new { score = 92 });
 ```
 
-Prefer `SetVariable<T>(...)` when the variable is part of the engine's stable type surface. The generic overload preserves the static type for binding. `SetVariable(string, object?)` tracks the value as `object`; `SetVariablesPreservingRuntimeTypes(...)` uses each value's runtime type for dynamically sourced inputs that need concrete binding.
+Prefer `SetVariable("name", value)` when the variable is part of the engine's stable type surface and the value expression already has the intended compile-time type. C# normally selects Alder's generic overload and infers that type. Use explicit `SetVariable<T>(...)` when you need to force an interface, base type, `object`, or typed `null`; values that are already statically typed as `object` bind as `object`. `SetVariablesPreservingRuntimeTypes(...)` uses each value's runtime type for dynamically sourced inputs that need concrete binding.
 
 Per-call variables are applied in a child context for that evaluation. They do not mutate the engine's shared scope:
 
@@ -346,8 +346,8 @@ Run Alder as a long-lived configured runtime when policy is stable. Parse expres
 
 ## Related pages
 
-- [Execution model](/reference/execution-model/)
-- [Compiled backend](/concepts/compiled-backend/)
-- [Async execution](/concepts/async-execution/)
-- [Dynamic LINQ](/concepts/dynamic-linq/)
-- [Configuration](/reference/configuration/)
+- [Execution model](../reference/execution-model.md)
+- [Compiled backend](../concepts/compiled-backend.md)
+- [Async execution](../concepts/async-execution.md)
+- [Dynamic LINQ](../concepts/dynamic-linq.md)
+- [Configuration](../reference/configuration.md)

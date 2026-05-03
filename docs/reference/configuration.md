@@ -191,8 +191,8 @@ This affects both runtime lookup and collision behavior at registration time.
 
 ## Related pages
 
-- [Architecture](/concepts/architecture/)
-- [Register types and extension methods](/guides/type-registration/)
-- [Deploy with NativeAOT](/guides/nativeaot-deployment/)
-- [AOT and generated dispatch](/operations/aot-and-generated-dispatch/)
-- [Execution model](/reference/execution-model/)
+- [Architecture](../concepts/architecture.md)
+- [Register types and extension methods](../guides/type-registration.md)
+- [Deploy with NativeAOT](../guides/nativeaot-deployment.md)
+- [AOT and generated dispatch](../operations/aot-and-generated-dispatch.md)
+- [Execution model](./execution-model.md)

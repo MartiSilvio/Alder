@@ -7,7 +7,7 @@ description: Checklist for using Alder in NativeAOT and trimming-sensitive deplo
 
 NativeAOT deployment is an inventory exercise. Alder still parses, binds, validates, and interprets expressions at runtime, but the operations that depend on runtime metadata need generated dispatch coverage. The host decides which CLR types, generic shapes, delegates, modules, functions, and type-resolution paths belong in the expression-facing surface.
 
-Use this guide as the deployment checklist. For the underlying runtime model, see [AOT and generated dispatch](/operations/aot-and-generated-dispatch/). For type-name resolution, see [Register types and extension methods](/guides/type-registration/).
+Use this guide as the deployment checklist. For the underlying runtime model, see [AOT and generated dispatch](../operations/aot-and-generated-dispatch.md). For type-name resolution, see [Register types and extension methods](./type-registration.md).
 
 ## Start with the interpreter
 
@@ -121,7 +121,7 @@ public partial class AsyncRulesAotContext : AlderTypeContext
 
 That roots the exact `Task.FromResult<OrderResult>` shape. Other result types need their own roots.
 
-Closed delegate conversion also needs an explicit route when runtime generic closure is unavailable. Built-in contexts cover common delegate shapes. Application-specific delegate types can be supplied by overriding `GetDelegateFactories()` on an `AlderTypeContext`.
+Closed delegate conversion also needs an explicit route when runtime generic closure is unavailable. Application-specific delegate types can be supplied by overriding `GetDelegateFactories()` on an `AlderTypeContext` with `RootedType` keys.
 
 ## Prefer explicit host APIs
 
@@ -182,9 +182,9 @@ Before shipping a NativeAOT build:
 
 ## Related pages
 
-- [AOT and generated dispatch](/operations/aot-and-generated-dispatch/)
-- [Register types and extension methods](/guides/type-registration/)
-- [Expose functions and modules](/guides/functions-and-modules/)
-- [Security model](/operations/security-model/)
-- [Compiled backend](/concepts/compiled-backend/)
-- [Configuration](/reference/configuration/)
+- [AOT and generated dispatch](../operations/aot-and-generated-dispatch.md)
+- [Register types and extension methods](./type-registration.md)
+- [Expose functions and modules](./functions-and-modules.md)
+- [Security model](../operations/security-model.md)
+- [Compiled backend](../concepts/compiled-backend.md)
+- [Configuration](../reference/configuration.md)

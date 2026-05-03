@@ -235,7 +235,7 @@ internal static class QueryExpressionPreparer
             config.TypeDispatch,
             config.GenericStaticDispatch,
             config.DelegateFactories,
-            config.ClosedDelegateTypes);
+            config.RootedDelegateTypes);
 
         return new AlderContext(queryConfig);
     }

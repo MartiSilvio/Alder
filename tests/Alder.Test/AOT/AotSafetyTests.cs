@@ -21,11 +21,11 @@ public class AotSafetyTests
     {
         public override IReadOnlyList<TypedDispatch> GetTypeMetadata() => [];
 
-        public override IReadOnlyDictionary<Type, Func<object, Delegate>>? GetDelegateFactories()
+        public override IReadOnlyDictionary<RootedType, Func<object, Delegate>>? GetDelegateFactories()
         {
-            return new Dictionary<Type, Func<object, Delegate>>
+            return new Dictionary<RootedType, Func<object, Delegate>>
             {
-                [typeof(Func<int, int>)] = _ => (Func<int, int>)(_ => constant)
+                [new RootedType(typeof(Func<int, int>))] = _ => (Func<int, int>)(_ => constant)
             };
         }
     }

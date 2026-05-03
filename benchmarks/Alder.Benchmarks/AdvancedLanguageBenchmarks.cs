@@ -5,8 +5,8 @@ using Microsoft.CodeAnalysis.Scripting;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Measures Alder language features that fall outside a fair head-to-head comparison with simpler expression engines.
-/// The comparison set is therefore limited to Native C# and Roslyn scripting.
+/// Measures Alder language features that exercise the full runtime engine: control flow, statement blocks, lambdas, async, and dispatch.
+/// The comparison set is Native C# and Roslyn scripting.
 /// </summary>
 [Config(typeof(SteadyStateConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
@@ -17,7 +17,6 @@ public class AdvancedLanguageBenchmarks : BenchmarkBase
     private ScriptRunner<object> _roslynRunner = null!;
     private AlderExpression _interpExpr = null!;
     private AlderExpression _compExpr = null!;
-    private AlderExpression _fecExpr = null!;
 
     [ParamsSource(nameof(Scenarios))]
     public AlderScenario Scenario { get; set; } = null!;
@@ -27,10 +26,10 @@ public class AdvancedLanguageBenchmarks : BenchmarkBase
     [GlobalSetup]
     public void Setup()
     {
-        SetupEngines(_data);
+        InterpretedEngine = CreateEngine(CompilationMode.Interpreted, _data);
+        CompiledEngine = CreateEngine(CompilationMode.Compiled, _data);
         _interpExpr = InterpretedEngine.Parse(Scenario.AlderExpr);
         _compExpr = CompiledEngine.Parse(Scenario.AlderExpr);
-        _fecExpr = CompiledFecEngine.Parse(Scenario.AlderExpr);
 
         var script = CreateRoslynScript(Scenario.RoslynExpr);
         script.Compile();
@@ -47,7 +46,6 @@ public class AdvancedLanguageBenchmarks : BenchmarkBase
     {
         InterpretedEngine?.Dispose();
         CompiledEngine?.Dispose();
-        CompiledFecEngine?.Dispose();
     }
 
     [Benchmark(Baseline = true)]
@@ -61,10 +59,6 @@ public class AdvancedLanguageBenchmarks : BenchmarkBase
     [Benchmark]
     [BenchmarkCategory("Capability/AdvancedLanguage")]
     public object Alder_Compiled() => CompiledEngine.Evaluate(_compExpr)!;
-
-    [Benchmark]
-    [BenchmarkCategory("Capability/AdvancedLanguage")]
-    public object Alder_CompiledFec() => CompiledFecEngine.Evaluate(_fecExpr)!;
 
     [Benchmark]
     [BenchmarkCategory("Capability/AdvancedLanguage")]

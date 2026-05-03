@@ -250,7 +250,7 @@ Async execution is Alder's interpreter-backed subsystem for expressions whose ru
 
 ## Related pages
 
-- [Compiled backend](/concepts/compiled-backend/)
-- [Architecture](/concepts/architecture/)
-- [Execution model](/reference/execution-model/)
-- [Security model](/operations/security-model/)
+- [Compiled backend](./compiled-backend.md)
+- [Architecture](./architecture.md)
+- [Execution model](../reference/execution-model.md)
+- [Security model](../operations/security-model.md)

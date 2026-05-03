@@ -18,7 +18,6 @@ public abstract class BenchmarkBase
 
     protected AlderEngine InterpretedEngine = null!;
     protected AlderEngine CompiledEngine = null!;
-    protected AlderEngine CompiledFecEngine = null!;
 
     public static AlderEngine CreateEngine(
         CompilationMode mode,
@@ -37,13 +36,6 @@ public abstract class BenchmarkBase
         var engine = new AlderEngine(opts);
         ApplyVariables(engine, data);
         return engine;
-    }
-
-    protected void SetupEngines(BenchmarkData data)
-    {
-        InterpretedEngine = CreateEngine(CompilationMode.Interpreted, data);
-        CompiledEngine = CreateEngine(CompilationMode.Compiled, data);
-        CompiledFecEngine = CreateEngine(CompilationMode.CompiledFec, data);
     }
 
     public static void ApplyVariables(AlderEngine engine, BenchmarkData data)

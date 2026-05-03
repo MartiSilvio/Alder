@@ -5,7 +5,7 @@ description: "Reference for Alder execution semantics: parsing, binding, caching
 
 # Execution model
 
-Alder evaluation follows a shared runtime model across parsing, semantic binding, validation, optimization, backend selection, constraint enforcement, and error propagation. The exact lifecycle and cache boundaries determine when prior work can be reused. For guidance on engine lifetime, parsed-expression reuse, compiled artifacts, and production usage patterns, see [Execution and reuse](/operations/execution-and-reuse/).
+Alder evaluation follows a shared runtime model across parsing, semantic binding, validation, optimization, backend selection, constraint enforcement, and error propagation. The exact lifecycle and cache boundaries determine when prior work can be reused. For guidance on engine lifetime, parsed-expression reuse, compiled artifacts, and production usage patterns, see [Execution and reuse](../operations/execution-and-reuse.md).
 
 ## Evaluation lifecycle
 
@@ -256,7 +256,7 @@ At the outer evaluation boundary:
 
 ## Related pages
 
-- [Architecture](/concepts/architecture/)
-- [Execution and reuse](/operations/execution-and-reuse/)
-- [Binding system](/concepts/binding-system/)
-- [Configuration](/reference/configuration/)
+- [Architecture](../concepts/architecture.md)
+- [Execution and reuse](../operations/execution-and-reuse.md)
+- [Binding system](../concepts/binding-system.md)
+- [Configuration](./configuration.md)

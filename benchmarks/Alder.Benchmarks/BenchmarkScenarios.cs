@@ -343,7 +343,7 @@ public static class BenchmarkScenarios
                     .OrderByDynamic<Product, int>("Id")
                     .SelectDynamic<Product, object>("new { Name, Price }")
                     .First();
-                return ReadProjectedDecimal(projection, "Price");
+                return AlderProjectionMaterializer.Materialize<ProductSummaryDto>(projection)!.Price;
             },
             g => ReadProjectedDecimal(
                 g.Products.AsQueryable().OrderBy("Id").Select("new (Name, Price)").First(),
@@ -382,6 +382,12 @@ public static class BenchmarkScenarios
             ?? throw new InvalidOperationException($"Projection did not expose member '{memberName}'.");
         return (decimal)(property.GetValue(projection)
             ?? throw new InvalidOperationException($"Projection member '{memberName}' was null."));
+    }
+
+    private sealed class ProductSummaryDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public decimal Price { get; set; }
     }
 
     public static IReadOnlyList<ExtendedScenario> GetExtendedScenarios() =>

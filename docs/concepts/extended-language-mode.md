@@ -1,19 +1,19 @@
 ---
 title: Extended language mode
-description: How LanguageMode.Extended expands Alder's C#-aligned runtime language with scripting syntax, expression ergonomics, and host-controlled compatibility boundaries.
+description: How LanguageMode.Extended expands Alder's C# syntax with scripting forms, expression ergonomics, and host-controlled compatibility boundaries.
 ---
 
 # Extended language mode
 
 `LanguageMode.Extended` accepts Standard mode plus Alder-specific syntax for rules, filters, scripts, and query fragments: pipelines, inclusive and exclusive integer ranges, collection literals, regex predicates, SQL-style comparisons, date arithmetic sugar, and concise aggregate helpers. These forms use Alder's C# binding model, CLR type system, sandbox enforcement, and execution backends.
 
-Extended mode is a host policy choice. It fits expressions authored by application users, administrators, analysts, rule authors, and configuration systems that benefit from compact syntax. Standard mode remains the default when the accepted language should stay inside Alder's C#-aligned surface.
+Extended mode is a host policy choice. It fits expressions authored by application users, administrators, analysts, rule authors, and configuration systems that benefit from compact syntax. Standard mode remains the default when the accepted syntax should stay within Alder's C# subset.
 
 ## Standard and Extended
 
-`LanguageMode.Standard` accepts Alder's C#-aligned expression language. It is the default on `AlderOptions` and the baseline for compatibility-sensitive integrations.
+`LanguageMode.Standard` accepts C# expressions and statement blocks. It is the default on `AlderOptions` and the baseline for compatibility-sensitive integrations.
 
-`LanguageMode.Extended` accepts the Standard surface plus Alder-specific syntax:
+`LanguageMode.Extended` accepts Standard mode syntax plus Alder-specific forms:
 
 ```csharp
 var engine = new AlderEngine(options =>
@@ -366,8 +366,8 @@ Keep Standard mode for provider-exported expressions, C# compatibility test suit
 
 ## Related pages
 
-- [Execution and reuse](/operations/execution-and-reuse/)
-- [Compiled backend](/concepts/compiled-backend/)
-- [Dynamic LINQ](/concepts/dynamic-linq/)
-- [Security model](/operations/security-model/)
-- [Configuration](/reference/configuration/)
+- [Execution and reuse](../operations/execution-and-reuse.md)
+- [Compiled backend](./compiled-backend.md)
+- [Dynamic LINQ](./dynamic-linq.md)
+- [Security model](../operations/security-model.md)
+- [Configuration](../reference/configuration.md)

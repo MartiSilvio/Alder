@@ -4,6 +4,9 @@ namespace Alder.Benchmarks;
 
 public static class BenchmarkSmokeValidator
 {
+    public static IReadOnlyList<BenchmarkMatrixRow> BuildValidationRows(BenchmarkLane lane) =>
+        MatrixCatalogBuilder.BuildSupportedRows(lane);
+
     public static int Run()
     {
         var data = BenchmarkData.CreateStandard();
@@ -18,7 +21,7 @@ public static class BenchmarkSmokeValidator
         }
 
         Console.WriteLine("\n=== Cross-engine matrix parity (pre-parsed) ===");
-        var preParsedRows = MatrixCatalogBuilder.BuildSupportedRows(BenchmarkLane.PreParsed);
+        var preParsedRows = BuildValidationRows(BenchmarkLane.PreParsed);
         var preParsedUnsupported = MatrixCatalogBuilder.BuildUnsupportedRows(BenchmarkLane.PreParsed);
         foreach (var row in preParsedUnsupported)
             Console.WriteLine($"  N/A: {row.CaseId}/{row.EvaluatorId} ({row.Capability.ReasonCode})");
@@ -30,7 +33,7 @@ public static class BenchmarkSmokeValidator
         }
 
         Console.WriteLine("\n=== Cross-engine matrix parity (warm) ===");
-        var warmRows = MatrixCatalogBuilder.BuildSupportedRows(BenchmarkLane.Warm);
+        var warmRows = BuildValidationRows(BenchmarkLane.Warm);
         var warmUnsupported = MatrixCatalogBuilder.BuildUnsupportedRows(BenchmarkLane.Warm);
         foreach (var row in warmUnsupported)
             Console.WriteLine($"  N/A: {row.CaseId}/{row.EvaluatorId} ({row.Capability.ReasonCode})");
@@ -42,7 +45,7 @@ public static class BenchmarkSmokeValidator
         }
 
         Console.WriteLine("\n=== Cross-engine matrix parity (cold) ===");
-        var coldRows = MatrixCatalogBuilder.BuildSupportedRows(BenchmarkLane.Cold);
+        var coldRows = BuildValidationRows(BenchmarkLane.Cold);
         var coldUnsupported = MatrixCatalogBuilder.BuildUnsupportedRows(BenchmarkLane.Cold);
         foreach (var row in coldUnsupported)
             Console.WriteLine($"  N/A: {row.CaseId}/{row.EvaluatorId} ({row.Capability.ReasonCode})");
@@ -72,7 +75,7 @@ public static class BenchmarkSmokeValidator
         Console.WriteLine("\n=== Extended syntax scenarios ===");
         foreach (var scenario in BenchmarkScenarios.GetExtendedScenarios())
         {
-            var parity = BenchmarkParityVerifier.VerifyExtendedScenario(scenario, data);
+            var parity = BenchmarkParityVerifier.VerifyExtendedScenario(scenario, data, includeFec: false);
             Console.WriteLine(parity.IsSuccess ? $"  PASS: {scenario.Name}" : $"  FAIL: {parity.Message}");
             if (!parity.IsSuccess) failures.Add(parity.Message);
         }
@@ -154,4 +157,5 @@ public static class BenchmarkSmokeValidator
             Console.WriteLine($"  - {failure}");
         return 1;
     }
+
 }

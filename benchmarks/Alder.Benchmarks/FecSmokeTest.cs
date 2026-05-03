@@ -4,7 +4,7 @@ namespace Alder.Benchmarks;
 
 public static class FecSmokeTest
 {
-    public static void Run()
+    public static int Run()
     {
         var data = BenchmarkData.CreateStandard();
 
@@ -47,6 +47,8 @@ public static class FecSmokeTest
             ("Invocation/OptionalArgument", "target.WithOptional(x)", invocationFec),
             ("Invocation/ChainedInstance", "target.Normalize(text).Contains(\"AL\")", invocationFec),
 
+            ("BusinessRules/ProductPredicate", "products[0].Price > 100m && products[0].IsActive", standardFec),
+
             ("Extended/BareMath", "sin(x)", extendedFec),
             ("Extended/Pipeline", "x |> inc", extendedFec),
             ("Extended/ChainedComparison", "0 < x < y", extendedFec),
@@ -65,6 +67,7 @@ public static class FecSmokeTest
 
         var passed = 0;
         var failed = 0;
+        var skipped = 0;
         var failures = new List<(string name, string error)>();
 
         var typedDelegateTests = new (string name, Action test)[]
@@ -129,6 +132,13 @@ public static class FecSmokeTest
 
         foreach (var (name, expr, engine) in expressions)
         {
+            if (BenchmarkFecPolicy.IsUnsupportedExpression(name, expr))
+            {
+                Console.WriteLine($"  N/A: {name} ({BenchmarkFecPolicy.UnsupportedReasonCode})");
+                skipped++;
+                continue;
+            }
+
             try
             {
                 engine.Evaluate(expr);
@@ -145,7 +155,7 @@ public static class FecSmokeTest
         }
 
         var total = typedDelegateTests.Length + expressions.Length;
-        Console.WriteLine($"\nResults: {passed} passed, {failed} failed out of {total}");
+        Console.WriteLine($"\nResults: {passed} passed, {failed} failed, {skipped} N/A out of {total}");
 
         if (failures.Count > 0)
         {
@@ -157,5 +167,6 @@ public static class FecSmokeTest
         standardFec.Dispose();
         extendedFec.Dispose();
         invocationFec.Dispose();
+        return failed == 0 ? 0 : 1;
     }
 }

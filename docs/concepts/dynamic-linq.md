@@ -7,7 +7,7 @@ description: How Alder composes runtime-defined LINQ queries across in-process s
 
 Alder's Dynamic LINQ system turns runtime text into typed components for LINQ pipelines. A filter expression becomes a `Where` predicate, a projection becomes a `Select` selector, an ordering expression becomes a key, and relationship fragments become joins, group joins, aggregate selectors, or reusable plans.
 
-Use [Use Dynamic LINQ](/guides/use-dynamic-linq/) for workflow examples and the supported operator surface.
+Use [Use Dynamic LINQ](../guides/use-dynamic-linq.md) for workflow examples and the supported operator surface.
 
 ## Runtime query composition
 
@@ -84,6 +84,6 @@ Use `Evaluate(...)` when the expression produces the final result. Use Dynamic L
 
 ## Related pages
 
-- [Use Dynamic LINQ](/guides/use-dynamic-linq/)
-- [Compiled backend](/concepts/compiled-backend/)
-- [Configuration](/reference/configuration/)
+- [Use Dynamic LINQ](../guides/use-dynamic-linq.md)
+- [Compiled backend](./compiled-backend.md)
+- [Configuration](../reference/configuration.md)

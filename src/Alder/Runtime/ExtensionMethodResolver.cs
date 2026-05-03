@@ -323,7 +323,7 @@ internal static class ExtensionMethodResolver
             if (!RuntimeGenericClosure.TryCloseType(
                     typeof(Func<,>),
                     [elementType, returnType],
-                    context.Config.ClosedDelegateTypes,
+                    context.Config.RootedDelegateTypes,
                     out var delegateType))
             {
                 resolved[i] = arg;

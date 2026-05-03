@@ -174,5 +174,5 @@ The compiled backend is Alder's supported synchronous delegate-oriented executio
 
 ## Related pages
 
-- [Architecture](/concepts/architecture/)
-- [Execution model](/reference/execution-model/)
+- [Architecture](./architecture.md)
+- [Execution model](../reference/execution-model.md)

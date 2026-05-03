@@ -5,9 +5,9 @@ description: Architectural explanation of Alder's parse-bind-execute pipeline, b
 
 # Architecture
 
-Alder is a runtime C# expression engine built around one semantic pipeline and two execution mechanisms. Source text is parsed into syntax, bound against the active context, validated under the configured sandbox, optimized, and then evaluated by either the interpreter or the compiled backend. Backend selection changes the execution mechanism. It does not define a second language.
+Alder is an embeddable C# runtime engine built around one compiler-style semantic pipeline and two execution mechanisms. Source text is parsed into syntax, bound against the active context, validated under the configured sandbox, optimized, and then evaluated by either the interpreter or the compiled backend. Backend selection changes the execution mechanism. It does not define a second language.
 
-For exact lifecycle rules, cache boundaries, and error propagation, use [Execution model](/reference/execution-model/). For production operating patterns, use [Execution and reuse](/operations/execution-and-reuse/).
+For exact lifecycle rules, cache boundaries, and error propagation, use [Execution model](../reference/execution-model.md). For production operating patterns, use [Execution and reuse](../operations/execution-and-reuse.md).
 
 The bound tree is Alder's architectural boundary. Everything before that boundary determines what the expression means: types, conversions, overloads, member targets, assignment legality, control-flow shape, and the points where runtime dispatch is still required. Everything after that boundary executes those decisions while preserving Alder's sandbox and execution constraints.
 
@@ -75,8 +75,8 @@ Alder's architecture deliberately concentrates semantic decisions before executi
 
 ## Related pages
 
-- [Binding system](/concepts/binding-system/)
-- [Execution and reuse](/operations/execution-and-reuse/)
-- [AOT and generated dispatch](/operations/aot-and-generated-dispatch/)
-- [Execution model](/reference/execution-model/)
-- [Standard mode language support](/reference/language/standard-mode-language-support/)
+- [Binding system](./binding-system.md)
+- [Execution and reuse](../operations/execution-and-reuse.md)
+- [AOT and generated dispatch](../operations/aot-and-generated-dispatch.md)
+- [Execution model](../reference/execution-model.md)
+- [Standard mode language support](../reference/language/standard-mode-language-support.md)

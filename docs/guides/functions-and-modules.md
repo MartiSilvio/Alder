@@ -5,7 +5,7 @@ description: Expose host-owned APIs to Alder expressions through global function
 
 # Expose functions and modules
 
-Use functions and modules when expressions need to call host-owned APIs. A function creates a global call site such as `clamp(...)` or `isBusinessDay(...)`. A module creates a named surface such as `math.CircleArea(...)`, `calendar.IsHoliday(...)`, or `Users.CountActive()`. Exact option and precedence rules are covered in [Configuration](/reference/configuration/).
+Use functions and modules when expressions need to call host-owned APIs. A function creates a global call site such as `clamp(...)` or `isBusinessDay(...)`. A module creates a named surface such as `math.CircleArea(...)`, `calendar.IsHoliday(...)`, or `Users.CountActive()`. Exact option and precedence rules are covered in [Configuration](../reference/configuration.md).
 
 Registration is a trust decision. Alder can validate whether an expression is allowed to call a registered surface, but the registered function or module still runs as host CLR code. Keep expression-facing APIs narrow, predictable, and side-effect-aware.
 
@@ -213,6 +213,6 @@ var accepted = await engine.EvaluateAsync<bool>(
 
 ## Related pages
 
-- [Register types and extension methods](/guides/type-registration/)
-- [Configuration](/reference/configuration/)
-- [Security model](/operations/security-model/)
+- [Register types and extension methods](./type-registration.md)
+- [Configuration](../reference/configuration.md)
+- [Security model](../operations/security-model.md)

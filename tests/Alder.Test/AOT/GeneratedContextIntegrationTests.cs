@@ -358,11 +358,11 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
     {
         public override IReadOnlyList<Alder.Aot.TypedDispatch> GetTypeMetadata() => [];
 
-        public override IReadOnlyDictionary<Type, Func<object, Delegate>>? GetDelegateFactories()
+        public override IReadOnlyDictionary<Alder.Aot.RootedType, Func<object, Delegate>>? GetDelegateFactories()
         {
-            return new Dictionary<Type, Func<object, Delegate>>
+            return new Dictionary<Alder.Aot.RootedType, Func<object, Delegate>>
             {
-                [typeof(Func<int, int>)] = _ => (Func<int, int>)(_ => constant)
+                [new Alder.Aot.RootedType(typeof(Func<int, int>))] = _ => (Func<int, int>)(_ => constant)
             };
         }
     }

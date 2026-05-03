@@ -53,7 +53,7 @@ internal static class AlderConfigFactory
             dispatchCatalog.TypeDispatch,
             dispatchCatalog.GenericStaticDispatch,
             dispatchCatalog.DelegateFactories,
-            dispatchCatalog.ClosedDelegateTypes);
+            dispatchCatalog.RootedDelegateTypes);
     }
 
     private static void RegisterGlobalFunctions(
@@ -116,7 +116,7 @@ internal static class AlderConfigFactory
         Dictionary<Type, TypedDispatch>? typeDispatch = null;
         Dictionary<Type, List<GenericStaticDispatch>>? genericStaticDispatch = null;
         Dictionary<Type, Func<object, Delegate>>? delegateFactories = null;
-        HashSet<Type>? closedDelegateTypes = null;
+        HashSet<RootedType>? rootedDelegateTypes = null;
         AddContext(aotOptions.BuiltInContext);
 
         foreach (var context in aotOptions.AdditionalContexts)
@@ -131,7 +131,7 @@ internal static class AlderConfigFactory
                         static kvp => (IReadOnlyList<GenericStaticDispatch>)kvp.Value.ToArray()))
                 : null,
             delegateFactories,
-            closedDelegateTypes);
+            rootedDelegateTypes);
 
         void AddContext(AlderTypeContext? context)
         {
@@ -163,15 +163,15 @@ internal static class AlderConfigFactory
             {
                 delegateFactories ??= new Dictionary<Type, Func<object, Delegate>>();
                 foreach (var kvp in factories)
-                    delegateFactories[kvp.Key] = kvp.Value;
+                    delegateFactories[kvp.Key.Type] = kvp.Value;
             }
 
-            var rootedDelegateTypes = context.GetClosedDelegateTypes();
-            if (rootedDelegateTypes != null)
+            var contextRootedDelegateTypes = context.GetRootedDelegateTypes();
+            if (contextRootedDelegateTypes != null)
             {
-                closedDelegateTypes ??= [];
-                foreach (var delegateType in rootedDelegateTypes)
-                    closedDelegateTypes.Add(delegateType);
+                rootedDelegateTypes ??= [];
+                foreach (var delegateType in contextRootedDelegateTypes)
+                    rootedDelegateTypes.Add(delegateType);
             }
         }
     }
@@ -180,5 +180,5 @@ internal static class AlderConfigFactory
         Runtime.Collections.FixedDictionary<Type, TypedDispatch>? TypeDispatch,
         Runtime.Collections.FixedDictionary<Type, IReadOnlyList<GenericStaticDispatch>>? GenericStaticDispatch,
         IReadOnlyDictionary<Type, Func<object, Delegate>>? DelegateFactories,
-        IReadOnlyCollection<Type>? ClosedDelegateTypes);
+        IReadOnlyCollection<RootedType>? RootedDelegateTypes);
 }

@@ -7,7 +7,6 @@ namespace Alder.Test.Stress;
 [TestFixture(CompilationMode.Compiled)]
 public class ConcurrencyHammerTests(CompilationMode mode)
 {
-
     [Test]
     public void ParallelChildren_ShouldBeSafe_IfParentIsReadOnly()
     {
@@ -56,46 +55,6 @@ public class ConcurrencyHammerTests(CompilationMode mode)
         {
             engine.Evaluate($"{i} + {i}");
         });
-    }
-
-    [Test]
-    [Explicit("Demonstrates expected unsafe behavior - Modifying parent while children read is NOT thread safe")]
-    public void ModifyingParent_WhileChildrenRead_ShouldCrashOrCorrupt()
-    {
-        var engine = TestEngineFactory.Create(mode);
-
-        var running = true;
-
-        var writerTask = Task.Run(() =>
-        {
-            var i = 0;
-            while (running)
-            {
-                engine.SetVariable($"func{i}", (Func<object?[], object?>)(args => i));
-                i++;
-                if (i % 100 == 0) Thread.Sleep(1);
-            }
-        });
-
-        var readerTask = Task.Run(() =>
-        {
-            Parallel.For(0, 1000, i =>
-            {
-                try
-                {
-                    var child = engine.CreateChild();
-                    child.Evaluate("1+1");
-                }
-                catch
-                {
-                    // Ignore transient errors, we want to see if process crashes or hangs
-                }
-            });
-        });
-
-        readerTask.Wait(2000);
-        running = false;
-        writerTask.Wait(1000);
     }
 
     [Test]

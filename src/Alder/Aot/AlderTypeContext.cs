@@ -20,11 +20,11 @@ public abstract class AlderTypeContext
     /// Each entry maps a closed delegate type such as <c>Func&lt;int, bool&gt;</c> to a factory
     /// that wraps an Alder lambda in that delegate type.
     /// </summary>
-    public virtual IReadOnlyDictionary<Type, Func<object, Delegate>>? GetDelegateFactories() => null;
+    public virtual IReadOnlyDictionary<RootedType, Func<object, Delegate>>? GetDelegateFactories() => null;
 
     /// <summary>
     /// Returns the closed delegate types rooted by this context.
     /// By default this is derived from <see cref="GetDelegateFactories"/> when available.
     /// </summary>
-    public virtual IReadOnlyCollection<Type>? GetClosedDelegateTypes() => GetDelegateFactories()?.Keys.ToArray();
+    public virtual IReadOnlyCollection<RootedType>? GetRootedDelegateTypes() => GetDelegateFactories()?.Keys.ToArray();
 }

@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Alder.Aot;
 
 /// <summary>
@@ -9,6 +11,7 @@ namespace Alder.Aot;
 public abstract class TypedDispatch
 {
     /// <summary>The CLR type handled by this dispatch instance.</summary>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
     public abstract Type Type { get; }
 
     /// <summary>Attempts to read an instance member by name.</summary>

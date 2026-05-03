@@ -8,18 +8,18 @@ using Alder.Security;
 namespace Alder;
 
 /// <summary>
-/// Selects the language surface accepted by <see cref="AlderEngine"/>.
+/// Selects the syntax accepted by <see cref="AlderEngine"/>.
 /// </summary>
 public enum LanguageMode
 {
     /// <summary>
-    /// Accepts the standard C#-aligned Alder surface.
+    /// Accepts standard C# syntax supported by Alder.
     /// Choose this mode when you want Alder to stay within its non-extended language set.
     /// </summary>
     Standard,
 
     /// <summary>
-    /// Accepts the standard surface plus Alder-specific extensions.
+    /// Accepts the standard syntax plus Alder-specific extensions.
     /// This mode enables features such as chained comparisons, pipelines, and other extended syntax forms.
     /// </summary>
     Extended
@@ -37,7 +37,7 @@ public sealed class AlderOptions
     public bool IsCaseSensitive { get; set; } = true;
 
     /// <summary>
-    /// Selects the accepted language surface.
+    /// Selects the accepted syntax.
     /// The default is <see cref="Alder.LanguageMode.Standard"/>.
     /// </summary>
     public LanguageMode LanguageMode { get; set; } = LanguageMode.Standard;

@@ -8,7 +8,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -26,3 +32,9 @@ jobs:
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal
+
+      - name: Pack
+        run: dotnet pack src/Alder/Alder.csproj --configuration Release --output artifacts/packages
+
+      - name: Verify NuGet package
+        run: dotnet run --project tests/Alder.PackageVerification/Alder.PackageVerification.csproj -- artifacts/packages

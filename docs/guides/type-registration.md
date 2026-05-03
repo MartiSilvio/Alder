@@ -7,7 +7,7 @@ description: Configure Alder type resolution with assemblies, namespaces, extens
 
 Type registration defines the CLR type surface available to Alder's binder. It lets expressions name application types, construct public objects, call static members, and bind extension methods against host models. Use it when expressions need C# type resolution. Use functions or modules when the expression-facing API should be smaller than the underlying CLR surface.
 
-Exact option behavior is covered in [Configuration](/reference/configuration/). For method-call exposure through host-owned APIs, use [Expose functions and modules](/guides/functions-and-modules/).
+Exact option behavior is covered in [Configuration](../reference/configuration.md). For method-call exposure through host-owned APIs, use [Expose functions and modules](./functions-and-modules.md).
 
 ## Choose the right exposure surface
 
@@ -175,7 +175,7 @@ AOT-oriented applications should keep the expression surface explicit:
 - avoid relying on namespace imports as the deployment inventory
 - root closed generic, delegate, and `Task<T>` shapes that expressions need
 - keep `UseCompiler()` out of NativeAOT deployments
-- test the published binary, not only the JIT test host
+- test the published binary; passing JIT tests do not prove published behavior
 
 Type registration and generated dispatch solve different parts of the problem. `Types.AddAssembly(...)` and `Types.AddNamespace(...)` help the binder resolve type names. `Aot.UseGeneratedContext(...)` gives the runtime reflection-free dispatch metadata after a type is reached. In AOT-sensitive applications, use both only when both jobs are needed.
 
@@ -185,15 +185,15 @@ Type registration and generated dispatch solve different parts of the problem. `
 - Wrong type selected: remove broad namespace imports or use a fully qualified type name.
 - Extension method not found: register the static extension-method container with `Types.AddExtensionMethods(...)`.
 - Extension overload mismatch: check the receiver type and argument types visible to binding.
-- Sandbox failure after successful binding: adjust sandbox policy or expose a narrower function/module instead of broad type access.
+- Sandbox failure after successful binding: adjust sandbox policy, or replace broad type access with a narrower function or module.
 - Works under JIT but fails after publish: add generated contexts for reached runtime types and avoid assembly scanning as the only deployment inventory.
 
 ## Related pages
 
-- [Expose functions and modules](/guides/functions-and-modules/)
-- [Deploy with NativeAOT](/guides/nativeaot-deployment/)
-- [Variables, context, and child engines](/guides/variables-context-and-child-engines/)
-- [Binding system](/concepts/binding-system/)
-- [Security model](/operations/security-model/)
-- [AOT and generated dispatch](/operations/aot-and-generated-dispatch/)
-- [Configuration](/reference/configuration/)
+- [Expose functions and modules](./functions-and-modules.md)
+- [Deploy with NativeAOT](./nativeaot-deployment.md)
+- [Variables, context, and child engines](./variables-context-and-child-engines.md)
+- [Binding system](../concepts/binding-system.md)
+- [Security model](../operations/security-model.md)
+- [AOT and generated dispatch](../operations/aot-and-generated-dispatch.md)
+- [Configuration](../reference/configuration.md)

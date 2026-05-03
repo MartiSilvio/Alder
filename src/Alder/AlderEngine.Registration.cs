@@ -95,8 +95,8 @@ public sealed partial class AlderEngine
     /// <summary>
     /// Sets multiple variables from a dictionary, using each value's runtime
     /// type for binding instead of erasing to <see cref="object"/>. Use this
-    /// overload when injecting dynamically-sourced inputs (JSON payloads, agent
-    /// tool arguments, user forms) so overload resolution and member access
+    /// overload when injecting dynamically-sourced inputs (JSON payloads, tool
+    /// arguments, user forms) so overload resolution and member access
     /// bind against the concrete types an expression actually needs.
     /// </summary>
     /// <param name="variables">Variable name/value pairs. Values of

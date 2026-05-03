@@ -31,7 +31,7 @@ internal sealed class AlderConfig
     internal FixedDictionary<Type, TypedDispatch>? TypeDispatch { get; }
     internal FixedDictionary<Type, IReadOnlyList<GenericStaticDispatch>>? GenericStaticDispatch { get; }
     internal IReadOnlyDictionary<Type, Func<object, Delegate>>? DelegateFactories { get; }
-    internal IReadOnlyCollection<Type>? ClosedDelegateTypes { get; }
+    internal IReadOnlyCollection<RootedType>? RootedDelegateTypes { get; }
 
     internal bool TryGetDispatch(Type type, [NotNullWhen(true)] out TypedDispatch? metadata)
     {
@@ -58,7 +58,7 @@ internal sealed class AlderConfig
         FixedDictionary<Type, TypedDispatch>? typeDispatch,
         FixedDictionary<Type, IReadOnlyList<GenericStaticDispatch>>? genericStaticDispatch = null,
         IReadOnlyDictionary<Type, Func<object, Delegate>>? delegateFactories = null,
-        IReadOnlyCollection<Type>? closedDelegateTypes = null)
+        IReadOnlyCollection<RootedType>? rootedDelegateTypes = null)
     {
         LanguageMode = languageMode;
         Security = security;
@@ -76,7 +76,7 @@ internal sealed class AlderConfig
         TypeDispatch = typeDispatch;
         GenericStaticDispatch = genericStaticDispatch;
         DelegateFactories = delegateFactories;
-        ClosedDelegateTypes = closedDelegateTypes;
+        RootedDelegateTypes = rootedDelegateTypes;
     }
 
     internal static readonly AlderConfig Empty = new(

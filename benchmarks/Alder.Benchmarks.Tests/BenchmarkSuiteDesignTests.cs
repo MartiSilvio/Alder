@@ -15,6 +15,371 @@ public class BenchmarkSuiteDesignTests
     ];
 
     [Test]
+    public void BenchmarkProfileParser_NoArgs_ShowsHelp()
+    {
+        var command = BenchmarkCommand.Parse([]);
+
+        Assert.That(command.Kind, Is.EqualTo(BenchmarkCommandKind.ShowHelp));
+        Assert.That(command.Profile, Is.EqualTo(BenchmarkRunProfile.Custom));
+        Assert.That(command.BenchmarkDotNetArgs, Is.Empty);
+    }
+
+    [Test]
+    public void BenchmarkProfileParser_ValidateProfile_RunsValidation()
+    {
+        var command = BenchmarkCommand.Parse(["--profile", "validate"]);
+
+        Assert.That(command.Kind, Is.EqualTo(BenchmarkCommandKind.Validate));
+        Assert.That(command.Profile, Is.EqualTo(BenchmarkRunProfile.Validate));
+        Assert.That(command.BenchmarkDotNetArgs, Is.Empty);
+    }
+
+    [TestCase("perf-smoke", BenchmarkRunProfile.PerfSmoke)]
+    [TestCase("publish", BenchmarkRunProfile.Publish)]
+    [TestCase("exhaustive", BenchmarkRunProfile.Exhaustive)]
+    public void BenchmarkProfileParser_BenchmarkProfiles_RunBenchmarks(string value, BenchmarkRunProfile profile)
+    {
+        var command = BenchmarkCommand.Parse(["--profile", value]);
+
+        Assert.That(command.Kind, Is.EqualTo(BenchmarkCommandKind.RunBenchmarks));
+        Assert.That(command.Profile, Is.EqualTo(profile));
+    }
+
+    [Test]
+    public void BenchmarkProfileParser_DirectBenchmarkDotNetArgs_RequireProfile()
+    {
+        Assert.Throws<ArgumentException>(() => BenchmarkCommand.Parse(["--filter", "*DynamicLinq*"]));
+    }
+
+    [TestCase("--job")]
+    [TestCase("--launchCount")]
+    [TestCase("--iterationCount")]
+    [TestCase("--warmupCount")]
+    public void BenchmarkProfileParser_RejectsBenchmarkDotNetPolicyArgs(string argument)
+    {
+        Assert.Throws<ArgumentException>(() => BenchmarkCommand.Parse(["--profile", "publish", argument, "1"]));
+    }
+
+    [Test]
+    public void BenchmarkProfileParser_RemovesProfileArgsBeforeBenchmarkDotNet()
+    {
+        var command = BenchmarkCommand.Parse(["--profile", "publish", "--filter", "*DynamicLinq*"]);
+
+        Assert.That(command.Profile, Is.EqualTo(BenchmarkRunProfile.Publish));
+        Assert.That(command.BenchmarkDotNetArgs, Is.EqualTo(new[] { "--filter", "*DynamicLinq*" }));
+    }
+
+    [Test]
+    public void BenchmarkProfileParser_AllowsListArgument()
+    {
+        var command = BenchmarkCommand.Parse(["--profile", "publish", "--list", "flat"]);
+
+        Assert.That(command.Profile, Is.EqualTo(BenchmarkRunProfile.Publish));
+        Assert.That(command.BenchmarkDotNetArgs, Is.EqualTo(new[] { "--list", "flat" }));
+    }
+
+    [Test]
+    public void BenchmarkProfileParser_ValidateRejectsBenchmarkDotNetArgs()
+    {
+        Assert.Throws<ArgumentException>(() => BenchmarkCommand.Parse(["--profile", "validate", "--filter", "*"]));
+    }
+
+    [Test]
+    public void BenchmarkProfileContext_InvalidEnvironmentProfile_Throws()
+    {
+        WithBenchmarkProfileEnvironment("publsh", () =>
+        {
+            Assert.Throws<InvalidOperationException>(() => _ = BenchmarkProfileContext.Current);
+        });
+    }
+
+    [Test]
+    public void BenchmarkProfileContext_PublishProfile_IgnoresBdnQuick()
+    {
+        var previousQuick = Environment.GetEnvironmentVariable("BDN_QUICK");
+        try
+        {
+            Environment.SetEnvironmentVariable("BDN_QUICK", "1");
+            WithBenchmarkProfileEnvironment(BenchmarkRunProfile.Publish.ToString(), () =>
+            {
+                Assert.That(BenchmarkProfileContext.UsesShortRun, Is.False);
+            });
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BDN_QUICK", previousQuick);
+        }
+    }
+
+    [Test]
+    public void BenchmarkProfileContext_LegacyQuickEnvironment_DoesNotChangeCustomPolicy()
+    {
+        var previousQuick = Environment.GetEnvironmentVariable("BDN_QUICK");
+        try
+        {
+            Environment.SetEnvironmentVariable("BDN_QUICK", "1");
+            WithBenchmarkProfileEnvironment(BenchmarkRunProfile.Custom.ToString(), () =>
+            {
+                Assert.That(BenchmarkProfileContext.UsesShortRun, Is.False);
+            });
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BDN_QUICK", previousQuick);
+        }
+    }
+
+    [Test]
+    public void BenchmarkProfiles_DefineCentralRunPolicy()
+    {
+        var smoke = BenchmarkProfileDefinition.For(BenchmarkRunProfile.PerfSmoke);
+        var publish = BenchmarkProfileDefinition.For(BenchmarkRunProfile.Publish);
+        var exhaustive = BenchmarkProfileDefinition.For(BenchmarkRunProfile.Exhaustive);
+
+        Assert.That(smoke.MeasurementMode, Is.EqualTo(BenchmarkMeasurementMode.ShortRun));
+        Assert.That(publish.MeasurementMode, Is.EqualTo(BenchmarkMeasurementMode.Default));
+        Assert.That(exhaustive.MeasurementMode, Is.EqualTo(BenchmarkMeasurementMode.Default));
+        Assert.That(publish.DynamicLinqQueryScope, Is.EqualTo(BenchmarkMatrixScope.Default));
+        Assert.That(exhaustive.DynamicLinqQueryScope, Is.EqualTo(BenchmarkMatrixScope.Exhaustive));
+        Assert.That(publish.DynamicLinqScaleFactors, Is.EqualTo(new[] { 10_000 }));
+        Assert.That(exhaustive.DynamicLinqScaleFactors, Is.EqualTo(new[] { 100, 1_000, 10_000, 100_000 }));
+    }
+
+    [Test]
+    public void BenchmarkProfiles_OwnOperationalScaleMatrices()
+    {
+        var smoke = BenchmarkProfileDefinition.For(BenchmarkRunProfile.PerfSmoke);
+        var publish = BenchmarkProfileDefinition.For(BenchmarkRunProfile.Publish);
+        var exhaustive = BenchmarkProfileDefinition.For(BenchmarkRunProfile.Exhaustive);
+
+        Assert.That(smoke.CollectionPipelineScaleFactors, Is.EqualTo(new[] { 1_000 }));
+        Assert.That(publish.CollectionPipelineScaleFactors, Is.EqualTo(new[] { 1_000, 10_000 }));
+        Assert.That(exhaustive.CollectionPipelineScaleFactors, Is.EqualTo(new[] { 100, 1_000, 10_000, 100_000 }));
+        Assert.That(smoke.CompilationReuseCounts, Is.EqualTo(new[] { 1, 100 }));
+        Assert.That(publish.CompilationReuseCounts, Is.EqualTo(new[] { 1, 10, 100, 1_000 }));
+        Assert.That(exhaustive.CompilationReuseCounts, Is.EqualTo(new[] { 1, 5, 10, 50, 100, 500, 1_000 }));
+        Assert.That(smoke.ThroughputThreadCounts, Is.EqualTo(new[] { 1, 4 }));
+        Assert.That(publish.ThroughputThreadCounts, Is.EqualTo(new[] { 1, 4, 8 }));
+        Assert.That(exhaustive.ThroughputThreadCounts, Is.EqualTo(new[] { 1, 2, 4, 8 }));
+    }
+
+    [Test]
+    public void DynamicLinqBenchmarks_ExhaustiveProfile_ExpandsRunMatrix()
+    {
+        WithBenchmarkProfileEnvironment(BenchmarkRunProfile.Exhaustive.ToString(), () =>
+        {
+            Assert.That(DynamicLinqBenchmarks.GetBenchmarkQueries().Count,
+                Is.EqualTo(DynamicLinqBenchmarks.GetDynamicLinqQueries().Count));
+            Assert.That(DynamicLinqBenchmarks.GetBenchmarkScaleFactors().Count, Is.EqualTo(4));
+        });
+    }
+
+    [Test]
+    public void DynamicLinqBenchmarks_LegacyExhaustiveEnvironment_DoesNotExpandRunMatrix()
+    {
+        var previous = Environment.GetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE");
+        try
+        {
+            Environment.SetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE", "1");
+            WithBenchmarkProfileEnvironment(BenchmarkRunProfile.Custom.ToString(), () =>
+            {
+                Assert.That(DynamicLinqBenchmarks.GetBenchmarkQueries().Count, Is.LessThan(DynamicLinqBenchmarks.GetDynamicLinqQueries().Count));
+                Assert.That(DynamicLinqBenchmarks.GetBenchmarkScaleFactors(), Is.EqualTo(new[] { 10_000 }));
+            });
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE", previous);
+        }
+    }
+
+    [Test]
+    public void RunManifest_IncludesPublishEvidenceMetadata()
+    {
+        var manifest = BenchmarkManifestWriter.BuildRunManifest(
+            [],
+            BenchmarkRunProfile.Publish,
+            ["--profile", "publish", "--filter", "*DynamicLinq*"]);
+
+        Assert.That(manifest.Profile, Is.EqualTo("Publish"));
+        Assert.That(manifest.CommandLine, Does.Contain("--profile publish --filter *DynamicLinq*"));
+        Assert.That(manifest.RepositoryCommit, Is.Not.Empty);
+        Assert.That(manifest.DotNetInfo, Is.Not.Empty);
+        Assert.That(manifest.CpuModel, Is.Not.Empty);
+    }
+
+    [Test]
+    public void BenchmarkSmokeValidator_ValidationMatrix_IncludesSupportedFecRows()
+    {
+        foreach (var lane in new[] { BenchmarkLane.PreParsed, BenchmarkLane.Warm, BenchmarkLane.Cold })
+        {
+            var rows = BenchmarkSmokeValidator.BuildValidationRows(lane);
+
+            Assert.That(rows, Is.Not.Empty);
+            Assert.That(rows.Where(row => row.EvaluatorId == "alder-compiled-fec"), Is.Not.Empty);
+        }
+    }
+
+    [Test]
+    public void MatrixCatalog_FecDoesNotAdvertiseUnsupportedExecution()
+    {
+        var rows = Enum.GetValues<BenchmarkLane>()
+            .SelectMany(lane => MatrixCatalogBuilder.BuildRows(lane))
+            .Where(row => row.EvaluatorId == "alder-compiled-fec"
+                && BenchmarkFecPolicy.IsUnsupportedExpression(row.BenchmarkCase.Id, row.BenchmarkCase.Expressions.Alder))
+            .ToArray();
+
+        Assert.That(rows, Is.Not.Empty);
+        Assert.That(rows.All(row => !row.Capability.IsSupported), Is.True);
+        Assert.That(rows.All(row => row.Capability.ReasonCode == BenchmarkFecPolicy.UnsupportedReasonCode), Is.True);
+    }
+
+    [Test]
+    public void BenchmarkParityVerifier_UnsupportedFecScenario_ReportsExplicitNA()
+    {
+        var scenario = new CrossEngineScenario(
+            "Unsupported/Fec",
+            "1 + 2",
+            "1 + 2",
+            "1 + 2",
+            "1 + 2",
+            "1 + 2",
+            _ => 3);
+
+        var result = BenchmarkParityVerifier.VerifyCrossEngineScenario(
+            scenario,
+            BenchmarkData.CreateStandard());
+
+        Assert.That(result.IsSuccess, Is.True, result.Message);
+        Assert.That(result.Message, Does.Contain(BenchmarkFecPolicy.UnsupportedReasonCode));
+    }
+
+    [Test]
+    public void CatalogManifest_IncludesDynamicLinqParsedPlanLane()
+    {
+        var manifest = BenchmarkManifestWriter.BuildCatalogManifest();
+
+        Assert.That(manifest.Rows.Any(row =>
+            row.Suite == "DynamicLinq" &&
+            row.Lane == BenchmarkLane.PreParsed.ToString() &&
+            row.EvaluatorId == "Alder_DynamicLinq_ParsedPlan"), Is.True);
+    }
+
+    [Test]
+    public void RunManifest_ExtractsNonDynamicQueryBenchmarks()
+    {
+        var query = CollectionPipelineBenchmarks.GetPipelineQueries()
+            .Single(x => x.Name == "Filter+Count");
+        var method = typeof(CollectionPipelineBenchmarks).GetMethod(nameof(CollectionPipelineBenchmarks.Native))!;
+        var summary = new FakeSummary(
+        [
+            new FakeReport(new FakeBenchmarkCase(
+                new FakeParameters(
+                [
+                    new FakeParameter("Query", query),
+                    new FakeParameter("ScaleFactor", 1_000)
+                ]),
+                new FakeDescriptor(typeof(CollectionPipelineBenchmarks), method)))
+        ]);
+
+        var manifest = BenchmarkManifestWriter.BuildRunManifest(
+            [summary],
+            BenchmarkRunProfile.Publish,
+            ["--profile", "publish", "--filter", "*CollectionPipeline*"]);
+
+        Assert.That(manifest.Rows, Has.Count.EqualTo(1));
+        Assert.That(manifest.Rows[0].Suite, Is.EqualTo("CollectionPipeline"));
+        Assert.That(manifest.Rows[0].Category, Is.EqualTo("Operational"));
+        Assert.That(manifest.Rows[0].Lane, Is.EqualTo(BenchmarkLane.Warm.ToString()));
+        Assert.That(manifest.Rows[0].CaseId, Is.EqualTo("Filter+Count"));
+        Assert.That(manifest.Rows[0].EvaluatorId, Is.EqualTo(nameof(CollectionPipelineBenchmarks.Native)));
+        Assert.That(manifest.Rows[0].Scale, Is.EqualTo(1_000));
+    }
+
+    [Test]
+    public void RunManifest_ExtractsParameterOnlyBenchmarks()
+    {
+        var method = typeof(BusinessRulesBenchmarks).GetMethod(nameof(BusinessRulesBenchmarks.Alder_CompiledFec))!;
+        var summary = new FakeSummary(
+        [
+            new FakeReport(new FakeBenchmarkCase(
+                new FakeParameters(
+                [
+                    new FakeParameter("RuleCount", 25),
+                    new FakeParameter("EntityCount", 1_000)
+                ]),
+                new FakeDescriptor(typeof(BusinessRulesBenchmarks), method)))
+        ]);
+
+        var manifest = BenchmarkManifestWriter.BuildRunManifest(
+            [summary],
+            BenchmarkRunProfile.Publish,
+            ["--profile", "publish", "--filter", "*BusinessRules*"]);
+
+        Assert.That(manifest.Rows, Has.Count.EqualTo(1));
+        Assert.That(manifest.Rows[0].Suite, Is.EqualTo("BusinessRules"));
+        Assert.That(manifest.Rows[0].Category, Is.EqualTo("Operational"));
+        Assert.That(manifest.Rows[0].Lane, Is.EqualTo(BenchmarkLane.Warm.ToString()));
+        Assert.That(manifest.Rows[0].CaseId, Is.EqualTo("RuleCount=25;EntityCount=1000"));
+        Assert.That(manifest.Rows[0].EvaluatorId, Is.EqualTo(nameof(BusinessRulesBenchmarks.Alder_CompiledFec)));
+        Assert.That(manifest.Rows[0].Scale, Is.EqualTo(1_000));
+    }
+
+    [Test]
+    public void BenchmarkClasses_DoNotExposeKnownCrashingFecMethods()
+    {
+        Assert.That(GetBenchmarkMethodNames<CollectionPipelineBenchmarks>(), Does.Not.Contain("Alder_CompiledFec"));
+        Assert.That(GetBenchmarkMethodNames<AdvancedLanguageBenchmarks>(), Does.Not.Contain("Alder_CompiledFec"));
+        Assert.That(GetBenchmarkMethodNames<ExtendedSyntaxBenchmarks>(), Does.Not.Contain("Standard_CompiledFec"));
+        Assert.That(GetBenchmarkMethodNames<ExtendedSyntaxBenchmarks>(), Does.Not.Contain("Extended_CompiledFec"));
+        Assert.That(GetBenchmarkMethodNames<ThroughputBenchmarks>(), Does.Not.Contain("CompiledFec_LINQ"));
+        Assert.That(GetBenchmarkMethodNames<CompilationAmortizationBenchmarks>(), Does.Not.Contain("CompiledFec_LINQ"));
+    }
+
+    [Test]
+    public void BenchmarkParityVerifier_ExtendedScenario_CanSkipFecForValidation()
+    {
+        var scenario = BenchmarkScenarios.GetExtendedScenarios()
+            .Single(x => x.Name == "Extended/ChainedComparison");
+
+        var result = BenchmarkParityVerifier.VerifyExtendedScenario(
+            scenario,
+            BenchmarkData.CreateStandard(),
+            includeFec: false);
+
+        Assert.That(result.IsSuccess, Is.True, result.Message);
+    }
+
+    [Test]
+    public void BenchmarkParityVerifier_CrossEngineScenario_CanSkipFecForValidation()
+    {
+        var scenario = BenchmarkScenarios.GetCrossEngineScenarios()
+            .Single(x => x.Name == "Arithmetic/Constant");
+
+        var result = BenchmarkParityVerifier.VerifyCrossEngineScenario(
+            scenario,
+            BenchmarkData.CreateStandard(),
+            includeFec: false);
+
+        Assert.That(result.IsSuccess, Is.True, result.Message);
+    }
+
+    [Test]
+    public void BenchmarkParityVerifier_DynamicLinqTypedProjectionScenario_Aligns()
+    {
+        var scenario = BenchmarkScenarios.GetDynamicLinqScenarios()
+            .Single(x => x.Name == "DynLINQ/ProjectionTypedDtoFirst");
+        AlderEval.Reset();
+        AlderEval.Configure(o => o.UseCompiler());
+
+        var result = BenchmarkParityVerifier.VerifyDynamicLinqScenario(
+            scenario,
+            BenchmarkData.CreateStandard());
+
+        Assert.That(result.IsSuccess, Is.True, result.Message);
+    }
+
+    [Test]
     public void CrossEngineScenarios_AreBroadEnough_ForMeaningfulResults()
     {
         var scenarios = BenchmarkScenarios.GetCrossEngineScenarios();
@@ -71,10 +436,8 @@ public class BenchmarkSuiteDesignTests
     [Test]
     public void DynamicLinqBenchmarks_DefaultRunMatrix_IsBounded()
     {
-        var previous = Environment.GetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE");
-        try
+        WithBenchmarkProfileEnvironment(BenchmarkRunProfile.Custom.ToString(), () =>
         {
-            Environment.SetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE", null);
             var warmBenchmarks = new DynamicLinqBenchmarks();
             var parsedBenchmarks = new DynamicLinqParsedLambdaBenchmarks();
             var coldBenchmarks = new DynamicLinqBenchmarksColdStart();
@@ -85,29 +448,19 @@ public class BenchmarkSuiteDesignTests
             Assert.That(warmBenchmarks.ScaleFactors().Count(), Is.LessThanOrEqualTo(2));
             Assert.That(parsedBenchmarks.ScaleFactors().Count(), Is.LessThanOrEqualTo(2));
             Assert.That(coldBenchmarks.ScaleFactors().Count(), Is.EqualTo(1));
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE", previous);
-        }
+        });
     }
 
     [Test]
-    public void DynamicLinqBenchmarks_ExhaustiveRunMatrix_RemainsAvailable()
+    public void DynamicLinqBenchmarks_ExhaustiveProfile_RunMatrix_RemainsAvailable()
     {
-        var previous = Environment.GetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE");
-        try
+        WithBenchmarkProfileEnvironment(BenchmarkRunProfile.Exhaustive.ToString(), () =>
         {
-            Environment.SetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE", "1");
             var warmBenchmarks = new DynamicLinqBenchmarks();
 
             Assert.That(warmBenchmarks.Queries().Count(), Is.EqualTo(DynamicLinqBenchmarks.GetDynamicLinqQueries().Count));
             Assert.That(warmBenchmarks.ScaleFactors().Count(), Is.EqualTo(4));
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE", previous);
-        }
+        });
     }
 
     [Test]
@@ -210,6 +563,26 @@ public class BenchmarkSuiteDesignTests
             return Math.Abs(expectedDouble - actualDouble) < 0.0001d;
 
         return Equals(expected, actual);
+    }
+
+    private static string[] GetBenchmarkMethodNames<T>() =>
+        typeof(T).GetMethods()
+            .Where(method => method.GetCustomAttributes(typeof(BenchmarkAttribute), inherit: false).Length > 0)
+            .Select(method => method.Name)
+            .ToArray();
+
+    private static void WithBenchmarkProfileEnvironment(string? value, Action action)
+    {
+        var previousProfile = Environment.GetEnvironmentVariable(BenchmarkProfileContext.EnvironmentVariable);
+        try
+        {
+            Environment.SetEnvironmentVariable(BenchmarkProfileContext.EnvironmentVariable, value);
+            action();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(BenchmarkProfileContext.EnvironmentVariable, previousProfile);
+        }
     }
 
     [Test]
@@ -530,5 +903,35 @@ public class BenchmarkSuiteDesignTests
             ExecutionCount++;
             return 42;
         }
+    }
+
+    private sealed class FakeSummary(IReadOnlyList<FakeReport> reports)
+    {
+        public IReadOnlyList<FakeReport> Reports { get; } = reports;
+    }
+
+    private sealed class FakeReport(FakeBenchmarkCase benchmarkCase)
+    {
+        public FakeBenchmarkCase BenchmarkCase { get; } = benchmarkCase;
+    }
+
+    private sealed class FakeBenchmarkCase(FakeParameters parameters, FakeDescriptor descriptor)
+    {
+        public FakeParameters Parameters { get; } = parameters;
+        public FakeDescriptor Descriptor { get; } = descriptor;
+    }
+
+    private sealed class FakeParameters(IReadOnlyList<FakeParameter> parameters) : List<FakeParameter>(parameters);
+
+    private sealed class FakeParameter(string name, object? value)
+    {
+        public string Name { get; } = name;
+        public object? Value { get; } = value;
+    }
+
+    private sealed class FakeDescriptor(Type type, System.Reflection.MethodInfo workloadMethod)
+    {
+        public Type Type { get; } = type;
+        public System.Reflection.MethodInfo WorkloadMethod { get; } = workloadMethod;
     }
 }

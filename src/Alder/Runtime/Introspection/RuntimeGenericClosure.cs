@@ -14,8 +14,8 @@ internal static class RuntimeGenericClosure
 #endif
 
     private static bool? s_dynamicCodeSupportedOverride;
-    private static Type[]? s_builtInClosedGenericTypes;
-    private static Type[]? s_builtInClosedDelegateTypes;
+    private static RootedType[]? s_builtInRootedGenericTypes;
+    private static RootedType[]? s_builtInRootedDelegateTypes;
 
     internal static bool DynamicCodeSupported => s_dynamicCodeSupportedOverride ?? RuntimeDynamicCodeSupported;
 
@@ -33,7 +33,7 @@ internal static class RuntimeGenericClosure
     }
 
     [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
-    public static Type CloseType(Type openGenericType, Type[] typeArguments, IReadOnlyCollection<Type>? rootedDelegateTypes)
+    public static Type CloseType(Type openGenericType, Type[] typeArguments, IReadOnlyCollection<RootedType>? rootedDelegateTypes)
     {
         if (TryCloseType(openGenericType, typeArguments, rootedDelegateTypes, out var closedType))
             return closedType!;
@@ -62,7 +62,7 @@ internal static class RuntimeGenericClosure
     public static bool TryCloseType(
         Type openGenericType,
         Type[] typeArguments,
-        IReadOnlyCollection<Type>? rootedDelegateTypes,
+        IReadOnlyCollection<RootedType>? rootedDelegateTypes,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] out Type? closedType)
     {
         if (TryCloseKnownType(openGenericType, typeArguments, rootedDelegateTypes, out closedType))
@@ -113,7 +113,7 @@ internal static class RuntimeGenericClosure
     private static bool TryCloseKnownType(
         Type openGenericType,
         Type[] typeArguments,
-        IReadOnlyCollection<Type>? rootedDelegateTypes,
+        IReadOnlyCollection<RootedType>? rootedDelegateTypes,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] out Type? closedType)
     {
         if (openGenericType == typeof(Nullable<>))
@@ -134,8 +134,9 @@ internal static class RuntimeGenericClosure
         Type[] typeArguments,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] out Type? closedType)
     {
-        foreach (var candidate in GetBuiltInClosedGenericTypes())
+        foreach (var rootedCandidate in GetBuiltInRootedGenericTypes())
         {
+            var candidate = rootedCandidate.Type;
             if (candidate.GetGenericTypeDefinition() != openGenericType)
                 continue;
 
@@ -147,7 +148,7 @@ internal static class RuntimeGenericClosure
 
             if (matches)
             {
-                closedType = candidate;
+                closedType = rootedCandidate.Type;
                 return true;
             }
         }
@@ -193,7 +194,7 @@ internal static class RuntimeGenericClosure
     private static bool TryCloseDelegateType(
         Type openGenericType,
         Type[] typeArguments,
-        IReadOnlyCollection<Type>? rootedDelegateTypes,
+        IReadOnlyCollection<RootedType>? rootedDelegateTypes,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] out Type? closedType)
     {
         if (!typeof(Delegate).IsAssignableFrom(openGenericType))
@@ -202,7 +203,7 @@ internal static class RuntimeGenericClosure
             return false;
         }
 
-        if (TryFindClosedGenericType(GetBuiltInClosedDelegateTypes(), openGenericType, typeArguments, out closedType))
+        if (TryFindClosedGenericType(GetBuiltInRootedDelegateTypes(), openGenericType, typeArguments, out closedType))
             return true;
 
         if (rootedDelegateTypes != null &&
@@ -215,32 +216,33 @@ internal static class RuntimeGenericClosure
         return false;
     }
 
-    private static Type[] GetBuiltInClosedGenericTypes()
+    private static RootedType[] GetBuiltInRootedGenericTypes()
     {
-        return s_builtInClosedGenericTypes ??= AlderBuiltInContext.Default
+        return s_builtInRootedGenericTypes ??= AlderBuiltInContext.Default
             .GetTypeMetadata()
-            .Select(static metadata => metadata.Type)
-            .Where(static type => type.IsGenericType && !type.ContainsGenericParameters)
+            .Select(static metadata => new RootedType(metadata.Type))
+            .Where(static rootedType => rootedType.Type.IsGenericType && !rootedType.Type.ContainsGenericParameters)
             .Distinct()
             .ToArray();
     }
 
-    private static Type[] GetBuiltInClosedDelegateTypes()
+    private static RootedType[] GetBuiltInRootedDelegateTypes()
     {
-        return s_builtInClosedDelegateTypes ??= AlderBuiltInContext.Default
-            .GetClosedDelegateTypes()?
+        return s_builtInRootedDelegateTypes ??= AlderBuiltInContext.Default
+            .GetRootedDelegateTypes()?
             .Distinct()
             .ToArray() ?? [];
     }
 
     private static bool TryFindClosedGenericType(
-        IEnumerable<Type> candidates,
+        IEnumerable<RootedType> candidates,
         Type openGenericType,
         Type[] typeArguments,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] out Type? closedType)
     {
-        foreach (var candidate in candidates)
+        foreach (var rootedCandidate in candidates)
         {
+            var candidate = rootedCandidate.Type;
             if (!candidate.IsGenericType || candidate.ContainsGenericParameters)
                 continue;
 
@@ -263,7 +265,7 @@ internal static class RuntimeGenericClosure
 
             if (matches)
             {
-                closedType = candidate;
+                closedType = rootedCandidate.Type;
                 return true;
             }
         }

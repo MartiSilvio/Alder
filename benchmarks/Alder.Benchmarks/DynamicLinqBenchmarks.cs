@@ -29,8 +29,6 @@ public sealed record DynamicLinqQuery(
 [CategoriesColumn]
 public class DynamicLinqBenchmarks : BenchmarkBase
 {
-    private static readonly int[] DefaultScaleFactors = [10_000];
-    private static readonly int[] ExhaustiveScaleFactors = [100, 1_000, 10_000, 100_000];
     private static readonly string[] DefaultQueryNames =
     [
         "Filter+Count",
@@ -745,14 +743,10 @@ public class DynamicLinqBenchmarks : BenchmarkBase
         SelectBenchmarkQueries(DefaultColdQueryNames);
 
     public static IReadOnlyList<int> GetBenchmarkScaleFactors() =>
-        IsExhaustiveDynamicLinqRun()
-            ? ExhaustiveScaleFactors
-            : DefaultScaleFactors;
+        BenchmarkProfileContext.CurrentDefinition.DynamicLinqScaleFactors;
 
     public static IReadOnlyList<int> GetBenchmarkColdStartScaleFactors() =>
-        IsExhaustiveDynamicLinqRun()
-            ? ExhaustiveScaleFactors
-            : DefaultScaleFactors;
+        BenchmarkProfileContext.CurrentDefinition.DynamicLinqScaleFactors;
 
     private static IReadOnlyList<DynamicLinqQuery> SelectBenchmarkQueries(IReadOnlyCollection<string> defaultNames)
     {
@@ -766,7 +760,7 @@ public class DynamicLinqBenchmarks : BenchmarkBase
     }
 
     private static bool IsExhaustiveDynamicLinqRun() =>
-        Environment.GetEnvironmentVariable("ALDER_DYNAMIC_LINQ_EXHAUSTIVE") != null;
+        BenchmarkProfileContext.CurrentDefinition.DynamicLinqQueryScope == BenchmarkMatrixScope.Exhaustive;
 
     private static decimal ReadProjectedDecimal(object projection, string memberName)
     {
