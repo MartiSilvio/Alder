@@ -1,7 +1,7 @@
 # Alder
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/MartiSilvio/Alder/master/assets/brand/alder-icon.png" alt="Alder" width="96" height="96">
+  <img src="assets/brand/alder-icon.png" alt="Alder" width="96" height="96">
 </p>
 
 <p align="center">
@@ -15,27 +15,23 @@
 
 <p align="center">
   <b>Alder is a C# runtime engine for .NET.</b><br>
-  <sub>Stored rules, configurable reports, runtime queries, policy gates, formula engines, tenant-authored expressions, workflow conditions, AI tool-call backends.</sub>
+  <sub>Stored rules, runtime queries, tenant-authored expressions, AI tool-call backends.</sub>
 </p>
 
 <p align="center">
-  Full C# semantics&nbsp; · &nbsp;Two execution backends&nbsp; · &nbsp;Dynamic LINQ&nbsp; · &nbsp;Expression-tree export&nbsp; · &nbsp;Async&nbsp; · &nbsp;Sandboxed&nbsp; · &nbsp;NativeAOT&nbsp; · &nbsp;Zero dependencies
+  C# semantics&nbsp; · &nbsp;Native AOT&nbsp; · &nbsp;Async&nbsp; · &nbsp;Dynamic LINQ&nbsp; · &nbsp;Zero dependencies
 </p>
 
-Alder accepts C# at runtime: expressions, statement blocks, lambdas, queries. A compiler-style pipeline of lexing, parsing, binding against the host's CLR type surface, sandbox validation, optimization, and evaluation feeds one of two backends. The interpreter runs the bound tree directly. The opt-in compiled backend lowers the same tree to a typed delegate through `System.Linq.Expressions`. Both produce identical results.
+Alder evaluates C# expressions and statement blocks at runtime against your host's CLR types. Lambdas, query syntax, pattern matching, async, and iterators bind with ECMA-334 semantics. The interpreter runs the bound tree directly. It is the default path, and the path used under Native AOT. An opt-in compiled backend lowers the same tree to a `System.Linq.Expressions` delegate for hot synchronous workloads. Both backends share the same parser, binder, sandbox, and execution limits. Both produce identical results.
 
 ## At a glance
 
-- **Standard-mode C#:** statements, control flow, `switch` expressions and statements, `try`/`catch`/`finally`, `using`, `lock`, lambdas, local functions, query expressions, pattern matching, tuples and deconstruction, string interpolation, `typeof`, `nameof`, `default`, `await`, iterators, user-defined operators and conversions, extension methods, and ECMA-334 conversions.
-- **Two execution backends:** an interpreter and an opt-in compiled backend, sharing parser, binder, validation pipeline, sandbox, and execution limits. They produce identical results; divergence is a defect.
-- **Async-native:** `EvaluateAsync(...)` awaits expression-level work directly inside the bound tree and cooperates with `CancellationToken` and execution constraints. `IAsyncEnumerable<T>`, `await foreach`, and iterators are first-class.
-- **Dynamic LINQ:** `IEnumerable<T>`, `IQueryable<T>`, and `IAsyncEnumerable<T>`; filter, project, order, page, group, join, set, element, quantifier, and aggregate operators; reusable `DynamicQueryPlan` fragments.
-- **LINQ expression-tree export:** `Expression<TDelegate>` trees verified against EF Core, including grouping, joins, paging, string methods, null-coalescing predicates, and `EF.Property<T>(...)`.
-- **Host-controlled sandbox:** type, namespace, and operation-level policy; reflection metadata blocked at evaluation boundaries; execution limits on statements, loops, wall-clock time, and collection size, surfaced as `AlderExecutionLimitException`.
-- **NativeAOT-native:** source-generator-backed dispatch metadata via `[AlderRegistered]` declarations on `AlderTypeContext` partials. Reflection fallback under JIT, generated dispatch under AOT.
-- **Reuse-first lifecycle:** parsed expressions, cached bound state, compiled delegates, typed delegate compilation through `Compile<TDelegate>(...)`, and `DynamicQueryPlan` for query reuse.
-- **Structured diagnostics:** codes (Roslyn `CS####` where applicable, `ALDR####` otherwise), messages, source spans, and `EvaluateWithTrace(...)` for evaluation introspection.
-- **Zero third-party runtime dependencies.** Targets `net8.0` and `netstandard2.0`.
+- **C# expressions and statements at runtime.** Lambdas, queries, pattern matching, async, iterators, user-defined operators and conversions, evaluated with ECMA-334 7th edition semantics. [Support matrix](docs/reference/language/standard-mode-language-support.md).
+- **Native AOT through generated dispatch.** A source generator emits reflection-free dispatch from `[AlderRegistered]` declarations. The interpreter runs under AOT without trim warnings.
+- **Async inside expressions.** `EvaluateAsync` awaits inside the bound tree. `IAsyncEnumerable<T>`, `await foreach`, and iterators are first-class through the interpreter.
+- **One grammar, three surfaces.** Expression evaluation, Dynamic LINQ (`WhereDynamic`, `OrderByDynamic`), and `Expression<TDelegate>` export for EF Core all parse through the same binder, validate against the same sandbox, and answer to the same execution limits.
+
+Targets `net8.0` and `netstandard2.0`. Zero third-party runtime dependencies.
 
 ## A first look
 
@@ -58,8 +54,6 @@ var tier = engine.Evaluate<string>("""
     return t;
     """, new { order });
 ```
-
-The same engine handles `1 + 2`, ten thousand stored business rules, and a sandboxed async Dynamic LINQ pipeline over an EF Core query. One pipeline, the full spectrum.
 
 ## End-to-end integration
 
@@ -94,8 +88,6 @@ var report = await db.Orders
     .ToListAsync();
 ```
 
-One engine. Synchronous compiled, asynchronous interpreted, and provider-translated query, all over the same parser, binder, sandbox, and execution policy.
-
 ## Install
 
 ```bash
@@ -106,11 +98,9 @@ The `Alder` package is the single public package. It ships the runtime, the opti
 
 ## What Alder runs
 
-Standard mode (`LanguageMode.Standard`) accepts C# at the expression and statement-block level: locals, assignment, control flow, loops, `switch` statements and expressions, `try`/`catch`/`finally`, `using`, `lock`, lambdas and local functions, query expressions, pattern matching, tuples and deconstruction, string interpolation, `typeof`, `nameof`, `default`, `await`, iterators, user-defined operators and conversions, extension methods, and the implicit and explicit conversions defined by ECMA-334.
+Standard mode evaluates C# at the expression and statement-block level against ECMA-334 7th edition semantics. Type and member declarations, namespaces, attributes, preprocessor directives, and unsafe code are out of scope. The full support matrix lives in [Standard mode language support](docs/reference/language/standard-mode-language-support.md).
 
-The full support matrix is in [Standard mode language support](docs/reference/language/standard-mode-language-support.md).
-
-[Extended mode](docs/concepts/extended-language-mode.md) layers scripting forms on the same parser: pipelines, regex predicates, SQL-style comparisons, ranges, date/time sugar, aggregate helpers. A valid C# expression produces the same result in either mode.
+[Extended mode](docs/concepts/extended-language-mode.md) layers scripting sugar on the same parser: pipelines, regex predicates, SQL-style comparisons, ranges, date arithmetic, aggregate helpers. A valid C# expression produces the same result in either mode.
 
 ## The runtime engine
 
@@ -297,7 +287,7 @@ See [Diagnostics and debugging](docs/operations/diagnostics-and-debugging.md).
 
 ## Documentation
 
-The full set lives in [`docs/`](docs/README.md): architecture, binding system, async execution, compiled backend, Dynamic LINQ, security model, AOT and generated dispatch, configuration, execution model, the language support matrix, and integration guides.
+Full documentation lives in [`docs/`](docs/README.md), organized as concepts, guides, reference, and operations.
 
 ## Build from source
 
