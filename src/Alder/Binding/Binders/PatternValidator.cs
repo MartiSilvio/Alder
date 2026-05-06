@@ -25,7 +25,7 @@ internal static class PatternValidator
         switch (pattern)
         {
             case RelationalPattern:
-                // §11.2.3: relational patterns require a type that has the corresponding predefined relational operators.
+                // Relational patterns require a type that has the corresponding predefined relational operators.
                 // The built-in set is sbyte, byte, short, ushort, int, uint, long, ulong, char, float, double, decimal
                 // (plus nint/nuint via TypeHelpers.IsArithmetic).
                 var effective = Nullable.GetUnderlyingType(subjectType) ?? subjectType;
@@ -93,7 +93,9 @@ internal static class PatternValidator
             var type = context.RuntimeContext.TypeResolver.TryResolveType(rootId.Name.Lexeme);
             if (type is null) return false;
             if (type.IsEnum) return true;
-            var field = type.GetField(expr.Name.Lexeme,
+            var field = RuntimeTypeIntrospection.FindField(
+                type,
+                expr.Name.Lexeme,
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
                 | System.Reflection.BindingFlags.FlattenHierarchy);
             return field is { IsLiteral: true } || (field?.IsStatic == true && field.FieldType.IsEnum);
@@ -104,7 +106,7 @@ internal static class PatternValidator
 
     private static void ValidateListPattern(Type subjectType)
     {
-        // §11.2.5: list patterns require a countable + indexable subject. The runtime matcher
+        // List patterns require a countable + indexable subject. The runtime matcher
         // (PatternRuntime.GetCountableLength/GetIndexedElement) handles IList and string, so the
         // binder validates against the same contract — anything else is guaranteed to fail.
         var effective = Nullable.GetUnderlyingType(subjectType) ?? subjectType;

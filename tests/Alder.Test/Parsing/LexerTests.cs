@@ -415,7 +415,7 @@ public class TokenLexemesTests
     [TestCase(nameof(TokenType.QuestionQuestionEqual), "??=")]
     public void GetCanonical_ReturnsExpectedLexeme(string tokenTypeName, string expected)
     {
-        var type = Enum.Parse<TokenType>(tokenTypeName);
+        var type = (TokenType)Enum.Parse(typeof(TokenType), tokenTypeName);
         Assert.That(TokenLexemes.GetCanonical(type), Is.EqualTo(expected));
     }
 

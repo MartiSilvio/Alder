@@ -1,4 +1,4 @@
-namespace Alder.Runtime;
+namespace Alder.Runtime.OverloadResolution;
 
 internal enum ApplicableForm : byte
 {
@@ -76,9 +76,8 @@ internal static class OverloadResolution
         Type leftDelegate,
         Type rightDelegate)
     {
-        var leftInvoke = leftDelegate.GetMethod("Invoke");
-        var rightInvoke = rightDelegate.GetMethod("Invoke");
-        if (leftInvoke == null || rightInvoke == null)
+        if (!DelegateShapeInspector.TryGetInvoke(leftDelegate, out var leftInvoke) ||
+            !DelegateShapeInspector.TryGetInvoke(rightDelegate, out var rightInvoke))
             return BetterResult.Neither;
 
         var leftReturn = leftInvoke.ReturnType;
@@ -130,8 +129,7 @@ internal static class OverloadResolution
         MethodCandidate candidate,
         Type delegateType)
     {
-        var invoke = delegateType.GetMethod("Invoke");
-        if (invoke == null)
+        if (!DelegateShapeInspector.TryGetInvoke(delegateType, out var invoke))
             return false;
 
         var delegateReturnType = invoke.ReturnType;

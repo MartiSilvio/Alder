@@ -75,7 +75,7 @@ public class EdgeCaseGenerationTests
     }
 
     [Test]
-    public void ClosedGenericType_EmitsPreservationReference()
+    public void ClosedGenericType_DoesNotEmitTypeRootMatrix()
     {
         var source = """
             using Alder.Aot;
@@ -93,8 +93,8 @@ public class EdgeCaseGenerationTests
         var generated = GetAllGeneratedSource(generatedTrees);
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
-        Assert.That(generated, Does.Contain("TypeRoots"));
-        Assert.That(generated, Does.Contain("typeof(global::System.Collections.Generic.List<int>)"));
+        Assert.That(generated, Does.Not.Contain("TypeRoots"),
+            "AOT generation should stay with explicit dispatch metadata rather than emitting generic root matrices.");
     }
 
     [Test]

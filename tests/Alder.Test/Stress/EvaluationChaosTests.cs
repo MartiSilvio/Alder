@@ -3,8 +3,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Stress;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
 {
     [Test]
@@ -22,7 +21,6 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     {
         var engine = TestEngineFactory.Create(Mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = 5000 });
 
-        // O(N^3)
         const string expr = @"{
             var count = 0;
             for(var i=0; i<100; i++) {
@@ -35,100 +33,30 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
             return count;
         }";
 
-        // 100*100*100 = 1,000,000 > 5000. Should throw.
         Assert.Throws<AlderExecutionLimitException>(() => engine.Evaluate(expr));
     }
 
     [Test]
-    public void AllocationStress_ShouldHandleOOMGracefully()
+    public void CharPlusInt_PromotesToInt()
     {
-        // Try to allocate a huge array
-        // Enumerable.Range(0, 100000000).ToArray()
-        // If the machine has enough RAM, this might succeed. If not, it throws OOM.
-        // We just want to ensure the engine doesn't get into a corrupted state.
-
-        const string expr = "Enumerable.Range(0, 10000000).ToArray().Length";
-        try
-        {
-            var result = Engine.Evaluate(expr);
-            Assert.That(result, Is.EqualTo(10000000));
-        }
-        catch (OutOfMemoryException)
-        {
-            Assert.Pass("OOM handled correctly");
-        }
-        catch (Exception ex)
-        {
-            TestContext.WriteLine($"Allocation check: {ex.GetType().Name}");
-        }
+        var result = Engine.Evaluate("'a' + 1");
+        Assert.That(result, Is.EqualTo(98));
+        Assert.That(result, Is.TypeOf<int>());
     }
 
     [Test]
-    public void TypeConfusion_AddDifferentTypes()
+    public void AdditiveOperators_WithNullLiteral_UseLiftedOperator()
     {
-        // What happens if we add Int + Bool? Or String + Object?
-        // JS like behavior or C# strong typing?
-        // Based on "CoerceNumeric", it tries to be smart.
-
-        var cases = new[]
-        {
-            ("1 + true", null), // Likely fail or string concat?
-            ("'a' + 1", "a1"),  // Char + Int -> Int or String?
-            ("null + 5", null),
-            ("5 + null", null),
-            ("true + false", null)
-        };
-
-        foreach (var (expr, expected) in cases)
-        {
-            try
-            {
-                var result = Engine.Evaluate(expr);
-                TestContext.WriteLine($"'{expr}' => {result} ({result?.GetType().Name})");
-            }
-            catch (Exception ex)
-            {
-                TestContext.WriteLine($"'{expr}' => Threw {ex.GetType().Name}: {ex.Message}");
-            }
-        }
+        Assert.That(Engine.Evaluate("null + 5"), Is.Null);
+        Assert.That(Engine.Evaluate("5 + null"), Is.Null);
     }
 
-    [Test]
-    public void RecursionFunction_ShouldThrowStackOverflow_OrConstraintLimit()
+    [TestCase("1 + true")]
+    [TestCase("true + false")]
+    public void AdditiveOperators_WithInvalidOperands_ReportCSharpDiagnostic(string expr)
     {
-        // Define a recursive function
-        // function f(n) { if (n<=0) return 0; return 1 + f(n-1); }
-        // Alder might not support function declarations inside expression directly without special syntax?
-        // Looking at engine, we can register functions.
-
-        // Let's register a C# function that recurses back into engine?
-        // Or pure script recursion if supported.
-        // Let's assume we can't define functions in script easily (unless it supports lambdas assigned to vars).
-
-        var engine = TestEngineFactory.Create(Mode, o => o.Functions.Register("recurse", args =>
-        {
-            var n = (int)args[0]!;
-            if (n <= 0) return 0;
-            return n;
-        }));
-
-        var setup = @"{
-            Func<int, int> f = null;
-            f = (n) => {
-                if (n <= 0) return 0;
-                return 1 + f(n-1);
-            };
-            f(5000)
-        }";
-
-        try
-        {
-            engine.Evaluate(setup);
-        }
-        catch (Exception ex)
-        {
-            TestContext.WriteLine($"Recursion test: {ex.Message}");
-        }
+        var ex = Assert.Throws<AlderException>(() => Engine.Evaluate(expr));
+        Assert.That(ex!.Message, Does.Contain("CS0019"));
     }
 
     [Test]
@@ -193,12 +121,9 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     }
 
     [Test]
-    public void SandboxBypass_Reflection_ShouldBeBlockedInSafeMode()
+    public void SecurityPolicyBypass_Reflection_ShouldBeBlockedInSafeMode()
     {
-        // Try to access System.Type or GetType()
-        var safeEngine = TestEngineFactory.Create(Mode, o => o.Sandbox = SandboxOptions.Safe());
-
-        // "string".GetType() is a method call. Should be blocked.
+        var safeEngine = TestEngineFactory.Create(Mode, o => o.Security = SecurityOptions.Safe());
         var expr = "\"hello\".GetType()";
 
         var ex = Assert.Throws<AlderException>(() => safeEngine.Evaluate(expr));

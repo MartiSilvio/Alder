@@ -1,3 +1,4 @@
+using Alder.Binding;
 using Alder.Runtime.Collections;
 
 namespace Alder.Runtime;
@@ -89,7 +90,7 @@ internal static partial class TypeHelpers
         if (!srcUnderlying.IsValueType && !tgtUnderlying.IsValueType)
             return true;
 
-        // §10.3.6: unboxing. object/interface sources permit casts to any value type.
+        // §10.3.7: unboxing conversions. object/interface sources permit casts to any value type.
         if ((srcUnderlying == typeof(object) || srcUnderlying.IsInterface) && tgtUnderlying.IsValueType)
             return true;
 
@@ -98,7 +99,7 @@ internal static partial class TypeHelpers
         if (srcUnderlying.IsValueType && (tgtUnderlying == typeof(object) || tgtUnderlying.IsInterface))
             return true;
 
-        // §10.3.8: tuple explicit conversions recurse element-wise through the explicit rules.
+        // §10.3.6: explicit tuple conversions recurse element-wise through the explicit rules.
         if (IsTupleType(srcUnderlying) && IsTupleType(tgtUnderlying))
         {
             var sourceArgs = srcUnderlying.GetGenericArguments();

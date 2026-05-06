@@ -48,7 +48,11 @@ internal static class MemberAccessBinder
             target.Span = link.Span;
 
             if (callAfter[i] is { } callExpr)
-                target = CallBinder.BindCallWithBoundCallee(target, callExpr, context, binder);
+            {
+                target = CallBinder.TryBindStaticModuleCall(callExpr, context, binder, out var staticModuleCall)
+                    ? staticModuleCall
+                    : CallBinder.BindCallWithBoundCallee(target, callExpr, context, binder);
+            }
         }
 
         var outer = memberChain[0];
@@ -104,7 +108,7 @@ internal static class MemberAccessBinder
 
     internal static (BoundType TargetType, bool IsStatic) ResolveMemberTarget(BoundExpr target)
     {
-        // ECMA-334 §12.7.3: a type name in expression position (`int.MaxValue`) is bound as a
+        // ECMA-334 §12.8.7.2: a type name in expression position (`int.MaxValue`) is bound as a
         // static-member target on the wrapped type. A runtime `Type` value from `typeof(...)`
         // or `GetType()` is a literal whose `StaticType` is `System.Type`, so it falls through
         // to the default branch and resolves against `Type`'s instance surface — that is how

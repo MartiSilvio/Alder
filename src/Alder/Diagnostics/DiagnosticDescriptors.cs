@@ -98,7 +98,7 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ListPatternRequiresListable =
         new(DiagnosticCode.CS8985, "List patterns may not be used for a value of type '{0}'. No suitable 'Length' or 'Count' property was found");
 
-    public static readonly DiagnosticDescriptor NameofExpressionHasNoName =
+    public static readonly DiagnosticDescriptor ExpressionHasNoName =
         new(DiagnosticCode.CS8081, "Expression does not have a name");
 
     public static readonly DiagnosticDescriptor ThrowOutsideCatch =
@@ -148,6 +148,9 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor NoBestTypeForImplicitArray =
         new(DiagnosticCode.CS0826, "No best type found for an implicitly-typed array");
+
+    public static readonly DiagnosticDescriptor AnonymousTypeDuplicateProperty =
+        new(DiagnosticCode.CS0833, "An anonymous type cannot have multiple properties with the same name");
 
     public static readonly DiagnosticDescriptor SemicolonExpected =
         new(DiagnosticCode.CS1002, "; expected");
@@ -287,29 +290,29 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ExtendedModeRequired =
         new(DiagnosticCode.ALDR0020, "Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.");
 
-    public static readonly DiagnosticDescriptor SandboxMethodCallBlocked =
-        new(DiagnosticCode.ALDR0100, "Method calls blocked by sandbox: {0}");
+    public static readonly DiagnosticDescriptor SecurityPolicyMethodCallBlocked =
+        new(DiagnosticCode.ALDR0100, "Method calls blocked by security policy: {0}");
 
-    public static readonly DiagnosticDescriptor SandboxAssignmentBlocked =
-        new(DiagnosticCode.ALDR0101, "Assignment blocked by sandbox: {0}");
+    public static readonly DiagnosticDescriptor SecurityPolicyAssignmentBlocked =
+        new(DiagnosticCode.ALDR0101, "Assignment blocked by security policy: {0}");
 
-    public static readonly DiagnosticDescriptor SandboxIndexAssignmentBlocked =
-        new(DiagnosticCode.ALDR0102, "Index assignment blocked by sandbox: [{0}] = ...");
+    public static readonly DiagnosticDescriptor SecurityPolicyIndexAssignmentBlocked =
+        new(DiagnosticCode.ALDR0102, "Index assignment blocked by security policy: [{0}] = ...");
 
-    public static readonly DiagnosticDescriptor SandboxPropertyAccessBlocked =
-        new(DiagnosticCode.ALDR0103, "Property access blocked by sandbox: {0}");
+    public static readonly DiagnosticDescriptor SecurityPolicyPropertyAccessBlocked =
+        new(DiagnosticCode.ALDR0103, "Property access blocked by security policy: {0}");
 
-    public static readonly DiagnosticDescriptor SandboxStaticMemberAccessBlocked =
-        new(DiagnosticCode.ALDR0104, "Static member access blocked by sandbox: {0}.{1}");
+    public static readonly DiagnosticDescriptor SecurityPolicyStaticMemberAccessBlocked =
+        new(DiagnosticCode.ALDR0104, "Static member access blocked by security policy: {0}.{1}");
 
-    public static readonly DiagnosticDescriptor SandboxPropertyAssignmentBlocked =
-        new(DiagnosticCode.ALDR0105, "Property assignment blocked by sandbox: {0}");
+    public static readonly DiagnosticDescriptor SecurityPolicyPropertyAssignmentBlocked =
+        new(DiagnosticCode.ALDR0105, "Property assignment blocked by security policy: {0}");
 
-    public static readonly DiagnosticDescriptor SandboxConstructionBlocked =
-        new(DiagnosticCode.ALDR0106, "Object construction blocked by sandbox: new {0}()");
+    public static readonly DiagnosticDescriptor SecurityPolicyConstructionBlocked =
+        new(DiagnosticCode.ALDR0106, "Object construction blocked by security policy: new {0}()");
 
-    public static readonly DiagnosticDescriptor SandboxTypeBlocked =
-        new(DiagnosticCode.ALDR0107, "Type '{0}' is blocked by the sandbox");
+    public static readonly DiagnosticDescriptor SecurityPolicyTypeBlocked =
+        new(DiagnosticCode.ALDR0107, "Type '{0}' is blocked by the security policy");
 
     public static readonly DiagnosticDescriptor ReflectionTypeAccessBlocked =
         new(DiagnosticCode.ALDR0108, "Access to reflection types is not allowed: {0} ({1})");
@@ -374,6 +377,15 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor CannotResolveModuleInstance =
         new(DiagnosticCode.ALDR0315, "Cannot resolve instance of '{0}'. Either register it in IServiceProvider or ensure it has a parameterless constructor.");
 
+    public static readonly DiagnosticDescriptor GeneratedMemberRequired =
+        new(DiagnosticCode.ALDR0316, "Member '{1}' on type '{0}' is not available in authoritative generated mode.");
+
+    public static readonly DiagnosticDescriptor GeneratedMethodRequired =
+        new(DiagnosticCode.ALDR0317, "Method '{1}' on type '{0}' is not available in authoritative generated mode.");
+
+    public static readonly DiagnosticDescriptor GeneratedConstructorRequired =
+        new(DiagnosticCode.ALDR0318, "Constructor on type '{0}' with {1} arguments is not available in authoritative generated mode.");
+
     public static readonly DiagnosticDescriptor SliceNull =
         new(DiagnosticCode.ALDR0400, "Cannot slice null");
 
@@ -391,5 +403,8 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor SpreadOutsideLiteral =
         new(DiagnosticCode.ALDR0405, "Spread operator can only be used in array or object literals");
+
+    public static readonly DiagnosticDescriptor ProjectionMaterializationFailed =
+        new(DiagnosticCode.ALDR0406, "Cannot materialize projection of type '{0}' to '{1}': {2}");
 
 }

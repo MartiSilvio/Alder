@@ -26,7 +26,7 @@ internal static class PipelineOperator
                 TypeNameFormatter.Null);
 
         // Guard this explicitly so non-callable values fail with the pipeline operator diagnostic.
-        if (!IsCallable(rightCallable))
+        if (!MethodInvoker.IsCallable(rightCallable))
             throw new AlderException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.PipeGreater),
@@ -36,13 +36,4 @@ internal static class PipelineOperator
         var args = new object?[] { leftValue };
         return MethodInvoker.InvokeCall(rightCallable, args, context, ct: ct);
     }
-
-    private static bool IsCallable(object value) => value is
-        LambdaValue or
-        CompiledLambdaValue or
-        FunctionRef or
-        Delegate or
-        ModuleMethodRef or
-        StaticMethodRef or
-        MethodRef;
 }

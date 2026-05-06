@@ -1,7 +1,6 @@
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Compilation;
-using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;

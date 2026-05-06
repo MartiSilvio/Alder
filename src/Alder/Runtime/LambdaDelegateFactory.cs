@@ -128,7 +128,7 @@ internal static partial class LambdaDelegateFactory
 
         var factory = factories[arity];
         if (genericArgs.Length > 0)
-            factory = RuntimeGenericFactory.CloseGenericMethod(factory, genericArgs);
+            factory = RuntimeGenericClosure.CloseMethod(factory, genericArgs);
         return (Delegate)factory.Invoke(null, [lambda])!;
     }
 
@@ -180,7 +180,7 @@ internal static partial class LambdaDelegateFactory
     {
         var mapper = TaskMapperCache.GetOrAdd(resultType, static type =>
         {
-            var closed = MapTaskCoreMethod.MakeGenericMethod(type);
+            var closed = RuntimeGenericClosure.CloseMethod(MapTaskCoreMethod, [type]);
             return (Func<Task<object?>, object>)Delegate.CreateDelegate(
                 typeof(Func<Task<object?>, object>), closed);
         });

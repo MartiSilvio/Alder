@@ -10,8 +10,7 @@ namespace Alder.Test.Types;
 /// Type object comparisons, and error assertions that cannot be expressed as .csx parity files.
 /// Standard conversion expressions are in TestData/Conversion/*.csx.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class ConversionTests(CompilationMode mode)
 {
     #region CanImplicitlyConvert API -- Direct Verification

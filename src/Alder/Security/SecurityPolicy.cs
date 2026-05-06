@@ -161,6 +161,9 @@ public sealed class SecurityPolicy
         AddIfAvailable(types, "System.Threading.Mutex, System.Threading");
         AddIfAvailable(types, "System.Threading.Semaphore, System.Threading");
         AddIfAvailable(types, "System.Threading.Timer, System.Threading");
+        AddIfAvailable(types, "System.Threading.ManualResetEvent, System.Threading");
+        AddIfAvailable(types, "System.Threading.AutoResetEvent, System.Threading");
+        AddIfAvailable(types, "System.Threading.Barrier, System.Threading");
         AddIfAvailable(types, "System.Diagnostics.Process, System.Diagnostics.Process");
         AddIfAvailable(types, "System.Diagnostics.ProcessStartInfo, System.Diagnostics.Process");
         AddIfAvailable(types, "System.Runtime.InteropServices.Marshal, System.Runtime.InteropServices");
@@ -169,8 +172,25 @@ public sealed class SecurityPolicy
 
     private static void AddIfAvailable(HashSet<Type> set, string assemblyQualifiedName)
     {
-        var type = Type.GetType(assemblyQualifiedName);
-        if (type != null) set.Add(type);
+        var comma = assemblyQualifiedName.IndexOf(',');
+        if (comma <= 0)
+            return;
+
+        var typeName = assemblyQualifiedName[..comma].Trim();
+        var assemblyName = assemblyQualifiedName[(comma + 1)..].Trim();
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (!string.Equals(assembly.GetName().Name, assemblyName, StringComparison.Ordinal))
+                continue;
+
+#pragma warning disable IL2026
+            var resolved = assembly.GetType(typeName, throwOnError: false, ignoreCase: false);
+#pragma warning restore IL2026
+            if (resolved != null)
+                set.Add(resolved);
+            return;
+        }
     }
 
     private static readonly HashSet<string> DefaultDeniedNamespaces = new()

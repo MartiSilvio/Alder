@@ -1,6 +1,5 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using Alder.Compiled;
 
 namespace Alder.Benchmarks;
 
@@ -23,17 +22,13 @@ public class ExtendedSyntaxBenchmarks
 
     private AlderEngine _extInterp = null!;
     private AlderEngine _extComp = null!;
-    private AlderEngine _extFec = null!;
     private AlderEngine _stdInterp = null!;
     private AlderEngine _stdComp = null!;
-    private AlderEngine _stdFec = null!;
 
     private AlderExpression _extInterpExpr = null!;
     private AlderExpression _extCompExpr = null!;
-    private AlderExpression _extFecExpr = null!;
     private AlderExpression _stdInterpExpr = null!;
     private AlderExpression _stdCompExpr = null!;
-    private AlderExpression _stdFecExpr = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -42,19 +37,15 @@ public class ExtendedSyntaxBenchmarks
 
         _extInterp = BenchmarkBase.CreateEngine(CompilationMode.Interpreted, _data, LanguageMode.Extended, ConfigureExtended);
         _extComp = BenchmarkBase.CreateEngine(CompilationMode.Compiled, _data, LanguageMode.Extended, ConfigureExtended);
-        _extFec = BenchmarkBase.CreateEngine(CompilationMode.CompiledFec, _data, LanguageMode.Extended, ConfigureExtended);
         _stdInterp = BenchmarkBase.CreateEngine(CompilationMode.Interpreted, _data, LanguageMode.Standard, ConfigureExtended);
         _stdComp = BenchmarkBase.CreateEngine(CompilationMode.Compiled, _data, LanguageMode.Standard, ConfigureExtended);
-        _stdFec = BenchmarkBase.CreateEngine(CompilationMode.CompiledFec, _data, LanguageMode.Standard, ConfigureExtended);
 
         _extInterpExpr = _extInterp.Parse(Scenario.ExtendedExpr);
         _extCompExpr = _extComp.Parse(Scenario.ExtendedExpr);
-        _extFecExpr = _extFec.Parse(Scenario.ExtendedExpr);
         _stdInterpExpr = _stdInterp.Parse(Scenario.StandardExpr);
         _stdCompExpr = _stdComp.Parse(Scenario.StandardExpr);
-        _stdFecExpr = _stdFec.Parse(Scenario.StandardExpr);
 
-        var parity = BenchmarkParityVerifier.VerifyExtendedScenario(Scenario, _data);
+        var parity = BenchmarkParityVerifier.VerifyExtendedScenario(Scenario, _data, includeFec: false);
         if (!parity.IsSuccess)
             throw new InvalidOperationException(parity.Message);
     }
@@ -64,10 +55,8 @@ public class ExtendedSyntaxBenchmarks
     {
         _extInterp?.Dispose();
         _extComp?.Dispose();
-        _extFec?.Dispose();
         _stdInterp?.Dispose();
         _stdComp?.Dispose();
-        _stdFec?.Dispose();
     }
 
     [Benchmark(Baseline = true)]
@@ -80,19 +69,11 @@ public class ExtendedSyntaxBenchmarks
 
     [Benchmark]
     [BenchmarkCategory("Capability/ExtendedSyntax")]
-    public object Standard_CompiledFec() => _stdFec.Evaluate(_stdFecExpr)!;
-
-    [Benchmark]
-    [BenchmarkCategory("Capability/ExtendedSyntax")]
     public object Extended_Interpreted() => _extInterp.Evaluate(_extInterpExpr)!;
 
     [Benchmark]
     [BenchmarkCategory("Capability/ExtendedSyntax")]
     public object Extended_Compiled() => _extComp.Evaluate(_extCompExpr)!;
-
-    [Benchmark]
-    [BenchmarkCategory("Capability/ExtendedSyntax")]
-    public object Extended_CompiledFec() => _extFec.Evaluate(_extFecExpr)!;
 
     private static void ConfigureExtended(AlderOptions opts)
     {

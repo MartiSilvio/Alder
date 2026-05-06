@@ -1,4 +1,4 @@
-using Alder;
+namespace Alder.AotMatrix;
 
 public static class TestSingle
 {
@@ -12,8 +12,6 @@ public static class TestSingle
             return RunCheckFactories();
         if (filePath == "--check-enum")
             return RunCheckEnum();
-        if (filePath == "--check-ext")
-            return RunCheckExtensionDispatches();
 
         var expr = File.ReadAllText(filePath).Trim();
         Console.WriteLine($"Expression file: {filePath}");
@@ -168,52 +166,6 @@ public static class TestSingle
             Console.WriteLine($"  FAIL: {ex.GetType().Name}: {ex.Message}");
             Console.Out.Flush();
         }
-
-        return 0;
-    }
-
-    private static int RunCheckExtensionDispatches()
-    {
-        Console.WriteLine("=== Extension Dispatch Diagnostics ===");
-        Console.Out.Flush();
-
-        var ctx = Alder.Aot.AlderBuiltInContext.Default;
-        var extDispatches = ctx.GetExtensionDispatches();
-        Console.WriteLine($"GetExtensionDispatches() returned: {(extDispatches == null ? "null" : $"count={extDispatches.Count}")}");
-        Console.Out.Flush();
-
-        if (extDispatches != null)
-        {
-            foreach (var d in extDispatches)
-            {
-                Console.WriteLine($"  Dispatch type: {d.GetType().Name}, Target: {d.Type}");
-                // Try a simple Where on int[]
-                var testArgs = new object?[] { new[] { 1, 2, 3 }, (Func<int, bool>)(x => x > 1) };
-                var ok = d.TryInvokeStatic("Where", testArgs, out var result);
-                Console.WriteLine($"  TryInvokeStatic('Where', int[], Func<int,bool>) = {ok}, result type: {result?.GetType().Name ?? "null"}");
-                // Try Sum
-                var sumArgs = new object?[] { new[] { 1, 2, 3 } };
-                var sumOk = d.TryInvokeStatic("Sum", sumArgs, out var sumResult);
-                Console.WriteLine($"  TryInvokeStatic('Sum', int[]) = {sumOk}, result: {sumResult}");
-                Console.Out.Flush();
-            }
-        }
-
-        // Now check via the engine's config
-        Console.WriteLine("\nChecking engine config path...");
-        Console.Out.Flush();
-        try
-        {
-            var engine = new AlderEngine(new AlderOptions { LanguageMode = LanguageMode.Extended });
-            // Test a LINQ expression on int[]
-            var result = engine.Evaluate("new[] { 1, 2, 3 }.Where(x => x > 1).Sum()");
-            Console.WriteLine($"LINQ eval result: {result}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"LINQ eval FAILED: {ex.GetType().Name}: {ex.Message}");
-        }
-        Console.Out.Flush();
 
         return 0;
     }

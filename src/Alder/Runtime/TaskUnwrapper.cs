@@ -6,9 +6,7 @@ namespace Alder.Runtime;
 internal static class TaskUnwrapper
 {
     private static readonly ConcurrentDictionary<Type, Func<object, object?>?> TaskResultAccessorCache = new();
-
-    private static readonly MethodInfo AwaitValueTaskCoreMethod =
-        typeof(TaskUnwrapper).GetMethod(nameof(AwaitValueTaskCore), BindingFlags.NonPublic | BindingFlags.Static)!;
+    private static readonly ConcurrentDictionary<Type, Func<object, Task>?> ValueTaskAsTaskCache = new();
 
     internal static ValueTask<object?> AwaitDynamic(object operand)
     {
@@ -30,8 +28,9 @@ internal static class TaskUnwrapper
         var type = operand.GetType();
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ValueTask<>))
         {
-            var method = AwaitValueTaskCoreMethod.MakeGenericMethod(type.GetGenericArguments()[0]);
-            return (ValueTask<object?>)method.Invoke(null, [operand])!;
+            var asTask = GetValueTaskAsTaskAdapter(type);
+            if (asTask != null)
+                return AwaitDynamic(asTask(operand));
         }
 
         throw new AlderException(DiagnosticDescriptors.NotAwaitable, type.Name);
@@ -60,7 +59,7 @@ internal static class TaskUnwrapper
             {
                 if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(Task<>))
                 {
-                    var prop = current.GetProperty("Result", BindingFlags.Public | BindingFlags.Instance);
+                    var prop = RuntimeTypeIntrospection.FindProperty(current, "Result", BindingFlags.Public | BindingFlags.Instance);
                     if (prop != null)
                         return task => prop.GetValue(task);
                     return null;
@@ -71,8 +70,20 @@ internal static class TaskUnwrapper
         });
     }
 
-    private static async ValueTask<object?> AwaitValueTaskCore<T>(object boxed)
+    private static Func<object, Task>? GetValueTaskAsTaskAdapter(Type runtimeType)
     {
-        return await (ValueTask<T>)boxed;
+        return ValueTaskAsTaskCache.GetOrAdd(runtimeType, static type =>
+        {
+            var method = RuntimeTypeIntrospection.FindMethod(
+                type,
+                nameof(ValueTask<int>.AsTask),
+                BindingFlags.Public | BindingFlags.Instance,
+                []);
+
+            if (method == null || !typeof(Task).IsAssignableFrom(method.ReturnType))
+                return null;
+
+            return boxed => (Task)method.Invoke(boxed, null)!;
+        });
     }
 }

@@ -1,12 +1,12 @@
 using System.Runtime.CompilerServices;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Parity;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [Parallelizable(ParallelScope.Children)]
 public class ParityTests(CompilationMode mode)
 {
@@ -16,7 +16,7 @@ public class ParityTests(CompilationMode mode)
     {
         o.Constraints = new ExecutionConstraints { MaxStatements = 1_000_000 };
         o.LanguageMode = LanguageMode.Extended;
-        o.Sandbox = SandboxOptions.Trusted() with
+        o.Security = SecurityOptions.Trusted() with
         {
             TrustedTypes =
             [
@@ -29,7 +29,7 @@ public class ParityTests(CompilationMode mode)
     [TestCaseSource(nameof(DiscoverExpressions), ["TestData/ValidExpressions"])]
     public async Task ValidExpressionsShouldPass(string csxPath)
     {
-        var (alderExpr, roslynExpr) = await LoadExpressionPair(csxPath);
+        var (alderExpr, roslynExpr) = LoadExpressionPair(csxPath);
         var exprInfo = alderExpr == roslynExpr
             ? alderExpr
             : $"Alder: {alderExpr}\nRoslyn: {roslynExpr}";
@@ -42,7 +42,7 @@ public class ParityTests(CompilationMode mode)
             // ReSharper disable once MethodHasAsyncOverload
             var syncResult = engine.Evaluate(expression);
             var asyncResult = await engine.EvaluateAsync(expression);
-            AssertNoFallbackInCompiledMode(expression, alderExpr);
+            AssertNoFallbackInCompiledMode(engine, expression, alderExpr);
 
             AssertResultEqual(syncResult, csharpResult, exprInfo);
             AssertResultEqual(asyncResult, csharpResult, $"[async] {exprInfo}");
@@ -60,7 +60,7 @@ public class ParityTests(CompilationMode mode)
     [TestCaseSource(nameof(DiscoverExpressions), ["TestData/ValidAsyncExpressions"])]
     public async Task AsyncExpressionsShouldPass(string csxPath)
     {
-        var (alderExpr, roslynExpr) = await LoadExpressionPair(csxPath);
+        var (alderExpr, roslynExpr) = LoadExpressionPair(csxPath);
         var exprInfo = alderExpr == roslynExpr
             ? alderExpr
             : $"Alder: {alderExpr}\nRoslyn: {roslynExpr}";
@@ -148,6 +148,7 @@ public class ParityTests(CompilationMode mode)
         Exception? alderEx = null;
         try
         {
+            // ReSharper disable once MethodHasAsyncOverload
             engine.Evaluate(expr);
         }
         catch (Exception ex)
@@ -176,11 +177,11 @@ public class ParityTests(CompilationMode mode)
         ValidateErrorCodeParity(csEx, roslynEx);
     }
 
-    private static async Task<(string AlderExpr, string RoslynExpr)> LoadExpressionPair(string csxPath)
+    private static (string AlderExpr, string RoslynExpr) LoadExpressionPair(string csxPath)
     {
         if (csxPath.EndsWith(".roslyn.csx", StringComparison.OrdinalIgnoreCase))
         {
-            var expr = (await File.ReadAllTextAsync(csxPath)).Trim();
+            var expr = File.ReadAllText(csxPath).Trim();
             return (expr, expr);
         }
 
@@ -188,7 +189,7 @@ public class ParityTests(CompilationMode mode)
         var roslynSiblingPath = csxPath.Replace(".csx", ".roslyn.csx");
 
         var roslynExpr = File.Exists(roslynSiblingPath)
-            ? (await File.ReadAllTextAsync(roslynSiblingPath)).Trim()
+            ? File.ReadAllText(roslynSiblingPath).Trim()
             : alderExpr;
 
         return (alderExpr, roslynExpr);
@@ -244,20 +245,20 @@ public class ParityTests(CompilationMode mode)
         type != null && Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute)) &&
         type.Name.Contains("AnonymousType");
 
-    private void AssertNoFallbackInCompiledMode(AlderExpression expression, string source)
+    private void AssertNoFallbackInCompiledMode(AlderEngine engine, AlderExpression expression, string source)
     {
         if (mode != CompilationMode.Compiled)
             return;
 
-        Assert.That(expression.IsCompiled, Is.True, $"Compiled mode did not produce IL delegate for: {source}");
-        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0), $"Compiled mode used fallback for: {source}");
+        Assert.That(engine.HasCompiledDelegate(expression), Is.True, $"Compiled mode did not produce IL delegate for: {source}");
+        Assert.That(engine.GetBoundFallbackCount(expression), Is.EqualTo(0), $"Compiled mode used fallback for: {source}");
     }
 
     private static void AssertResultEqual(object? result, object? expected, string exprInfo)
     {
-        if (result is IDictionary<string, object?> dict && IsAnonymousType(expected?.GetType()))
+        if (TryReadStructuralParityProperties(expected, result, out var expectedProperties, out var actualProperties))
         {
-            AssertAnonymousObjectEqual(dict, expected!);
+            AssertStructuralObjectEqual(actualProperties, expectedProperties);
             return;
         }
 
@@ -265,15 +266,71 @@ public class ParityTests(CompilationMode mode)
         Assert.That(result?.GetType(), Is.EqualTo(expected?.GetType()), $"Type mismatch.\n{exprInfo}");
     }
 
-    private static void AssertAnonymousObjectEqual(IDictionary<string, object?> dict, object anonymous)
+    private static void AssertStructuralObjectEqual(
+        IReadOnlyDictionary<string, object?> actualProperties,
+        IReadOnlyDictionary<string, object?> expectedProperties)
     {
-        var props = anonymous.GetType().GetProperties();
-        Assert.That(dict.Count, Is.EqualTo(props.Length), "Property count mismatch");
-        foreach (var prop in props)
+        Assert.That(actualProperties.Count, Is.EqualTo(expectedProperties.Count), "Property count mismatch");
+        foreach (var (name, expectedValue) in expectedProperties)
         {
-            Assert.That(dict.TryGetValue(prop.Name, out var actual), Is.True, $"Missing property '{prop.Name}'");
-            Assert.That(actual, Is.EqualTo(prop.GetValue(anonymous)), $"Property '{prop.Name}' value mismatch");
+            Assert.That(actualProperties.TryGetValue(name, out var actualValue), Is.True, $"Missing property '{name}'");
+            Assert.That(actualValue, Is.EqualTo(expectedValue), $"Property '{name}' value mismatch");
         }
+    }
+
+    private static bool TryReadStructuralParityProperties(
+        object? expected,
+        object? result,
+        out IReadOnlyDictionary<string, object?> expectedProperties,
+        out IReadOnlyDictionary<string, object?> actualProperties)
+    {
+        expectedProperties = null!;
+        actualProperties = null!;
+
+        if (expected == null || !TryReadObjectProperties(result, out actualProperties))
+            return false;
+
+        if (IsAnonymousType(expected.GetType()))
+        {
+            return TryReadObjectProperties(expected, out expectedProperties);
+        }
+
+        return false;
+    }
+
+    private static bool TryReadObjectProperties(object? value, out IReadOnlyDictionary<string, object?> properties)
+    {
+        properties = null!;
+        if (value == null)
+            return false;
+        if (value is Type)
+            return false;
+
+        if (value is IDictionary<string, object?> dict)
+        {
+            properties = new Dictionary<string, object?>(dict);
+            return true;
+        }
+
+        if (value is IReadOnlyDictionary<string, object?> readOnlyDict)
+        {
+            properties = readOnlyDict.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            return true;
+        }
+
+        var readableProperties = value.GetType()
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(property => property.CanRead && property.GetIndexParameters().Length == 0)
+            .ToArray();
+        if (readableProperties.Length == 0)
+            return false;
+
+        var propertyValues = new Dictionary<string, object?>();
+        foreach (var property in readableProperties)
+            propertyValues[property.Name] = property.GetValue(value);
+
+        properties = propertyValues;
+        return true;
     }
 
     private static IEnumerable<TestCaseData> DiscoverExpressions(string relativePath)
@@ -287,7 +344,7 @@ public class ParityTests(CompilationMode mode)
             if (file.EndsWith(".ignore.csx", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var relativeName = Path.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
+            var relativeName = TestHelpers.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
             yield return new TestCaseData(file).SetName(relativeName.Replace(".csx", "").Replace('/', '_'));
         }
     }

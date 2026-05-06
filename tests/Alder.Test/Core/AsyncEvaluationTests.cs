@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Alder.Diagnostics;
 
 namespace Alder.Test.Core;
@@ -56,6 +55,18 @@ public class AsyncEvaluationTests
         var result = await _engine.EvaluateAsync(
             "true ? await Task.FromResult(1) : await Task.FromResult(2)");
         Assert.That(result, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Await_CanBeLeftOperandOfLogicalExpression()
+    {
+        var result = await _engine.EvaluateAsync<bool>(
+            """
+            return await Task.FromResult(true) && retries < maxRetries;
+            """,
+            new { retries = 1, maxRetries = 3 });
+
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -149,17 +160,17 @@ public class AsyncEvaluationTests
     }
 
     [Test]
-    public async Task Await_NotAwaitable_Throws()
+    public void Await_NotAwaitable_Throws()
     {
-        var ex = Assert.ThrowsAsync<AlderException>(async () =>
-            await _engine.EvaluateAsync("await 42"));
+        var ex = Assert.ThrowsAsync<AlderException>(() =>
+            _engine.EvaluateAsync("await 42").AsTask());
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS4001));
     }
 
     [Test]
     public async Task Await_ValueTask_FromResult()
     {
-        var vt = ValueTask.FromResult(77);
+        var vt = new ValueTask<int>(77);
         var result = await _engine.EvaluateAsync(
             "await vt",
             new Dictionary<string, object?> { ["vt"] = vt });
@@ -170,9 +181,34 @@ public class AsyncEvaluationTests
     public async Task AlderEval_EvaluateAsync()
     {
         AlderEval.Reset();
-        var result = await AlderEval.EvaluateAsync("await Task.FromResult(100)");
+        var result = await AlderEval.GetEngine().EvaluateAsync("await Task.FromResult(100)");
         Assert.That(result, Is.EqualTo(100));
         AlderEval.Reset();
+    }
+
+    [Test]
+    public async Task AlderEval_EvaluateAsync_PreParsed_WithPositionalVariables()
+    {
+        AlderEval.Reset();
+        var engine = new AlderEngine();
+        var expression = engine.Parse("await Task.FromResult(@0 + @1)");
+
+        var result = await AlderEval.GetEngine().EvaluateAsync<int>(expression, 30, 12);
+
+        Assert.That(result, Is.EqualTo(42));
+        AlderEval.Reset();
+    }
+
+    [Test]
+    public async Task EvaluateAsync_WithAnonymousObjectVariables_DoesNotMutateParentEngine()
+    {
+        _engine.SetVariable("baseValue", 10);
+
+        var result = await _engine.EvaluateAsync<int>("baseValue + local", new { local = 5 });
+
+        Assert.That(result, Is.EqualTo(15));
+        Assert.That(_engine.Evaluate<int>("baseValue"), Is.EqualTo(10));
+        Assert.Throws<AlderException>(() => _engine.Evaluate("local"));
     }
 
     [Test]

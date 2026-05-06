@@ -4,8 +4,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Stress;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mode)
 {
     [Test]
@@ -36,7 +35,6 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     [Test]
     public void HugeStringLiteral_ShouldParseAndEvaluate()
     {
-        // 1MB string literal
         var hugeString = new string('a', 1_000_000);
         var expression = $"\"{hugeString}\"";
 
@@ -47,32 +45,20 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     [Test]
     public void UnclosedStringLiteral_Huge_ShouldFailGracefully()
     {
-        // 1MB string without closing quote
         var hugeString = new string('a', 1_000_000);
-        var expression = $"\"{hugeString}"; // Missing quote
+        var expression = $"\"{hugeString}";
 
-        Assert.Catch<Exception>(() => Engine.Parse(expression));
+        Assert.Throws<AlderException>(() => Engine.Parse(expression));
     }
 
     [Test]
-    public void UnicodeStress_ShouldHandleAllUnicodeRanges()
+    public void UnicodeIdentifier_ShouldEvaluateRegisteredVariable()
     {
-        // Identifiers with weird unicode?
-        // If the language spec supports unicode identifiers (C# does), let's see.
-        var variableName = "变_😊_variable";
+        var variableName = "变_variable";
         Engine.SetVariable(variableName, 42);
 
-        // Depending on Lexer, this might fail or succeed. 
-        // We assert something depending on success, but mostly we want no crash.
-        try
-        {
-            var result = Engine.Evaluate(variableName);
-            Assert.That(result, Is.EqualTo(42));
-        }
-        catch (Exception)
-        {
-            // If it fails to parse, that's okay, as long as it handles it.
-        }
+        var result = Engine.Evaluate(variableName);
+        Assert.That(result, Is.EqualTo(42));
     }
 
     [TestCase(100)]
@@ -93,7 +79,6 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     [Test]
     public void RandomFuzzing_ShouldNotCrash()
     {
-        // Generate completely random garbage strings and feed them to Parse
         for (int i = 0; i < 1000; i++)
         {
             var fuzz = GenerateRandomString(Random.Next(10, 200), true, true);
@@ -101,9 +86,10 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
             {
                 Engine.Parse(fuzz);
             }
+            catch (AlderException) { }
             catch (Exception)
             {
-                // Expected to fail, just shouldn't crash the runner
+                Assert.Fail($"Parser threw an unexpected exception for fuzz input at index {i}.");
             }
         }
     }

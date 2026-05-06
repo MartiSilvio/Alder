@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
@@ -52,10 +51,7 @@ internal static class DynamicCallEvaluator
         {
             var result = IdentifierRuntime.InvokeIdentifierCall(
                 identifier.Name, args, ctx.Context, typeArguments, ct);
-            ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
-            TypeHelpers.GuardReflectionLeak(result, "method", identifier.Name);
-            ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
-            return result;
+            return ResolvedCallEvaluator.FinalizeCallResult(result, args, outBindings, ctx, "method", identifier.Name, ct);
         }
 
         if (invoke.Callee is BoundMemberAccessBase memberAccess)
@@ -64,19 +60,13 @@ internal static class DynamicCallEvaluator
             var result = MethodInvoker.InvokeMemberCall(
                 target, memberAccess.MemberName, args, memberAccess.NullSafe,
                 ctx.Context, typeArguments, ct);
-            ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
-            TypeHelpers.GuardReflectionLeak(result, "method", memberAccess.MemberName);
-            ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
-            return result;
+            return ResolvedCallEvaluator.FinalizeCallResult(result, args, outBindings, ctx, "method", memberAccess.MemberName, ct);
         }
 
         var callee = ctx.Evaluate(invoke.Callee, ct);
         var invokeCallResult = MethodInvoker.InvokeCall(
             callee, args, ctx.Context, typeArguments, ct);
-        ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
-        TypeHelpers.GuardReflectionLeak(invokeCallResult, "method invocation");
-        ExecutionRuntime.CheckCollectionSize(invokeCallResult, ctx.Context.Config.Security);
-        return invokeCallResult;
+        return ResolvedCallEvaluator.FinalizeCallResult(invokeCallResult, args, outBindings, ctx, "method invocation", null, ct);
     }
 
     private static async ValueTask<object?> DispatchDynamicCallAsync(
@@ -91,10 +81,7 @@ internal static class DynamicCallEvaluator
         {
             var result = IdentifierRuntime.InvokeIdentifierCall(
                 identifier.Name, args, ctx.Context, typeArguments, ct);
-            ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
-            TypeHelpers.GuardReflectionLeak(result, "method", identifier.Name);
-            ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
-            return result;
+            return ResolvedCallEvaluator.FinalizeCallResult(result, args, outBindings, ctx, "method", identifier.Name, ct);
         }
 
         if (invoke.Callee is BoundMemberAccessBase memberAccess)
@@ -103,18 +90,12 @@ internal static class DynamicCallEvaluator
             var result = MethodInvoker.InvokeMemberCall(
                 target, memberAccess.MemberName, args, memberAccess.NullSafe,
                 ctx.Context, typeArguments, ct);
-            ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
-            TypeHelpers.GuardReflectionLeak(result, "method", memberAccess.MemberName);
-            ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
-            return result;
+            return ResolvedCallEvaluator.FinalizeCallResult(result, args, outBindings, ctx, "method", memberAccess.MemberName, ct);
         }
 
         var callee = await ctx.EvaluateAsync(invoke.Callee, ct);
         var invokeCallResult = MethodInvoker.InvokeCall(
             callee, args, ctx.Context, typeArguments, ct);
-        ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
-        TypeHelpers.GuardReflectionLeak(invokeCallResult, "method invocation");
-        ExecutionRuntime.CheckCollectionSize(invokeCallResult, ctx.Context.Config.Security);
-        return invokeCallResult;
+        return ResolvedCallEvaluator.FinalizeCallResult(invokeCallResult, args, outBindings, ctx, "method invocation", null, ct);
     }
 }

@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 using Alder.Diagnostics;
 
 namespace Alder.Runtime;
@@ -14,7 +13,7 @@ internal static partial class TypeHelpers
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
             return type.GetGenericArguments()[0];
 
-        foreach (var iface in type.GetInterfaces())
+        foreach (var iface in RuntimeTypeIntrospection.GetInterfaces(type))
         {
             if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IEnumerable<>))
                 return iface.GetGenericArguments()[0];
@@ -105,36 +104,45 @@ internal static partial class TypeHelpers
             TypeCode.Double => 0d,
             TypeCode.Decimal => 0m,
             TypeCode.DateTime => default(DateTime),
-#if NET5_0_OR_GREATER
-            _ => RuntimeHelpers.GetUninitializedObject(type)
-#else
-            _ => System.Runtime.Serialization.FormatterServices.GetUninitializedObject(type)
-#endif
+#pragma warning disable IL2067
+            _ => Activator.CreateInstance(type)!
+#pragma warning restore IL2067
         };
     }
 
     /// <summary>
-    /// Dispatches an instance-method call whose receiver is a null-boxed <see cref="Nullable{T}"/>.
-    /// Nullable&lt;T&gt; is the only CLR type where <c>default(T?)</c> boxes to a null reference,
-    /// collapsing <c>HasValue=false</c> to indistinguishable-from-null. Its struct methods
-    /// (<see cref="Nullable{T}.GetValueOrDefault()"/>, <c>Equals</c>, etc.) remain well-defined
-    /// on the default value, but reflection cannot invoke instance methods on a null target, and
-    /// <c>System.Linq.Expressions</c> is banned in the interpreted path. The small fixed set of
-    /// Nullable&lt;T&gt; methods is hardcoded here as the minimal bridge across that gap.
+    /// Bridges member access on <see cref="Nullable{T}"/> across the CLR boxing boundary.
+    /// A non-null nullable boxes as its underlying value, while <c>default(T?)</c> boxes to null.
+    /// The binder still resolves members against <c>Nullable&lt;T&gt;</c>, so runtime access must
+    /// preserve nullable semantics even when the receiver is either null or the boxed underlying value.
     /// </summary>
-    public static object? InvokeNullableInstanceMethod(Type nullableType, string methodName, object?[] args)
+    public static object? GetNullablePropertyValue(Type nullableType, object? target, string memberName)
+    {
+        _ = Nullable.GetUnderlyingType(nullableType)
+            ?? throw new InvalidOperationException($"Type '{nullableType}' is not a nullable type.");
+
+        return memberName switch
+        {
+            nameof(Nullable<int>.HasValue) => target != null,
+            nameof(Nullable<int>.Value) when target != null => target,
+            nameof(Nullable<int>.Value) => throw new InvalidOperationException("Nullable object must have a value."),
+            _ => throw new AlderException(DiagnosticDescriptors.MemberNotFound, nullableType.Name, memberName)
+        };
+    }
+
+    public static object? InvokeNullableInstanceMethod(Type nullableType, object? target, string methodName, object?[] args)
     {
         var underlyingType = Nullable.GetUnderlyingType(nullableType)
             ?? throw new InvalidOperationException($"Type '{nullableType}' is not a nullable type.");
 
         return (methodName, args.Length) switch
         {
-            (nameof(Nullable<int>.GetValueOrDefault), 0) => GetDefaultValue(underlyingType),
-            (nameof(Nullable<int>.GetValueOrDefault), 1) => args[0],
-            (nameof(Nullable<int>.Equals), 1) => args[0] == null,
-            (nameof(Nullable<int>.GetHashCode), 0) => 0,
-            (nameof(Nullable<int>.ToString), 0) => string.Empty,
-            _ => throw new AlderException(DiagnosticDescriptors.NullMethodCall, methodName)
+            (nameof(Nullable<int>.GetValueOrDefault), 0) => target ?? GetDefaultValue(underlyingType),
+            (nameof(Nullable<int>.GetValueOrDefault), 1) => target ?? args[0],
+            (nameof(Nullable<int>.Equals), 1) => target?.Equals(args[0]) ?? args[0] == null,
+            (nameof(Nullable<int>.GetHashCode), 0) => target?.GetHashCode() ?? 0,
+            (nameof(Nullable<int>.ToString), 0) => target?.ToString() ?? string.Empty,
+            _ => throw new AlderException(DiagnosticDescriptors.MemberNotFound, nullableType.Name, methodName)
         };
     }
 

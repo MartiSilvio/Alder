@@ -1,5 +1,6 @@
 using Alder.Binding.Services;
 using Alder.Runtime;
+using Alder.Runtime.OverloadResolution;
 
 namespace Alder.Test.Runtime;
 
@@ -11,11 +12,14 @@ public sealed class PlannedCallInvokerTests
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
-        binder.TryBindInstanceCall(
+        binder.TryBindCall(
             typeof(PlannedInvocationTarget),
             nameof(PlannedInvocationTarget.WithOptional),
-            [typeof(int)],
-            isCaseSensitive: true, out var plan);
+            ArgumentDescriptor.FromTypes([typeof(int)]),
+            isStaticCall: false,
+            isCaseSensitive: true,
+            typeArgs: null,
+            out var plan);
 
         var resolved = plan!.Resolution;
         Assert.That(ArgumentPreparer.IsDirectMapping(resolved, [7], MethodDispatchCache.GetParameters(resolved.Method)), Is.False);
@@ -33,11 +37,14 @@ public sealed class PlannedCallInvokerTests
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
-        binder.TryBindInstanceCall(
+        binder.TryBindCall(
             typeof(PlannedInvocationTarget),
             nameof(PlannedInvocationTarget.Sum),
-            [typeof(int), typeof(int), typeof(int), typeof(int)],
-            isCaseSensitive: true, out var plan);
+            ArgumentDescriptor.FromTypes([typeof(int), typeof(int), typeof(int), typeof(int)]),
+            isStaticCall: false,
+            isCaseSensitive: true,
+            typeArgs: null,
+            out var plan);
 
         var resolved = plan!.Resolution;
         object?[] args = [1, 2, 3, 4];
@@ -56,11 +63,14 @@ public sealed class PlannedCallInvokerTests
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
-        binder.TryBindInstanceCall(
+        binder.TryBindCall(
             typeof(PlannedInvocationTarget),
             nameof(PlannedInvocationTarget.Echo),
-            [typeof(int)],
-            isCaseSensitive: true, out var plan);
+            ArgumentDescriptor.FromTypes([typeof(int)]),
+            isStaticCall: false,
+            isCaseSensitive: true,
+            typeArgs: null,
+            out var plan);
 
         var resolved = plan!.Resolution;
         object?[] args = [7];

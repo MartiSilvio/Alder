@@ -5,6 +5,39 @@ namespace Alder;
 
 public sealed partial class AlderEngine
 {
+    private readonly record struct ParseAttempt(
+        AlderExpression? Expression,
+        IReadOnlyList<AlderDiagnostic> Diagnostics)
+    {
+        internal bool Success => Expression != null && Diagnostics.Count == 0;
+    }
+
+    private ParseAttempt ParseCore(string expression)
+    {
+        var diagnostics = new AlderDiagnosticBag();
+
+        try
+        {
+            var lexer = new Lexer(expression);
+            var tokens = lexer.Tokenize();
+
+            var parser = ExpressionParser.CreateForSubExpression(tokens, _config.LanguageMode);
+            var ast = parser.Parse();
+
+            return new ParseAttempt(new AlderExpression(expression, ast), diagnostics.ToReadOnly());
+        }
+        catch (InsufficientExecutionStackException ex)
+        {
+            diagnostics.Add(new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded, ex));
+        }
+        catch (Exception ex) when (!ShouldRethrowTryApiException(ex))
+        {
+            diagnostics.Add(ex);
+        }
+
+        return new ParseAttempt(null, diagnostics.ToReadOnly());
+    }
+
     /// <summary>
     /// Parses source into a reusable <see cref="AlderExpression"/>.
     /// </summary>
@@ -16,20 +49,11 @@ public sealed partial class AlderEngine
     {
         if (expression is null) throw new ArgumentNullException(nameof(expression));
         ThrowIfDisposed();
-        try
-        {
-            var lexer = new Lexer(expression);
-            var tokens = lexer.Tokenize();
+        var attempt = ParseCore(expression);
+        if (attempt.Success)
+            return attempt.Expression!;
 
-            var parser = ExpressionParser.CreateForSubExpression(tokens, _config.LanguageMode);
-            var ast = parser.Parse();
-
-            return new AlderExpression(expression, ast, _expressionCache);
-        }
-        catch (InsufficientExecutionStackException)
-        {
-            throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
-        }
+        throw AlderException.FromDiagnostics(attempt.Diagnostics);
     }
 
     /// <summary>
@@ -37,28 +61,15 @@ public sealed partial class AlderEngine
     /// </summary>
     /// <param name="expression">Expression source to parse.</param>
     /// <param name="result">When successful, the parsed expression; otherwise, <c>null</c>.</param>
-    /// <param name="error">When parsing fails, the error message; otherwise, <c>null</c>.</param>
+    /// <param name="diagnostics">When parsing fails, the structured diagnostics; otherwise, an empty list.</param>
     /// <returns><c>true</c> if parsing succeeded; otherwise, <c>false</c>.</returns>
-    public bool TryParse(string expression, out AlderExpression? result, out string? error)
+    public bool TryParse(string expression, out AlderExpression? result, out IReadOnlyList<AlderDiagnostic> diagnostics)
     {
+        if (expression is null) throw new ArgumentNullException(nameof(expression));
         ThrowIfDisposed();
-        try
-        {
-            result = Parse(expression);
-            error = null;
-            return true;
-        }
-        catch (Exception ex) when (!ShouldRethrowTryApiException(ex))
-        {
-            result = null;
-            error = ex.Message;
-            return false;
-        }
-    }
-
-    /// <inheritdoc cref="TryParse(string, out AlderExpression?, out string?)"/>
-    public bool TryParse(string expression, out AlderExpression? result)
-    {
-        return TryParse(expression, out result, out _);
+        var attempt = ParseCore(expression);
+        result = attempt.Expression;
+        diagnostics = attempt.Diagnostics;
+        return attempt.Success;
     }
 }

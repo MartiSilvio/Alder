@@ -1,5 +1,6 @@
 using System.Dynamic;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis.CSharp;
@@ -69,6 +70,14 @@ public static class TestHelpers
         return File.ReadAllText(fullPath).Trim();
     }
 
+    public static string GetRelativePath(string relativeTo, string path)
+    {
+        var baseUri = new Uri(AppendDirectorySeparatorChar(Path.GetFullPath(relativeTo)));
+        var pathUri = new Uri(Path.GetFullPath(path));
+        return Uri.UnescapeDataString(baseUri.MakeRelativeUri(pathUri).ToString())
+            .Replace('/', Path.DirectorySeparatorChar);
+    }
+
 
     public static IDictionary<string, object?> CreateItem(string name, double price)
     {
@@ -76,6 +85,24 @@ public static class TestHelpers
         item["Name"] = name;
         item["Price"] = price;
         return item;
+    }
+
+    public static object? ReadProjectedMember(object? value, string name)
+    {
+        if (value == null)
+            throw new AssertionException($"Cannot read projected member '{name}' from null.");
+
+        if (value is IReadOnlyDictionary<string, object?> readOnlyDict &&
+            readOnlyDict.TryGetValue(name, out var dictValue))
+        {
+            return dictValue;
+        }
+
+        var property = value.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+        if (property == null)
+            throw new AssertionException($"Projected member '{name}' was not found on '{value.GetType().Name}'.");
+
+        return property.GetValue(value);
     }
 
     public static async Task<object?> EvaluateCSharpAsync(string code)
@@ -135,6 +162,11 @@ public static class TestHelpers
         var match = RoslynCodeRegex.Match(message);
         return match.Success ? match.Value : null;
     }
+
+    private static string AppendDirectorySeparatorChar(string path) =>
+        path.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+            ? path
+            : path + Path.DirectorySeparatorChar;
 
     private static string? TrySerializeList(IList list)
     {

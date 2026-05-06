@@ -7,8 +7,7 @@ namespace Alder.Test.Types;
 /// Engine-only tests for structural/type assertions and API tests.
 /// Parity tests migrated to TestData/Types/Tuple/*.csx and Parity/TupleTests.cs.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class TupleTests(CompilationMode mode)
 {
     #region Engine-only: Named tuple internal API tests
@@ -99,7 +98,7 @@ public class TupleTests(CompilationMode mode)
         var result = engine.Evaluate("(1, 2, 3, 4, 5, 6, 7, 8)");
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
-        Assert.That(((System.Runtime.CompilerServices.ITuple)result).Length, Is.EqualTo(8));
+        Assert.That(result, Is.EqualTo((1, 2, 3, 4, 5, 6, 7, 8)));
     }
 
     #endregion

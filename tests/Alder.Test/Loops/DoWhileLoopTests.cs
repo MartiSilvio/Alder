@@ -2,15 +2,12 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Loops;
 
-// Engine-only: Remaining tests use SetVariable, Alder-specific configuration (Constraints, CancellationToken),
-// Alder collection expression syntax ([...], [..spread]), anonymous objects as IDictionary, or test parsing API (TryParse).
-// Execution semantics tests migrated to TestData/Loops/DoWhileLoop/*.csx
+// Engine-only: this file keeps only do-while-specific behavior that still adds signal
+// beyond the shared limit/cancellation/parsing API suites.
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class DoWhileLoopTests(CompilationMode mode)
 {
-
     // Engine-only: SetVariable
     [Test]
     public void DoWhileLoop_WithExternalVariable_ModifiesCorrectly()
@@ -98,9 +95,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(100));
     }
 
-
-
-    // Engine-only: anonymous objects as IDictionary<string, object?>
+    // Engine-only: structural object projections
     [Test]
     public void DoWhileLoop_BuildingObjects_WorksCorrectly()
     {
@@ -114,146 +109,10 @@ public class DoWhileLoopTests(CompilationMode mode)
                 i = i + 1;
             } while (i < 3);
             return lastObj;
-        }") as IDictionary<string, object?>;
+        }");
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["Index"], Is.EqualTo(2));
-        Assert.That(result["Squared"], Is.EqualTo(4));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Index"), Is.EqualTo(2));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Squared"), Is.EqualTo(4));
     }
-
-
-
-    // Engine-only: Constraints (Alder-specific configuration)
-    [Test]
-    public void DoWhileLoop_ExceedsMaxStatements_ThrowsException()
-    {
-        var engine = TestEngineFactory.Create(mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = 1000 });
-
-        var ex = Assert.Throws<AlderExecutionLimitException>(() =>
-            engine.Evaluate(@"
-            {
-                var i = 0;
-                do {
-                    i = i + 1;
-                } while (true);
-                return i;
-            }"));
-
-        Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.Statements));
-    }
-
-    // Engine-only: Constraints (Alder-specific configuration)
-    [Test]
-    public void DoWhileLoop_WithCustomMaxStatements_UsesConfiguredLimit()
-    {
-        var engine = TestEngineFactory.Create(mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = 10 });
-
-        var ex = Assert.Throws<AlderExecutionLimitException>(() =>
-            engine.Evaluate(@"
-            {
-                var i = 0;
-                do {
-                    i = i + 1;
-                } while (true);
-                return i;
-            }"));
-
-        Assert.That(ex!.LimitValue, Is.EqualTo(10));
-    }
-
-    // Engine-only: Constraints (Alder-specific configuration)
-    [Test]
-    public void DoWhileLoop_WithNoConstraints_AllowsManyIterations()
-    {
-        var engine = TestEngineFactory.Create(mode);
-
-        var result = engine.Evaluate(@"
-        {
-            var count = 0;
-            var i = 0;
-            do {
-                count = count + 1;
-                i = i + 1;
-            } while (i < 200000);
-            return count;
-        }");
-
-        Assert.That(result, Is.EqualTo(200000));
-    }
-
-    // Engine-only: CancellationToken (Alder-specific configuration)
-    [Test]
-    public void DoWhileLoop_WithCancellationToken_CanBeCancelled()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        using var cts = new CancellationTokenSource();
-
-        var task = Task.Run(() =>
-        {
-            return engine.Evaluate(@"
-            {
-                var i = 0;
-                do {
-                    i = i + 1;
-                } while (i < 1000000000);
-                return i;
-            }", cancellationToken: cts.Token);
-        });
-
-        Thread.Sleep(100);
-        cts.Cancel();
-
-        Assert.ThrowsAsync<OperationCanceledException>(() => task);
-    }
-
-
-
-    // Engine-only: TryParse API (Alder-specific)
-    [Test]
-    public void DoWhileLoop_TryParse_ValidExpression_Succeeds()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("{ var i = 0; do { i = i + 1; } while (i < 5); return i; }", out var expr, out var error);
-
-        Assert.That(success, Is.True);
-        Assert.That(expr, Is.Not.Null);
-        Assert.That(error, Is.Null);
-    }
-
-    // Engine-only: TryParse API (Alder-specific)
-    [Test]
-    public void DoWhileLoop_TryParse_WithoutSemicolon_StillWorks()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        var success = engine.TryParse("{ var i = 0; do { i = i + 1; } while (i < 5) return i; }", out var expr, out var error);
-
-        Assert.That(success, Is.True);
-        Assert.That(expr, Is.Not.Null);
-    }
-
-    // Engine-only: Parse/SetVariable API (Alder-specific), pre-parsed expression reuse
-    [Test]
-    public void DoWhileLoop_PreParsed_CanBeEvaluatedMultipleTimes()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        var expr = engine.Parse(@"
-        {
-            var sum = 0;
-            var i = 0;
-            do {
-                sum = sum + i;
-                i = i + 1;
-            } while (i < limit);
-            return sum;
-        }");
-
-        engine.SetVariable("limit", 5L);
-        var result1 = engine.Evaluate(expr);
-        Assert.That(result1, Is.EqualTo(10));
-
-        engine.SetVariable("limit", 10);
-        var result2 = engine.Evaluate(expr);
-        Assert.That(result2, Is.EqualTo(45));
-    }
-
 }

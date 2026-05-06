@@ -54,7 +54,7 @@ public sealed partial class AlderEngine
 
         foreach (var (name, info) in _config.Modules)
         {
-            result[name] = new RegisteredModule(info.Type, info.Instance, info.Members);
+            result[name] = new RegisteredModule(info.Type, info.Instance, info.Members.Keys.ToArray());
         }
 
         return result;
@@ -65,8 +65,8 @@ public sealed partial class AlderEngine
     /// </summary>
     /// <param name="Type">The .NET type that provides the module's methods and properties.</param>
     /// <param name="Instance">An optional pre-created instance for instance methods; <c>null</c> if the engine creates one on demand.</param>
-    /// <param name="Members">The members exposed to expressions, keyed by name.</param>
-    public sealed record RegisteredModule(Type Type, object? Instance, IReadOnlyDictionary<string, MemberInfo>? Members);
+    /// <param name="MemberNames">The member names exposed to expressions.</param>
+    public sealed record RegisteredModule(Type Type, object? Instance, IReadOnlyList<string>? MemberNames);
 
     private void DefineOrStageVariable(string name, object? value, Type inferredType)
     {
@@ -87,7 +87,7 @@ public sealed partial class AlderEngine
 
     internal void SetTypedVariablesFromObject(object obj)
     {
-        var entries = ToTypedVariables(obj);
+        var entries = VariableBindingProjector.ProjectTypedVariables(obj);
         foreach (var (name, value, type) in entries)
             DefineOrStageVariable(name, value, type);
     }
@@ -95,8 +95,8 @@ public sealed partial class AlderEngine
     /// <summary>
     /// Sets multiple variables from a dictionary, using each value's runtime
     /// type for binding instead of erasing to <see cref="object"/>. Use this
-    /// overload when injecting dynamically-sourced inputs (JSON payloads, agent
-    /// tool arguments, user forms) so overload resolution and member access
+    /// overload when injecting dynamically-sourced inputs (JSON payloads, tool
+    /// arguments, user forms) so overload resolution and member access
     /// bind against the concrete types an expression actually needs.
     /// </summary>
     /// <param name="variables">Variable name/value pairs. Values of

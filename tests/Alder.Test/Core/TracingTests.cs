@@ -3,8 +3,7 @@ using Alder.Tracing;
 
 namespace Alder.Test.Core;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class TracingTests(CompilationMode mode)
 {
     [Test]
@@ -111,6 +110,21 @@ public class TracingTests(CompilationMode mode)
 
         Assert.That(trace.Result, Is.EqualTo(93.0));
         Assert.That(trace.Tree.Children, Has.Count.EqualTo(2));
+    }
+
+    [Test]
+    public void EvaluateWithTrace_UsesEvaluationCancellationToken()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var trace = engine.EvaluateWithTrace(
+            "return ((Func<int>)(() => 1))();",
+            cancellationToken: cts.Token);
+
+        Assert.That(trace.Result, Is.Null);
+        Assert.That(trace.Error, Is.TypeOf<OperationCanceledException>());
     }
 
     private static void PrintTree(TraceNode node, string prefix = "", bool isLast = true)

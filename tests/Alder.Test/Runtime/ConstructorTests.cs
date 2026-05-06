@@ -8,8 +8,7 @@ namespace Alder.Test.Runtime;
 /// All tests engine-only: reference type identity not value-comparable (new Object(), new Exception()),
 /// deterministic Random seed comparison, error assertion (AlderException).
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class ConstructorTests(CompilationMode mode)
 {
 

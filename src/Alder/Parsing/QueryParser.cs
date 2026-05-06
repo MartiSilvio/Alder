@@ -388,7 +388,7 @@ internal sealed class QueryParser : ParserBase
     /// Parses: group elementExpr by keyExpr
     /// Desugars to: source.GroupBy(param => keyExpr) for identity projection,
     /// or source.GroupBy(param => keyExpr, param => elementExpr) for custom projection.
-    /// ECMA-334 §12.20.3.9
+    /// ECMA-334 §12.20.3.7
     /// </summary>
     private Expr ParseGroupByClause(Expr source, QueryScope scope)
     {
@@ -474,8 +474,7 @@ internal sealed class QueryParser : ParserBase
     }
 
     /// <summary>
-    /// Creates an anonymous object expression: new { prop1 = val1, prop2 = val2, ... }
-    /// Uses ObjectLiteralExpr which produces ExpandoObject at runtime.
+    /// Creates a structural object projection expression: new { prop1 = val1, prop2 = val2, ... }.
     /// </summary>
     private static ObjectLiteralExpr MakeAnonymousObject(params (string name, Expr value)[] properties)
     {

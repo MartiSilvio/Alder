@@ -1,4 +1,5 @@
 using Alder.Binding.BoundNodes;
+using Alder.Binding.Services;
 using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
@@ -19,9 +20,8 @@ internal static class IncrementDecrementBinder
                 expr.Name.Lexeme, "foreach iteration variable");
         if (readOnlyReason != ReadOnlyReason.None)
             throw new AlderException(DiagnosticDescriptors.IncrementDecrementRequiresVariable);
-        var staticType = context.TryGetVariableType(expr.Name.Lexeme, out var variableType)
-            ? variableType
-            : BoundType.Unknown;
+        var target = NamedTargetBindingService.Resolve(expr.Name.Lexeme, context, BoundType.Unknown);
+        var staticType = target.StaticType;
         // §12.8.15 / CS0023: ++ and -- are only defined on numeric, char, enum, and pointer types.
         if (staticType is not BoundUnknownType)
         {
@@ -32,12 +32,11 @@ internal static class IncrementDecrementBinder
                 throw new AlderException(DiagnosticDescriptors.BadUnaryOp, opLexeme, clrType.Name);
             }
         }
-        var isIdLocal = context.TryGetLocal(expr.Name.Lexeme, out _, out var idLocalId);
         return new BoundIncrementDecrementExpr(
             expr.Name.Lexeme,
             expr.Op.Type,
             expr.IsPrefix,
             staticType,
-            isIdLocal ? idLocalId : null);
+            target.LocalId);
     }
 }

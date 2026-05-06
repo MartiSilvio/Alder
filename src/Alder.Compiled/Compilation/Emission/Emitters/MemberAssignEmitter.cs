@@ -1,7 +1,6 @@
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Compilation;
-using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
@@ -33,7 +32,7 @@ internal static class MemberAssignEmitter
 
     private static LinqExpression EmitResolved(BoundMemberAssignExpr node, MemberInfo member, Type valueType, EmissionContext ctx)
     {
-        if (ctx.PreferResolvedRuntimeDispatch)
+        if (ctx.ResolvedDispatchMode == ResolvedDispatchMode.RuntimeDispatch)
         {
             var runtimeCall = LinqExpression.Call(
                 SetResolvedMemberMethod,

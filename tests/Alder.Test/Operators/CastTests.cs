@@ -11,8 +11,7 @@ namespace Alder.Test.Operators;
 /// §10.3.7 — Unboxing conversions, §10.3.2 — Explicit numeric conversions.
 /// Tests explicit casts, nullable casts, unboxing rules, and conversion edge cases.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class CastTests(CompilationMode mode)
 {
 

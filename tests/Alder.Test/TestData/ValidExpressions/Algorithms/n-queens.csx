@@ -83,24 +83,6 @@ while (row >= 0)
     }
 }
 
-// Verify first solution: no two queens attack each other
-var firstValid = true;
-if (firstSolution.Length > 0)
-{
-    // Parse first solution back into positions
-    var fCols = new int[8];
-    var digitIdx = 0;
-    for (var i = 0; i < n; i++)
-    {
-        // Parse single digit at known positions (0,2,4,6,8,10,12,14)
-        var charVal = i * 2; // position in "d,d,d,d,d,d,d,d" format
-        // Instead, just re-decode - we know firstSolution is "d,d,d,d,d,d,d,d"
-        fCols[i] = -1; // Will verify differently
-    }
-    // Actually verify by re-solving: first solution of 8-queens is always 0,4,7,5,2,6,1,3
-    // We can just check the count is correct (92 solutions for 8-queens is a known result)
-}
-
 // Known facts about 8-queens
 var expectedSolutions = 92;
 var countCorrect = solutionCount == expectedSolutions;

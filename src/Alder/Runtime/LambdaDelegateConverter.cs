@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Alder.Aot;
 using Alder.Diagnostics;
 using Alder.Runtime.Collections;
 
@@ -24,8 +26,7 @@ internal static class LambdaDelegateConverter
         {
             CompiledLambdaValue compiled => ConvertLambda(compiled, compiled.Parameters.Count, delegateType),
             LambdaValue interpreted => ConvertLambda(interpreted, interpreted.Parameters.Count, delegateType),
-            StaticMethodRef staticRef => ConvertMethodRef(staticRef.Type, staticRef.MethodName, null, delegateType),
-            ModuleMethodRef moduleRef => ConvertMethodRef(moduleRef.Method.DeclaringType!, moduleRef.Method.Name, moduleRef.Module.Instance, delegateType),
+            ModuleMethodRef moduleRef => ConvertMethodRef(moduleRef.Module.Type, moduleRef.MethodName, moduleRef.Module.Instance, delegateType),
             MethodRef { Target: Type staticType } methodRef => ConvertMethodRef(staticType, methodRef.MethodName, null, delegateType),
             MethodRef instanceRef => ConvertMethodRef(instanceRef.Target.GetType(), instanceRef.MethodName, instanceRef.Target, delegateType),
             _ => null
@@ -51,16 +52,9 @@ internal static class LambdaDelegateConverter
     /// </summary>
     private static (Type[]? ParamTypes, Type ReturnType) GetDelegateSignature(Type delegateType)
     {
-        var invoke = delegateType.GetMethod(nameof(Action.Invoke));
-        if (invoke == null)
+        if (!DelegateShapeInspector.TryGetSignature(delegateType, out var paramTypes, out var returnType))
             return (null, typeof(void));
-
-        var parameters = invoke.GetParameters();
-        var paramTypes = new Type[parameters.Length];
-        for (var i = 0; i < parameters.Length; i++)
-            paramTypes[i] = parameters[i].ParameterType;
-
-        return (paramTypes, invoke.ReturnType);
+        return (paramTypes, returnType);
     }
 
     private static Delegate? ConvertLambda(object lambda, int paramCount, Type delegateType)
@@ -69,8 +63,17 @@ internal static class LambdaDelegateConverter
         if (paramTypes == null || paramCount != paramTypes.Length)
             return null;
 
+        var rootedDelegateTypes = lambda switch
+        {
+            CompiledLambdaValue compiledLambda => compiledLambda.Closure.Config.RootedDelegateTypes,
+            LambdaValue interpretedLambda => interpretedLambda.Closure.Config.RootedDelegateTypes,
+            _ => null
+        };
+
         // Build Func<>/Action<> equivalent for the factory
-        var funcActionType = IsSupportedDelegateType(delegateType) ? delegateType : BuildFuncActionType(paramTypes, returnType);
+        var funcActionType = IsSupportedDelegateType(delegateType)
+            ? delegateType
+            : BuildFuncActionType(paramTypes, returnType, rootedDelegateTypes);
         if (funcActionType == null)
             return null;
 
@@ -113,7 +116,7 @@ internal static class LambdaDelegateConverter
         var flags = target != null
             ? BindingFlags.Public | BindingFlags.Instance
             : BindingFlags.Public | BindingFlags.Static;
-        var method = declaringType.GetMethod(methodName, flags, null, paramTypes, null);
+        var method = RuntimeTypeIntrospection.FindMethod(declaringType, methodName, flags, paramTypes);
         if (method == null)
             return null;
 
@@ -122,13 +125,19 @@ internal static class LambdaDelegateConverter
             : Delegate.CreateDelegate(delegateType, method);
     }
 
-    private static Type? BuildFuncActionType(Type[] paramTypes, Type returnType)
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+    private static Type? BuildFuncActionType(
+        Type[] paramTypes,
+        Type returnType,
+        IReadOnlyCollection<RootedType>? rootedDelegateTypes)
     {
         if (returnType == typeof(void))
         {
             if (paramTypes.Length == 0) return typeof(Action);
             var openAction = GetOpenActionType(paramTypes.Length);
-            return openAction?.MakeGenericType(paramTypes);
+            return openAction != null
+                ? RuntimeGenericClosure.CloseType(openAction, paramTypes, rootedDelegateTypes)
+                : null;
         }
 
         var openFunc = GetOpenFuncType(paramTypes.Length + 1);
@@ -136,7 +145,7 @@ internal static class LambdaDelegateConverter
         var genericArgs = new Type[paramTypes.Length + 1];
         Array.Copy(paramTypes, genericArgs, paramTypes.Length);
         genericArgs[^1] = returnType;
-        return openFunc.MakeGenericType(genericArgs);
+        return RuntimeGenericClosure.CloseType(openFunc, genericArgs, rootedDelegateTypes);
     }
 
     private static FixedSet<Type> CreateOpenGenericDelegateSet(string delegateName, int minArity, int maxArity)

@@ -26,7 +26,7 @@ internal static partial class TypeHelpers
 
         foreach (var declaringType in searchTypes)
         {
-            foreach (var method in ReflectionRuntime.GetMethods(declaringType, flags))
+            foreach (var method in RuntimeTypeIntrospection.GetMethods(declaringType, flags))
             {
                 if (method.Name is not ("op_Explicit" or "op_Implicit"))
                     continue;
@@ -145,7 +145,7 @@ internal static partial class TypeHelpers
 
         foreach (var declaringType in searchTypes)
         {
-            foreach (var method in ReflectionRuntime.GetMethods(declaringType, flags))
+            foreach (var method in RuntimeTypeIntrospection.GetMethods(declaringType, flags))
             {
                 if (method.Name != "op_Implicit")
                     continue;

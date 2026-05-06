@@ -15,8 +15,11 @@ namespace Alder.Benchmarks;
 [CategoriesColumn]
 public class CompilationAmortizationBenchmarks
 {
-    [Params(1, 5, 10, 50, 100, 500, 1_000)]
+    [ParamsSource(nameof(ReuseCounts))]
     public int ReuseCount { get; set; }
+
+    public IEnumerable<int> ReuseCounts() =>
+        BenchmarkProfileContext.CurrentDefinition.CompilationReuseCounts;
 
     private const string ScalarExpr = "Math.Abs(x - y) + Math.Max(y, z) * 2";
     private const string LinqExpr = "products.Where(p => p.Price > 100m && p.IsActive).Count()";
@@ -86,19 +89,6 @@ public class CompilationAmortizationBenchmarks
     public object Compiled_LINQ()
     {
         using var engine = new AlderEngine(new AlderOptions().UseCompiler());
-        BenchmarkBase.ApplyVariables(engine, _data);
-        var expr = engine.Parse(LinqExpr);
-        object? result = null;
-        for (int i = 0; i < ReuseCount; i++)
-            result = engine.Evaluate(expr);
-        return result!;
-    }
-
-    [Benchmark]
-    [BenchmarkCategory("Operational/CompilationAmortization/Linq")]
-    public object CompiledFec_LINQ()
-    {
-        using var engine = new AlderEngine(new AlderOptions().UseCompiler(new FastExpressionCompilerAdapter()));
         BenchmarkBase.ApplyVariables(engine, _data);
         var expr = engine.Parse(LinqExpr);
         object? result = null;

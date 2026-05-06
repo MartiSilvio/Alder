@@ -140,8 +140,6 @@ internal static class PatternRuntime
                 default:
                     throw new AlderException(DiagnosticDescriptors.PatternNotImplemented, pattern.GetType().Name);
             }
-
-            break;
         }
     }
 

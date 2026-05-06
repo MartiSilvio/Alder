@@ -8,6 +8,7 @@ public class StringExtensionTests
     {
         AlderEval.Reset();
     }
+
     [Test]
     public void Eval_SimpleArithmetic()
     {
@@ -37,6 +38,7 @@ public class StringExtensionTests
     {
         Assert.That("1.5 + 2.5".Evaluate<double>(), Is.EqualTo(4.0));
     }
+
     [Test]
     public void Eval_WithDictionaryVariables()
     {
@@ -50,6 +52,7 @@ public class StringExtensionTests
         var vars = new Dictionary<string, object?> { ["a"] = 100 };
         Assert.That("a + 1".Evaluate(vars), Is.EqualTo(101));
     }
+
     [Test]
     public void Eval_WithAnonymousObject()
     {
@@ -61,12 +64,14 @@ public class StringExtensionTests
     {
         Assert.That("a - b".Evaluate(new { a = 10, b = 3 }), Is.EqualTo(7));
     }
+
     [Test]
     public void Eval_UsesGlobalConfig()
     {
         AlderEval.Configure(o => o.LanguageMode = LanguageMode.Extended);
         Assert.That("2 ** 10".Evaluate<int>(), Is.EqualTo(1024));
     }
+
     [Test]
     public void Eval_InvalidExpression_Throws()
     {

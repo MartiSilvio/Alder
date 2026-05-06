@@ -3,8 +3,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Integration;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class AttributeRegistrationTests(CompilationMode mode)
 {
     [Test]
@@ -46,6 +45,16 @@ public class AttributeRegistrationTests(CompilationMode mode)
     }
 
     [Test]
+    public void Module_WithMixedStaticAndInstanceOverloads_ChoosesCorrectTargetKind()
+    {
+        var instance = new MixedModule("prefix");
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.RegisterFromType(instance));
+
+        Assert.That(engine.Evaluate("""Mixed.Choose("x")"""), Is.EqualTo("prefix:x"));
+        Assert.That(engine.Evaluate("""Mixed.Choose(5)"""), Is.EqualTo(10));
+    }
+
+    [Test]
     public void StaticMethods()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Modules.RegisterFromType<StaticHelpers>());
@@ -77,6 +86,15 @@ public class AttributeRegistrationTests(CompilationMode mode)
         var result = engine.Evaluate("""Greeter.SayHello("World") """);
         Assert.That(result, Is.EqualTo("Hola, World!"));
     }
+
+    [Test]
+    public void GlobalFunction_Exception_IsNotWrappedInTargetInvocationException()
+    {
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.RegisterFromType<ThrowingGlobalFunctions>());
+
+        var ex = Assert.Throws<InvalidOperationException>(() => engine.Evaluate("explode()"));
+        Assert.That(ex!.Message, Is.EqualTo("boom"));
+    }
 }
 
 #region Test Fixtures
@@ -101,6 +119,12 @@ public class StaticHelpers
     public static bool IsEven(long value) => value % 2 == 0;
 }
 
+public class ThrowingGlobalFunctions
+{
+    [AlderFunction("explode")]
+    public static int Explode() => throw new InvalidOperationException("boom");
+}
+
 [AlderModule("CustomMath")]
 public class CustomMathModule
 {
@@ -112,6 +136,13 @@ public class CustomMathModule
 public class GreeterModule(string greeting)
 {
     public string SayHello(string name) => $"{greeting}, {name}!";
+}
+
+[AlderModule("Mixed")]
+public class MixedModule(string prefix)
+{
+    public string Choose(string value) => $"{prefix}:{value}";
+    public static int Choose(int value) => value * 2;
 }
 
 [AlderModule("AssemblyTest")]
@@ -126,7 +157,8 @@ public class SimpleServiceProvider : IServiceProvider
 
     public void Register<T>(T service) where T : class => _services[typeof(T)] = service;
 
-    public object? GetService(Type serviceType) => _services.GetValueOrDefault(serviceType);
+    public object? GetService(Type serviceType) =>
+        _services.TryGetValue(serviceType, out var service) ? service : null;
 }
 
 #endregion

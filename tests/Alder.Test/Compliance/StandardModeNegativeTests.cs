@@ -8,8 +8,7 @@ namespace Alder.Test.Compliance;
 /// Proves every Extended-only feature is rejected in Standard mode with the correct
 /// exception type and FeatureName, and that each feature works in Extended mode.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class StandardModeNegativeTests(CompilationMode mode)
 {
     private Action<AlderOptions> StandardOptions => o => o.LanguageMode = LanguageMode.Standard;
@@ -71,19 +70,18 @@ public class StandardModeNegativeTests(CompilationMode mode)
         engine.SetVariable("obj", obj);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("new { ..obj }"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     [Test]
-    public void ExtendedMode_AcceptsSpreadInObject()
+    public void ExtendedMode_RejectsSpreadInObject()
     {
         var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         IDictionary<string, object?> obj = new ExpandoObject();
         obj["A"] = 1;
         engine.SetVariable("obj", obj);
-        var result = engine.Evaluate("new { ..obj }") as IDictionary<string, object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1));
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("new { ..obj }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     // 5. === strict equality
@@ -380,37 +378,6 @@ public class StandardModeNegativeTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.Catch<AlderException>(() => engine.Evaluate(""" "abc" * 3"""));
-    }
-
-    // 15. Object merge via + (Extended: merges dictionaries; Standard: throws CS0019)
-
-    [Test]
-    public void StandardMode_RejectsObjectMerge()
-    {
-        var engine = TestEngineFactory.Create(mode, StandardOptions);
-        IDictionary<string, object?> left = new ExpandoObject();
-        left["A"] = 1;
-        IDictionary<string, object?> right = new ExpandoObject();
-        right["B"] = 2;
-        engine.SetVariable("left", left);
-        engine.SetVariable("right", right);
-        Assert.Catch<AlderException>(() => engine.Evaluate("left + right"));
-    }
-
-    [Test]
-    public void ExtendedMode_AcceptsObjectMerge()
-    {
-        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
-        IDictionary<string, object?> left = new ExpandoObject();
-        left["A"] = 1;
-        IDictionary<string, object?> right = new ExpandoObject();
-        right["B"] = 2;
-        engine.SetVariable("left", left);
-        engine.SetVariable("right", right);
-        var result = engine.Evaluate("left + right") as IDictionary<string, object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1));
-        Assert.That(result["B"], Is.EqualTo(2));
     }
 
     [Test]

@@ -1,11 +1,11 @@
 using System.Collections.Immutable;
+using Alder.Runtime;
 
 namespace Alder.Binding;
 
 /// <summary>
 /// The binder's type representation. Wraps a CLR <see cref="System.Type"/> and optionally
-/// carries structural member metadata for types whose CLR type cannot encode their shape
-/// (e.g., ExpandoObject-backed anonymous objects where reflection returns no properties).
+/// carries structural member metadata for types whose CLR type alone is not the full semantic story.
 /// </summary>
 internal class BoundType : IEquatable<BoundType>
 {
@@ -53,13 +53,13 @@ internal sealed class BoundVoidType : BoundType
 }
 
 /// <summary>
-/// A resolved type with structural member metadata for types whose CLR type cannot
-/// encode their shape (e.g., ExpandoObject-backed anonymous objects).
+/// A resolved type with structural member metadata.
 /// </summary>
 internal sealed class BoundStructuralType : BoundType
 {
     private readonly ImmutableDictionary<string, Type> _memberTypes;
     public override ImmutableDictionary<string, Type>? MemberTypes => _memberTypes;
+    public StructuralObjectTypeInfo? StructuralInfo { get; }
 
     /// <summary>
     /// For named tuple types: ordered element names matching the ValueTuple generic arg positions.
@@ -67,11 +67,15 @@ internal sealed class BoundStructuralType : BoundType
     /// </summary>
     public ImmutableArray<string?> TupleElementNames { get; }
 
-    public BoundStructuralType(Type clrType, ImmutableDictionary<string, Type> memberTypes,
-        ImmutableArray<string?> tupleElementNames = default) : base(clrType)
+    public BoundStructuralType(
+        Type clrType,
+        ImmutableDictionary<string, Type> memberTypes,
+        ImmutableArray<string?> tupleElementNames = default,
+        StructuralObjectTypeInfo? structuralInfo = null) : base(clrType)
     {
         _memberTypes = memberTypes;
         TupleElementNames = tupleElementNames;
+        StructuralInfo = structuralInfo;
     }
 
     /// <summary>

@@ -370,15 +370,6 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    public virtual T VisitWith(WithExpr expr)
-    {
-        OnEnter(expr);
-        Visit(expr.Object);
-        foreach (var (_, value) in expr.Initializers)
-            Visit(value);
-        return OnLeave(expr);
-    }
-
     public virtual T VisitSpread(SpreadExpr expr)
     {
         OnEnter(expr);

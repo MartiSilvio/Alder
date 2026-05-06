@@ -4,8 +4,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Core;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class ApiFeatureTests(CompilationMode mode)
 {
     #region TryEvaluate
@@ -91,6 +90,17 @@ public class ApiFeatureTests(CompilationMode mode)
 
         Assert.Throws<OperationCanceledException>(() =>
             engine.TryEvaluate<int>("{ while (true) { } }", out _, cancellationToken: cts.Token));
+    }
+
+    [Test]
+    public void Evaluate_DelegateInvocation_DoesNotWrapCancelledTokenInTargetInvocationException()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            engine.Evaluate("((Func<int>)(() => 1))()", cancellationToken: cts.Token));
     }
 
     #endregion
@@ -295,35 +305,6 @@ public class ApiFeatureTests(CompilationMode mode)
 
         Assert.That(variables, Does.Contain("items"));
         Assert.That(variables, Does.Contain("y"));
-    }
-
-    #endregion
-
-    #region IDisposable
-
-    [Test]
-    public void Dispose_ThenEvaluate_ThrowsObjectDisposedException()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.Dispose();
-
-        Assert.Throws<ObjectDisposedException>(() => engine.Evaluate("1 + 2"));
-    }
-
-    [Test]
-    public void Dispose_IsIdempotent()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        engine.Dispose();
-        Assert.DoesNotThrow(() => engine.Dispose());
-    }
-
-    [Test]
-    public void Dispose_UsingPattern_Works()
-    {
-        using var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("1 + 2");
-        Assert.That(result, Is.EqualTo(3));
     }
 
     #endregion

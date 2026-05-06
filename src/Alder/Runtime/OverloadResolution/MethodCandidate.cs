@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Alder.Runtime;
+namespace Alder.Runtime.OverloadResolution;
 
 internal readonly struct MethodCandidate
 {

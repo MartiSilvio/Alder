@@ -15,10 +15,12 @@ public class TypedDelegateCompilationBenchmarks : BenchmarkBase
 {
     private BenchmarkData _data = null!;
 
+    private AlderEngine _typedScalarEngine = null!;
     private Func<int, int, int> _typedScalarFunc = null!;
     private AlderEngine _compiledEngine = null!;
     private AlderExpression _compiledExpr = null!;
 
+    private AlderEngine _typedRuleEngine = null!;
     private Func<Product, bool> _typedRuleFunc = null!;
     private AlderEngine _ruleEngine = null!;
     private AlderExpression _ruleExpr = null!;
@@ -33,8 +35,8 @@ public class TypedDelegateCompilationBenchmarks : BenchmarkBase
         _data = BenchmarkData.CreateStandard();
         _sampleProduct = _data.Products[0];
 
-        using (var scalarEngine = new AlderEngine(new AlderOptions().UseCompiler()))
-            _typedScalarFunc = scalarEngine.Compile<Func<int, int, int>>(ScalarCode, "a", "b");
+        _typedScalarEngine = new AlderEngine(new AlderOptions().UseCompiler());
+        _typedScalarFunc = _typedScalarEngine.Compile<Func<int, int, int>>(ScalarCode, "a", "b");
 
         _compiledEngine = new AlderEngine(new AlderOptions().UseCompiler());
         _compiledEngine.SetVariable<int>("a", _data.X);
@@ -42,8 +44,8 @@ public class TypedDelegateCompilationBenchmarks : BenchmarkBase
         _compiledExpr = _compiledEngine.Parse(ScalarCode);
         _compiledEngine.Evaluate(_compiledExpr);
 
-        using (var ruleEngine = new AlderEngine(new AlderOptions().UseCompiler()))
-            _typedRuleFunc = ruleEngine.Compile<Func<Product, bool>>(RuleCode, "p");
+        _typedRuleEngine = new AlderEngine(new AlderOptions().UseCompiler());
+        _typedRuleFunc = _typedRuleEngine.Compile<Func<Product, bool>>(RuleCode, "p");
 
         _ruleEngine = new AlderEngine(new AlderOptions().UseCompiler());
         _ruleEngine.SetVariable<Product>("p", _sampleProduct);
@@ -65,12 +67,16 @@ public class TypedDelegateCompilationBenchmarks : BenchmarkBase
                 throw new InvalidOperationException(
                     $"Typed delegate rule parity failure on product {product.Id}: typed={typed}, engine={evaluated}");
         }
+
+        _ruleEngine.SetVariable<Product>("p", _sampleProduct);
     }
 
     [GlobalCleanup]
     public void Cleanup()
     {
+        _typedScalarEngine?.Dispose();
         _compiledEngine?.Dispose();
+        _typedRuleEngine?.Dispose();
         _ruleEngine?.Dispose();
     }
 

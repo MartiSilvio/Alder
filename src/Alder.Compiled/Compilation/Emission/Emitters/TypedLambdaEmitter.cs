@@ -3,6 +3,7 @@ using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Compilation;
 using Alder.Runtime;
+using Alder.Runtime.Introspection;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
@@ -38,7 +39,7 @@ internal static class TypedLambdaEmitter
                 // but typed delegates expect raw ValueTuple. CastResult handles the unwrapping.
                 if (body.Type == typeof(object) && TypeHelpers.IsValueTupleType(returnType))
                 {
-                    var closedCastResult = RuntimeGenericFactory.CloseGenericMethod(
+                    var closedCastResult = RuntimeGenericClosure.CloseMethod(
                         CastResultOpenMethod, [returnType]);
                     body = LinqExpression.Call(closedCastResult, body);
                 }

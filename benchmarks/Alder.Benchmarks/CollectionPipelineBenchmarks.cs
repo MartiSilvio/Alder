@@ -22,11 +22,14 @@ public sealed record PipelineQuery(
 [CategoriesColumn]
 public class CollectionPipelineBenchmarks : BenchmarkBase
 {
-    [Params(100, 1_000, 10_000, 100_000)]
+    [ParamsSource(nameof(ScaleFactors))]
     public int ScaleFactor { get; set; }
 
     [ParamsSource(nameof(Queries))]
     public PipelineQuery Query { get; set; } = null!;
+
+    public IEnumerable<int> ScaleFactors() =>
+        BenchmarkProfileContext.CurrentDefinition.CollectionPipelineScaleFactors;
 
     public IEnumerable<PipelineQuery> Queries() => GetPipelineQueries();
 
@@ -34,7 +37,6 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
     private ScriptRunner<object> _roslynRunner = null!;
     private AlderExpression _interpExpr = null!;
     private AlderExpression _compExpr = null!;
-    private AlderExpression _fecExpr = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -43,11 +45,9 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
 
         InterpretedEngine = CreateEngine(CompilationMode.Interpreted, _data);
         CompiledEngine = CreateEngine(CompilationMode.Compiled, _data);
-        CompiledFecEngine = CreateEngine(CompilationMode.CompiledFec, _data);
 
         _interpExpr = InterpretedEngine.Parse(Query.AlderExpr);
         _compExpr = CompiledEngine.Parse(Query.AlderExpr);
-        _fecExpr = CompiledFecEngine.Parse(Query.AlderExpr);
 
         var script = CreateRoslynScript(Query.RoslynExpr);
         script.Compile();
@@ -57,7 +57,6 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
         var native = Query.Native(_data.Products);
         var interp = InterpretedEngine.Evaluate(_interpExpr);
         var comp = CompiledEngine.Evaluate(_compExpr);
-        var fec = CompiledFecEngine.Evaluate(_fecExpr);
         var roslyn = _roslynRunner(_data).GetAwaiter().GetResult();
         if (!BenchmarkParityVerifier.AreEquivalent(native, interp))
             throw new InvalidOperationException(
@@ -65,9 +64,6 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
         if (!BenchmarkParityVerifier.AreEquivalent(native, comp))
             throw new InvalidOperationException(
                 $"Parity failure: {Query.Name} SF{ScaleFactor} | Native={native}, Compiled={comp}");
-        if (!BenchmarkParityVerifier.AreEquivalent(native, fec))
-            throw new InvalidOperationException(
-                $"Parity failure: {Query.Name} SF{ScaleFactor} | Native={native}, CompiledFec={fec}");
         if (!BenchmarkParityVerifier.AreEquivalent(native, roslyn))
             throw new InvalidOperationException(
                 $"Parity failure: {Query.Name} SF{ScaleFactor} | Native={native}, Roslyn={roslyn}");
@@ -78,7 +74,6 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
     {
         InterpretedEngine?.Dispose();
         CompiledEngine?.Dispose();
-        CompiledFecEngine?.Dispose();
     }
 
     [Benchmark(Baseline = true)]
@@ -95,10 +90,6 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
 
     [Benchmark]
     [BenchmarkCategory("Operational/CollectionPipeline")]
-    public object Alder_CompiledFec() => CompiledFecEngine.Evaluate(_fecExpr)!;
-
-    [Benchmark]
-    [BenchmarkCategory("Operational/CollectionPipeline")]
     public async Task<object> Roslyn() => (await _roslynRunner(_data))!;
 
     public static IReadOnlyList<PipelineQuery> GetPipelineQueries() =>
@@ -106,7 +97,7 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
         new("Filter+Count",
             "products.Where(p => p.Price > 100m && p.IsActive).Count()",
             "Products.Where(p => p.Price > 100m && p.IsActive).Count()",
-            ps => ps.Where(p => p.Price > 100m && p.IsActive).Count()),
+            ps => ps.Count(p => p.Price > 100m && p.IsActive)),
 
         new("Filter+Project+Sum",
             """products.Where(p => p.Category == "Electronics").Select(p => p.Price).Sum()""",
@@ -116,7 +107,7 @@ public class CollectionPipelineBenchmarks : BenchmarkBase
         new("ComplexPredicate",
             "products.Where(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive).Count()",
             "Products.Where(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive).Count()",
-            ps => ps.Where(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive).Count()),
+            ps => ps.Count(p => p.Price > 50m && p.Stock > 0 && p.Rating >= 4.0 && p.IsActive)),
 
         new("Sort+Take",
             "products.OrderByDescending(p => p.Price).Take(10).Select(p => p.Price).Sum()",

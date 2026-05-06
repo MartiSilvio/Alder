@@ -1,4 +1,3 @@
-using Alder.Diagnostics;
 using Alder.Runtime;
 
 namespace Alder;
@@ -36,12 +35,7 @@ public sealed class AlderCompiledExpression<T>
     /// <exception cref="AlderException">Thrown when a variable's type has changed since compilation (ALDR0003).</exception>
     public T? Invoke(CancellationToken cancellationToken = default)
     {
-        var baseContext = _engine.GetContextForCompiled();
-        EnsureTypeVersionCurrent(baseContext);
-        var constraintState = new ExecutionConstraintState();
-        constraintState.Reset(_config.Constraints);
-        var result = _delegate(baseContext, _config, constraintState, cancellationToken);
-        return ConvertResult(result);
+        return InvokeCore(null, cancellationToken);
     }
 
     /// <summary>
@@ -54,32 +48,21 @@ public sealed class AlderCompiledExpression<T>
     /// <exception cref="AlderException">Thrown when a variable's type has changed since compilation (ALDR0003).</exception>
     public T? Invoke(IDictionary<string, object?> variables, CancellationToken cancellationToken = default)
     {
-        var parentContext = _engine.GetContextForCompiled();
-        EnsureTypeVersionCurrent(parentContext);
-        var childContext = parentContext.CreateChild();
-        foreach (var (name, value) in variables)
+        return InvokeCore(variables, cancellationToken);
+    }
+
+    private T? InvokeCore(IDictionary<string, object?>? variables, CancellationToken cancellationToken)
+    {
+        using var state = _engine.CreateCompiledInvocationState(_compiledTypeVersion, cancellationToken);
+        if (variables != null)
         {
-            childContext.Define(name, value);
+            foreach (var (name, value) in variables)
+            {
+                state.ExecutionContext.Define(name, value);
+            }
         }
-        var constraintState = new ExecutionConstraintState();
-        constraintState.Reset(_config.Constraints);
-        var result = _delegate(childContext, _config, constraintState, cancellationToken);
-        return ConvertResult(result);
-    }
 
-    private void EnsureTypeVersionCurrent(AlderContext context)
-    {
-        if (context.GetTypeInferenceVersion() != _compiledTypeVersion)
-            throw new AlderException(DiagnosticDescriptors.CompiledExpressionStale);
-    }
-
-    private static T? ConvertResult(object? result)
-    {
-        return result switch
-        {
-            null => default,
-            T typed => typed,
-            _ => (T)Convert.ChangeType(result, typeof(T))
-        };
+        var result = _delegate(state.ExecutionContext, _config, state.ConstraintState, cancellationToken);
+        return AlderTypedResultConverter.Convert<T>(result);
     }
 }

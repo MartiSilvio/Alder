@@ -1,4 +1,5 @@
 using Alder.Binding.BoundNodes;
+using Alder.Binding.Services;
 using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
@@ -10,18 +11,36 @@ internal static class IdentifierBinder
     {
         var name = expr.Name.Lexeme;
 
+        if (context.TryGetLocal(name, out var localType, out var localId))
+            return new BoundIdentifierExpr(name, localType, localId);
+
+        if (context.TryGetImplicitReceiver(out var receiverName, out var receiverType, out var receiverLocalId))
+        {
+            var receiver = new BoundIdentifierExpr(
+                receiverName,
+                receiverType,
+                receiverLocalId >= 0 ? receiverLocalId : null);
+
+            var implicitMember = MemberAccessBinder.BindSingleMemberAccess(
+                receiver,
+                name,
+                nullSafe: false,
+                context);
+
+            if (implicitMember is not BoundDynamicMemberAccessExpr)
+                return implicitMember;
+        }
+
         if (context.RuntimeContext.Functions.ContainsKey(name) ||
             context.RuntimeContext.Modules.ContainsKey(name))
         {
             return new BoundIdentifierExpr(name, BoundType.Unknown);
         }
 
-        if (context.TryGetLocal(name, out var localType, out var localId))
-            return new BoundIdentifierExpr(name, localType, localId);
+        var runtimeProbe = new RuntimeBindingProbeService(context.RuntimeContext);
+        runtimeProbe.TryGetValueType(name, out var staticType);
 
-        context.TryGetVariableType(name, out var staticType);
-
-        // ECMA-334 §12.7.3: an identifier that resolves to a type in expression position (e.g.
+        // ECMA-334 §12.8.7.2: an identifier that resolves to a type in expression position (e.g.
         // `DayOfWeek.Wednesday`, `Task.FromResult(...)`, `Math.PI`) is a type reference targeting
         // static-member access on the wrapped type. Distinct from a runtime `Type` value — see
         // BoundTypeRefExpr for the rationale.

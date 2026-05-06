@@ -25,7 +25,6 @@ internal sealed class IteratorEnumerable<T> : IEnumerable<T>, IEnumerable
         private readonly SemaphoreSlim _consumerGate = new(0, 1);
         private readonly Thread _producerThread;
 
-        private T _current = default!;
         private volatile bool _completed;
         private Exception? _exception;
 
@@ -53,7 +52,7 @@ internal sealed class IteratorEnumerable<T> : IEnumerable<T>, IEnumerable
 
                 evaluator.YieldCallback = value =>
                 {
-                    _current = (T)value!;
+                    Current = (T)value!;
                     _consumerGate.Release();
                     _producerGate.Wait();
                     return !_completed;
@@ -72,8 +71,9 @@ internal sealed class IteratorEnumerable<T> : IEnumerable<T>, IEnumerable
             }
         }
 
-        public T Current => _current;
-        object? IEnumerator.Current => _current;
+        public T Current { get; private set; } = default!;
+
+        object? IEnumerator.Current => Current;
 
         public bool MoveNext()
         {
@@ -110,7 +110,7 @@ internal static class IteratorEnumerable
     internal static object Create(LambdaValue lambda, object?[] args, AlderContext context)
     {
         var elementType = lambda.IteratorElementType ?? typeof(object);
-        var method = GenericMethodCache.GetOrAdd(elementType, static t => CreateMethod.MakeGenericMethod(t));
+        var method = GenericMethodCache.GetOrAdd(elementType, static t => RuntimeGenericClosure.CloseMethod(CreateMethod, [t]));
         return method.Invoke(null, [lambda, args, context])!;
     }
 

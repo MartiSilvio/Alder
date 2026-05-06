@@ -47,8 +47,29 @@ public class AlderException : Exception
         Diagnostics = [new AlderDiagnostic(DiagnosticSeverity.Error, FormatMessage(descriptor, args), descriptor.Code)];
     }
 
+    /// <param name="descriptor">The diagnostic descriptor providing the error code and message template.</param>
+    /// <param name="innerException">The original exception that triggered this diagnostic failure.</param>
+    /// <param name="args">Format arguments for the message template.</param>
+    public AlderException(DiagnosticDescriptor descriptor, Exception innerException, params object?[] args)
+        : base(FormatMessage(descriptor, args), innerException)
+    {
+        Diagnostics = [new AlderDiagnostic(DiagnosticSeverity.Error, FormatMessage(descriptor, args), descriptor.Code)];
+    }
+
     internal AlderException(DiagnosticDescriptor descriptor, TextSpan span, int? line, int? column, params object?[] args)
         : base(FormatMessage(descriptor, args))
+    {
+        Diagnostics = [new AlderDiagnostic(DiagnosticSeverity.Error, FormatMessage(descriptor, args), descriptor.Code, span, line, column)];
+    }
+
+    internal AlderException(
+        DiagnosticDescriptor descriptor,
+        TextSpan span,
+        int? line,
+        int? column,
+        Exception innerException,
+        params object?[] args)
+        : base(FormatMessage(descriptor, args), innerException)
     {
         Diagnostics = [new AlderDiagnostic(DiagnosticSeverity.Error, FormatMessage(descriptor, args), descriptor.Code, span, line, column)];
     }
@@ -67,6 +88,20 @@ public class AlderException : Exception
     }
 
     internal void SetDiagnostics(IReadOnlyList<AlderDiagnostic> diagnostics) => Diagnostics = diagnostics;
+
+    internal static AlderException FromDiagnostics(IReadOnlyList<AlderDiagnostic> diagnostics)
+    {
+        if (diagnostics.Count == 0)
+            return new AlderException(DiagnosticDescriptors.ExpressionExpected);
+
+        return new AlderException(diagnostics);
+    }
+
+    private AlderException(IReadOnlyList<AlderDiagnostic> diagnostics)
+        : base(diagnostics[0].Message)
+    {
+        Diagnostics = diagnostics;
+    }
 
     private static string FormatMessage(DiagnosticDescriptor descriptor, object?[] args)
     {

@@ -8,8 +8,7 @@ namespace Alder.Test.Operators;
 /// <summary>
 /// Tests for nameof() expression (ECMA-334 §12.8.22).
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class NameofTests(CompilationMode mode)
 {
     #region ECMA-334 §12.8.22 - Nameof Expression

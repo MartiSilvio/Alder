@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using Alder.Runtime.Collections;
 
 namespace Alder.Runtime;
@@ -9,13 +10,11 @@ namespace Alder.Runtime;
 /// </summary>
 internal sealed class TypeAssemblyIndex
 {
-    private readonly ImmutableArray<Assembly> _assemblies;
-    private readonly StringComparer _comparer;
-    private readonly bool _implicitBclImports;
-    private readonly Lazy<FixedDictionary<string, FixedDictionary<string, Type>>> _namespaceIndex;
-    private readonly Lazy<FixedDictionary<string, Type>> _fullNameIndex;
-    private readonly Lazy<FixedSet<string>> _namespacePrefixes;
-    private readonly Lazy<FixedDictionary<string, Type>?> _implicitImports;
+    private readonly Lazy<(
+        FixedDictionary<string, FixedDictionary<string, Type>> NamespaceIndex,
+        FixedDictionary<string, Type> FullNameIndex,
+        FixedSet<string> NamespacePrefixes,
+        FixedDictionary<string, Type>? ImplicitImports)> _indices;
 
     private static readonly string[] DefaultImplicitNamespaces =
     [
@@ -37,28 +36,23 @@ internal sealed class TypeAssemblyIndex
         bool implicitBclImports,
         StringComparer comparer)
     {
-        _assemblies = assemblies;
-        _implicitBclImports = implicitBclImports;
-        _comparer = comparer;
-        _namespaceIndex = new Lazy<FixedDictionary<string, FixedDictionary<string, Type>>>(
-            () => BuildNamespaceIndex(_assemblies, _comparer),
-            LazyThreadSafetyMode.ExecutionAndPublication);
-        _fullNameIndex = new Lazy<FixedDictionary<string, Type>>(
-            () => BuildFullNameIndex(_assemblies, _comparer),
-            LazyThreadSafetyMode.ExecutionAndPublication);
-        _namespacePrefixes = new Lazy<FixedSet<string>>(
-            () => BuildNamespacePrefixes(_namespaceIndex.Value, _comparer),
-            LazyThreadSafetyMode.ExecutionAndPublication);
-        _implicitImports = new Lazy<FixedDictionary<string, Type>?>(
-            () => _implicitBclImports ? BuildImplicitImports(_namespaceIndex.Value, _comparer) : null,
+        var assemblies1 = assemblies;
+        var implicitBclImports1 = implicitBclImports;
+        var comparer1 = comparer;
+        _indices = new Lazy<(
+            FixedDictionary<string, FixedDictionary<string, Type>> NamespaceIndex,
+            FixedDictionary<string, Type> FullNameIndex,
+            FixedSet<string> NamespacePrefixes,
+            FixedDictionary<string, Type>? ImplicitImports)>(
+            () => BuildIndices(assemblies1, implicitBclImports1, comparer1),
             LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
-    internal bool IsNamespaceOrPrefix(string name) => _namespacePrefixes.Value.Contains(name);
+    internal bool IsNamespaceOrPrefix(string name) => _indices.Value.NamespacePrefixes.Contains(name);
 
-    internal bool TryResolveInNamespace(string ns, string shortTypeName, out Type type)
+    internal bool TryResolveInNamespace(string ns, string shortTypeName, [NotNullWhen(true)] out Type? type)
     {
-        if (_namespaceIndex.Value.TryGetValue(ns, out var types) &&
+        if (_indices.Value.NamespaceIndex.TryGetValue(ns, out var types) &&
             types.TryGetValue(shortTypeName, out type))
             return true;
 
@@ -66,41 +60,9 @@ internal sealed class TypeAssemblyIndex
         return false;
     }
 
-    /// <summary>
-    /// Fast-path resolution against the default implicit namespaces.
-    /// Probes each namespace directly, including CLR arity forms for friendly generic names.
-    /// Returns null immediately if implicit BCL imports are disabled.
-    /// </summary>
-    internal Type? TryResolveImplicitImportFast(string typeName)
+    internal bool TryResolveImplicitImport(string typeName, [NotNullWhen(true)] out Type? type)
     {
-        if (!_implicitBclImports)
-            return null;
-
-        foreach (var ns in DefaultImplicitNamespaces)
-        {
-            if (TryResolveInNamespace(ns, typeName, out var resolved) && !IsReflectionType(resolved))
-                return resolved;
-        }
-
-        if (CanProbeGenericArity(typeName))
-        {
-            for (var arity = 1; arity <= 8; arity++)
-            {
-                var genericName = $"{typeName}`{arity}";
-                foreach (var ns in DefaultImplicitNamespaces)
-                {
-                    if (TryResolveInNamespace(ns, genericName, out var resolved) && !IsReflectionType(resolved))
-                        return resolved;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    internal bool TryResolveImplicitImport(string typeName, out Type type)
-    {
-        var imports = _implicitImports.Value;
+        var imports = _indices.Value.ImplicitImports;
         if (imports != null && imports.TryGetValue(typeName, out type))
             return true;
 
@@ -114,8 +76,8 @@ internal sealed class TypeAssemblyIndex
     /// </summary>
     internal Type? TryResolveFullyQualifiedName(string typeName)
     {
-        var namespaceIndex = _namespaceIndex.Value;
-        var fullNameIndex = _fullNameIndex.Value;
+        var namespaceIndex = _indices.Value.NamespaceIndex;
+        var fullNameIndex = _indices.Value.FullNameIndex;
 
         var lastDot = typeName.LastIndexOf('.');
         while (lastDot > 0)
@@ -149,9 +111,6 @@ internal sealed class TypeAssemblyIndex
         return null;
     }
 
-    private static bool CanProbeGenericArity(string typeName)
-        => typeName.IndexOfAny(['`', '<', '>', '.', '[', ']']) < 0;
-
     private static bool IsReflectionType(Type type)
     {
         var ns = type.Namespace;
@@ -159,59 +118,61 @@ internal sealed class TypeAssemblyIndex
                (ns != null && ns.StartsWith("System.Reflection.", StringComparison.Ordinal));
     }
 
-    private static FixedDictionary<string, FixedDictionary<string, Type>> BuildNamespaceIndex(
+    private static (
+        FixedDictionary<string, FixedDictionary<string, Type>> NamespaceIndex,
+        FixedDictionary<string, Type> FullNameIndex,
+        FixedSet<string> NamespacePrefixes,
+        FixedDictionary<string, Type>? ImplicitImports) BuildIndices(
         ImmutableArray<Assembly> assemblies,
+        bool implicitBclImports,
         StringComparer comparer)
     {
-        var index = new Dictionary<string, Dictionary<string, Type>>(comparer);
+        var namespaceIndex = new Dictionary<string, Dictionary<string, Type>>(comparer);
+        var fullNameIndex = new Dictionary<string, Type>(comparer);
 
         foreach (var assembly in assemblies)
         {
             foreach (var type in EnumerateAssemblyTypes(assembly))
             {
                 var ns = type.Namespace;
-                if (ns == null) continue;
-
-                if (!index.TryGetValue(ns, out var nsTypes))
+                if (ns != null)
                 {
-                    nsTypes = new Dictionary<string, Type>(comparer);
-                    index[ns] = nsTypes;
+                    if (!namespaceIndex.TryGetValue(ns, out var nsTypes))
+                    {
+                        nsTypes = new Dictionary<string, Type>(comparer);
+                        namespaceIndex[ns] = nsTypes;
+                    }
+
+                    // CLR metadata name preserves arity (e.g. List`1) so overloads by arity don't collide.
+                    nsTypes.TryAdd(type.Name, type);
                 }
 
-                // CLR metadata name preserves arity (e.g. List`1) so overloads by arity don't collide.
-                nsTypes.TryAdd(type.Name, type);
+                if (type.FullName is { } fullName)
+                    fullNameIndex.TryAdd(fullName, type);
             }
         }
 
-        return FixedDictionary<string, FixedDictionary<string, Type>>.Create(
-            index,
+        var frozenNamespaceIndex = FixedDictionary<string, FixedDictionary<string, Type>>.Create(
+            namespaceIndex,
             kvp => kvp.Key,
             kvp => FixedDictionary<string, Type>.Create(kvp.Value, comparer),
             comparer);
-    }
+        var frozenFullNameIndex = FixedDictionary<string, Type>.Create(fullNameIndex, comparer);
+        var namespacePrefixes = BuildNamespacePrefixes(frozenNamespaceIndex, comparer);
+        var implicitImports = implicitBclImports
+            ? BuildImplicitImports(frozenNamespaceIndex, comparer)
+            : null;
 
-    private static FixedDictionary<string, Type> BuildFullNameIndex(
-        ImmutableArray<Assembly> assemblies,
-        StringComparer comparer)
-    {
-        var index = new Dictionary<string, Type>(comparer);
-        foreach (var assembly in assemblies)
-        {
-            foreach (var type in EnumerateAssemblyTypes(assembly))
-            {
-                if (type.FullName is { } fullName)
-                    index.TryAdd(fullName, type);
-            }
-        }
-
-        return FixedDictionary<string, Type>.Create(index, comparer);
+        return (frozenNamespaceIndex, frozenFullNameIndex, namespacePrefixes, implicitImports);
     }
 
     private static IEnumerable<Type> EnumerateAssemblyTypes(Assembly assembly)
     {
         try
         {
+#pragma warning disable IL2026
             return assembly.DefinedTypes.Select(static typeInfo => typeInfo.AsType()).ToArray();
+#pragma warning restore IL2026
         }
         catch (ReflectionTypeLoadException ex)
         {
@@ -235,14 +196,22 @@ internal sealed class TypeAssemblyIndex
                 if (IsReflectionType(type))
                     continue;
 
-                // Also store under the friendly name without backtick (e.g. "List" in addition to "List`1").
-                if (shortName.Contains('`'))
-                {
-                    var friendlyName = shortName[..shortName.IndexOf('`')];
-                    imports.TryAdd(friendlyName, type);
-                }
-
                 imports.TryAdd(shortName, type);
+            }
+        }
+
+        foreach (var ns in DefaultImplicitNamespaces)
+        {
+            if (!namespaceIndex.TryGetValue(ns, out var types))
+                continue;
+
+            foreach (var (shortName, type) in types)
+            {
+                if (IsReflectionType(type) || !shortName.Contains('`'))
+                    continue;
+
+                var friendlyName = shortName[..shortName.IndexOf('`')];
+                imports.TryAdd(friendlyName, type);
             }
         }
 

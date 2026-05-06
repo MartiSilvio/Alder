@@ -1,43 +1,40 @@
-# Security
+# Security Policy
 
-Alder evaluates user-supplied C# code safely in production environments. The security model provides three layers of control: operation permissions, type and namespace blocking, and execution limits.
+## Reporting a Vulnerability
 
-## How Enforcement Works
+Please do not open a public issue for a suspected vulnerability.
 
-**Operation permissions and type blocking** are enforced as a bound tree pipeline pass that runs **before execution begins**. The entire expression tree is validated against the configured policy. If any node violates the policy, evaluation never starts — a blocked expression produces a diagnostic, not a partially-executed side effect.
+If this repository is private, contact the repository maintainer privately before sharing details more broadly.
 
-**Execution limits** (statement count, loop iterations, timeout, collection size) are enforced at runtime during evaluation, since they depend on the dynamic behavior of the expression.
+If this repository is public and GitHub private vulnerability reporting is enabled, use the **Report a vulnerability** flow from the repository's Security tab.
 
-## Sandbox Presets
+Include:
 
-| Permission | `Trusted()` | `Safe()` | `Strict()` |
-|------------|:-----------:|:--------:|:----------:|
-| Method calls | yes | **no** | **no** |
-| Property read (instance) | yes | yes | yes |
-| Static property read | yes | yes | yes |
-| Static field read | yes | yes | yes |
-| Variable assignment | yes | yes | **no** |
-| Property write | yes | yes | **no** |
-| Index write | yes | yes | **no** |
-| Object construction | yes | **no** | **no** |
+- affected version, package, or commit
+- minimal reproduction
+- expected and actual behavior
+- whether the expression source is trusted, user-authored, or tenant-authored
+- `SecurityOptions`, `ExecutionConstraints`, registered functions, modules, types, namespaces, and extension methods used by the host
+- whether the interpreted backend, compiled backend, Dynamic LINQ, or AOT generated dispatch path is involved
 
-```csharp
-var engine = new AlderEngine(o =>
-{
-    o.Sandbox = SandboxOptions.Safe();
-    o.Constraints = new ExecutionConstraints
-    {
-        MaxStatements = 10_000,
-        MaxLoopIterations = 1_000,
-        MaxTimeout = TimeSpan.FromSeconds(5)
-    };
-});
-```
+## Scope
 
-## Full Documentation
+Security reports are especially relevant when they involve:
 
-For the complete security model — permission details, type blocking chains, namespace blocking, reflection blocking, execution limits, and architectural details — see [docs/security/sandbox.md](docs/security/sandbox.md).
+- security policy bypasses
+- access to denied types, namespaces, reflection metadata, file I/O, networking, process execution, or other blocked host capabilities
+- execution-limit bypasses or denial-of-service behavior
+- differences between interpreted, compiled, Dynamic LINQ, or generated-dispatch behavior that change authority
+- unsafe exposure of host APIs through Alder defaults
 
-## Reporting Vulnerabilities
+Configuration that deliberately registers broad host APIs or trusted types may still be risky, but it is usually a host integration issue rather than an Alder vulnerability.
 
-If you discover a security vulnerability in Alder, please report it privately via GitHub Security Advisories rather than opening a public issue.
+## Security Model
+
+Alder evaluates expressions in-process. The security policy controls host authority and execution guardrails inside that process. Operating-system isolation, process isolation, and separate runtime isolation remain host responsibilities.
+
+For the technical model, see [docs/operations/security-model.md](docs/operations/security-model.md).
+
+## Supported Versions
+
+Security fixes are provided for the latest released version. If no release covers the affected code yet, report against the current `master` branch or the affected commit.

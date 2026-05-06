@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Parsing;
@@ -97,7 +96,7 @@ internal static class BinaryEvaluator
     {
         return binary.Operator switch
         {
-            TokenType.Plus => Operators.Add(left, right, ctx.Context.Config, ctx.Context, ctx.IsChecked,
+            TokenType.Plus => Operators.Add(left, right, ctx.Context.Config, ctx.IsChecked,
                 isStringContext: binary.Left.StaticType.ClrType == typeof(string) || binary.Right.StaticType.ClrType == typeof(string)),
             TokenType.Minus => Operators.Subtract(left, right, ctx.IsChecked),
             TokenType.Star => Operators.Multiply(left, right, ctx.IsChecked),

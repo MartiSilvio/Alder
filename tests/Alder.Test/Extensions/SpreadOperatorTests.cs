@@ -3,8 +3,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Extensions;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class SpreadOperatorTests(CompilationMode mode)
 {
     // Array Spread
@@ -80,10 +79,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         obj["B"] = 2L;
         engine.SetVariable("obj", obj);
 
-        var result = engine.Evaluate("new { ..obj }") as IDictionary<string, object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1));
-        Assert.That(result["B"], Is.EqualTo(2));
+        Assert.Throws<AlderException>(() => engine.Evaluate("new { ..obj }"));
     }
 
     [Test]
@@ -94,10 +90,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         obj["A"] = 1L;
         engine.SetVariable("obj", obj);
 
-        var result = engine.Evaluate("new { ..obj, B = 2 }") as IDictionary<string, object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1));
-        Assert.That(result["B"], Is.EqualTo(2));
+        Assert.Throws<AlderException>(() => engine.Evaluate("new { ..obj, B = 2 }"));
     }
 
     [Test]
@@ -109,10 +102,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         obj["B"] = 2L;
         engine.SetVariable("obj", obj);
 
-        var result = engine.Evaluate("new { ..obj, B = 99 }") as IDictionary<string, object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1));
-        Assert.That(result["B"], Is.EqualTo(99));
+        Assert.Throws<AlderException>(() => engine.Evaluate("new { ..obj, B = 99 }"));
     }
 
     [Test]
@@ -126,10 +116,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         engine.SetVariable("obj1", obj1);
         engine.SetVariable("obj2", obj2);
 
-        var result = engine.Evaluate("new { ..obj1, ..obj2 }") as IDictionary<string, object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1));
-        Assert.That(result["B"], Is.EqualTo(2));
+        Assert.Throws<AlderException>(() => engine.Evaluate("new { ..obj1, ..obj2 }"));
     }
 
     [Test]
@@ -138,11 +125,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = engine.Evaluate("""new { ..person, City = "NYC" } """) as IDictionary<string, object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!["Name"], Is.EqualTo("John"));
-        Assert.That(result["Age"], Is.EqualTo(30));
-        Assert.That(result["City"], Is.EqualTo("NYC"));
+        Assert.Throws<AlderException>(() => engine.Evaluate("""new { ..person, City = "NYC" } """));
     }
 
     [Test]
@@ -158,10 +141,6 @@ public class SpreadOperatorTests(CompilationMode mode)
         engine.SetVariable("obj1", obj1);
         engine.SetVariable("obj2", obj2);
 
-        var result = engine.Evaluate("new { ..obj1, ..obj2 }") as IDictionary<string, object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1));
-        Assert.That(result["B"], Is.EqualTo(99));
-        Assert.That(result["C"], Is.EqualTo(3));
+        Assert.Throws<AlderException>(() => engine.Evaluate("new { ..obj1, ..obj2 }"));
     }
 }

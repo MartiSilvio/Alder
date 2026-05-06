@@ -4,8 +4,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Core;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class ThreadSafetyTests(CompilationMode mode)
 {
     [Test]
@@ -29,6 +28,31 @@ public class ThreadSafetyTests(CompilationMode mode)
         var actual = results.OrderBy(x => x).ToList();
 
         Assert.That(actual, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void ParallelForEach_WithTemporaryDictionaryVariables_Isolated()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.SetVariable("multiplier", 2L);
+
+        var items = Enumerable.Range(1, 100).ToList();
+        var results = new ConcurrentBag<long>();
+
+        Parallel.ForEach(items, item =>
+        {
+            var result = engine.Evaluate<long>(
+                "item * multiplier",
+                new Dictionary<string, object?> { ["item"] = (long)item });
+            results.Add(result);
+        });
+
+        var expected = items.Select(i => (long)i * 2).OrderBy(x => x).ToList();
+        var actual = results.OrderBy(x => x).ToList();
+
+        Assert.That(actual, Is.EqualTo(expected));
+        Assert.That(engine.Evaluate<long>("multiplier"), Is.EqualTo(2L));
+        Assert.Throws<AlderException>(() => engine.Evaluate("item"));
     }
 
     [Test]
@@ -208,7 +232,7 @@ public class ThreadSafetyTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
 
         var items = Enumerable.Range(1, 50).ToList();
-        var results = new ConcurrentBag<(int Input, IDictionary<string, object?> Result)>();
+        var results = new ConcurrentBag<(int Input, object Result)>();
 
         Parallel.ForEach(items, item =>
         {
@@ -216,14 +240,14 @@ public class ThreadSafetyTests(CompilationMode mode)
             child.SetVariable("id", (long)item);
             child.SetVariable("name", $"Item{item}");
             var result = child.Evaluate("new { Id = id, Name = name, Doubled = id * 2 }");
-            results.Add((item, (IDictionary<string, object?>)result!));
+            results.Add((item, result!));
         });
 
         foreach (var (input, result) in results)
         {
-            Assert.That(result["Id"], Is.EqualTo((long)input));
-            Assert.That(result["Name"], Is.EqualTo($"Item{input}"));
-            Assert.That(result["Doubled"], Is.EqualTo((long)input * 2));
+            Assert.That(TestHelpers.ReadProjectedMember(result, "Id"), Is.EqualTo((long)input));
+            Assert.That(TestHelpers.ReadProjectedMember(result, "Name"), Is.EqualTo($"Item{input}"));
+            Assert.That(TestHelpers.ReadProjectedMember(result, "Doubled"), Is.EqualTo((long)input * 2));
         }
     }
 

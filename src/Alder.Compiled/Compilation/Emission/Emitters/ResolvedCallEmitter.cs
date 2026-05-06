@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Compilation;
 using Alder.Runtime;
+using Alder.Runtime.OverloadResolution;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
@@ -15,6 +15,7 @@ internal static class ResolvedCallEmitter
     {
         var chain = PostfixChain.TryCollect(node);
         if (chain != null) return EmitPostfixChain(chain.Value, ctx);
+
         return EmitWithTarget(node, null, ctx);
     }
 
@@ -52,9 +53,11 @@ internal static class ResolvedCallEmitter
                     result = EmitWithTarget(call, result, ctx);
             }
             else if (seg.CallOrInvoke is BoundDynamicCallExpr invoke)
+            {
                 result = EmitCollectionSizeCheck(
                     DynamicCallEmitter.EmitInvokeCore(invoke.Callee, invoke.Arguments, invoke.TypeArguments, result, ctx),
                     ctx);
+            }
             else
                 result = MemberAccessEmitter.EmitWithTarget(seg.MemberAccess, result, ctx);
         }
@@ -92,14 +95,14 @@ internal static class ResolvedCallEmitter
 
         if (!call.IsExtensionCall)
         {
-            if (ctx.PreferResolvedRuntimeDispatch)
+            if (ctx.ResolvedDispatchMode == ResolvedDispatchMode.RuntimeDispatch)
             {
                 var objectArgs = LinqExpression.NewArrayInit(typeof(object), args.Select(EmitHelpers.AsObject));
                 var targetExpr = call.IsStaticCall
                     ? LinqExpression.Constant(null, typeof(object))
                     : EmitHelpers.AsObject(emittedTarget ?? ctx.Emit(memberAccess.Target));
                 var runtimeCall = LinqExpression.Call(
-                    InvokeResolvedMethodMethod,
+                    InvokePreparedMethodMethod,
                     LinqExpression.Constant(method, typeof(MethodInfo)),
                     targetExpr,
                     objectArgs,
@@ -330,5 +333,4 @@ internal static class ResolvedCallEmitter
 
         return LinqExpression.Convert(emittedArgument, targetType);
     }
-
 }

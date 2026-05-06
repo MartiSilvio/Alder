@@ -11,8 +11,7 @@ namespace Alder.Test.Types;
 /// DivideByZeroException assertions, float tolerance, and SetVariable-based tests.
 /// Standard floating-point expressions are in TestData/FloatingPointDivision/*.csx.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class FloatingPointDivisionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.10.3 -- Floating-Point Division by Zero (NaN)

@@ -8,10 +8,7 @@ namespace Alder.Runtime;
 /// References a registered global function.
 /// This wrapper gives the interpreter and compiled backend a shared runtime representation.
 /// </summary>
-internal sealed record FunctionRef(string Name, Func<object?[], object?> Function)
-{
-    public object? Invoke(object?[] args) => Function(args);
-}
+internal sealed record FunctionRef(string Name, Func<object?[], object?> Function);
 
 /// <summary>
 /// Represents a runtime lambda value together with its closure.
@@ -119,9 +116,7 @@ internal sealed record CompiledLambdaValue(
 
 internal sealed record MethodRef(object Target, string MethodName);
 
-internal sealed record StaticMethodRef(Type Type, string MethodName);
-
-internal sealed record ModuleMethodRef(ModuleInfo Module, IServiceProvider? ServiceProvider, MethodInfo Method);
+internal sealed record ModuleMethodRef(ModuleInfo Module, IServiceProvider? ServiceProvider, string MethodName);
 
 /// <summary>
 /// Wraps a <see cref="Range"/> to preserve Alder's inclusive-end iteration semantics.

@@ -9,8 +9,7 @@ namespace Alder.Test.PatternMatching;
 /// when guards (section 12.8.21.3), discard catch-all (section 11.2.8),
 /// and non-exhaustive match behavior (CS8509).
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class SwitchExpressionTests(CompilationMode mode)
 {
 

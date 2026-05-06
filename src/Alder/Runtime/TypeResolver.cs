@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using Alder.Diagnostics;
 using Alder.Runtime.Collections;
 
@@ -15,9 +15,7 @@ internal sealed class TypeResolver
     private readonly FixedDictionary<string, Type> _builtInTypes;
     private readonly ImmutableArray<string> _importedNamespaces;
     private readonly TypeAssemblyIndex _index;
-    private readonly ConcurrentDictionary<string, Type?> _cache = new();
-    private readonly ConcurrentQueue<string> _cacheInsertionOrder = new();
-    private const int CacheCapacity = 4096;
+    private readonly BoundedConcurrentCache<string, Type?> _cache = new(4096);
 
     /// <summary>
     /// Built-in C# type keyword map per ECMA-334 §8.3.5.
@@ -85,7 +83,7 @@ internal sealed class TypeResolver
         if (typeName.Contains('<'))
             return ResolveGenericType(typeName);
 
-        return CacheGetOrAdd(typeName, ResolveTypeCore)
+        return _cache.GetOrAdd(typeName, ResolveTypeCore)
             ?? throw new AlderException(DiagnosticDescriptors.TypeNotFound, typeName);
     }
 
@@ -103,22 +101,7 @@ internal sealed class TypeResolver
         if (typeName.Contains('<'))
             return TryResolveGenericType(typeName);
 
-        return CacheGetOrAdd(typeName, ResolveTypeCore);
-    }
-
-    private Type? CacheGetOrAdd(string key, Func<string, Type?> valueFactory)
-    {
-        if (_cache.TryGetValue(key, out var existing))
-            return existing;
-
-        var value = _cache.GetOrAdd(key, valueFactory);
-
-        _cacheInsertionOrder.Enqueue(key);
-
-        while (_cache.Count > CacheCapacity && _cacheInsertionOrder.TryDequeue(out var oldest))
-            _cache.TryRemove(oldest, out _);
-
-        return value;
+        return _cache.GetOrAdd(typeName, ResolveTypeCore);
     }
 
     private static bool TryParseArraySuffix(string typeName, out string elementTypeName, out int rank)
@@ -151,10 +134,6 @@ internal sealed class TypeResolver
     {
         if (_builtInTypes.TryGetValue(typeName, out var builtIn))
             return builtIn;
-
-        var fastImplicit = _index.TryResolveImplicitImportFast(typeName);
-        if (fastImplicit != null)
-            return fastImplicit;
 
         if (_index.TryResolveImplicitImport(typeName, out var implicitType))
             return implicitType;
@@ -230,7 +209,7 @@ internal sealed class TypeResolver
         for (var i = 0; i < arity; i++)
             typeArgs[i] = ResolveType(typeArgNames[i].Trim());
 
-        return RuntimeGenericFactory.CloseGenericType(openType, typeArgs);
+        return RuntimeGenericClosure.CloseType(openType, typeArgs);
     }
 
     private int FindKnownArity(string baseName)
@@ -278,7 +257,7 @@ internal sealed class TypeResolver
             typeArgs[i] = arg;
         }
 
-        return RuntimeGenericFactory.TryCloseGenericType(openType, typeArgs, out var closed) ? closed : null;
+        return RuntimeGenericClosure.TryCloseType(openType, typeArgs, out var closed) ? closed : null;
     }
 
     private static List<string> SplitGenericArgs(string argsString)
@@ -304,13 +283,7 @@ internal sealed class TypeResolver
         return result;
     }
 
-    internal static Type ResolveTypeStatic(TypeResolver resolver, string typeName)
-        => resolver.ResolveType(typeName);
-
-    internal static Type? TryResolveTypeStatic(TypeResolver resolver, string typeName)
-        => resolver.TryResolveType(typeName);
-
-    internal static bool TryResolveKeywordType(string keyword, out Type type)
+    internal static bool TryResolveKeywordType(string keyword, [NotNullWhen(true)] out Type? type)
     {
         return BuiltInTypeKeywordsOrdinal.TryGetValue(keyword, out type);
     }

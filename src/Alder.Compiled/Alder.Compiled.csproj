@@ -5,11 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <PackageId>Alder.Compiled</PackageId>
-    <Version>0.1.0-preview.1</Version>
-    <Authors>Silvio Martignetti</Authors>
-    <Description>Compilation engine that transforms Alder expressions into IL for near-native execution speed.</Description>
-    <IsPackable>true</IsPackable>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>

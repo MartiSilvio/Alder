@@ -5,8 +5,7 @@ namespace Alder.Binding.BoundNodes;
 [BoundContainer]
 internal sealed partial record BoundObjectLiteralProperty(
     string? PropertyName,
-    BoundExpr Value,
-    bool IsSpread);
+    BoundExpr Value);
 
 [BoundNode(BoundNodeKind.ObjectLiteral, "ObjectLiteral")]
 internal sealed partial record BoundObjectLiteralExpr(

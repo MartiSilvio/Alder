@@ -15,7 +15,7 @@ internal static class TryCatchFinallyBinder
             .Select(statement => binder.Bind(statement, tryScope))
             .ToImmutableArray();
 
-        // §13.11.2: the C# compiler reports CS0160 when a catch clause is unreachable because a
+        // §13.11: the C# compiler reports CS0160 when a catch clause is unreachable because a
         // previous clause catches all exceptions of the same or a base type.
         var handledTypes = new List<Type>();
         var catches = expr.CatchClauses
@@ -38,7 +38,7 @@ internal static class TryCatchFinallyBinder
 
                 var effectiveType = exceptionType ?? typeof(Exception);
 
-                // §13.11.2 / CS0160: a catch with no `when` filter shadows every identical-or-
+                // §13.11 / CS0160: a catch with no `when` filter shadows every identical-or-
                 // derived catch that follows. Guarded prior catches remain reachable.
                 if (catchClause.WhenGuard == null)
                 {

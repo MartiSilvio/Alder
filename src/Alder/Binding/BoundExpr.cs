@@ -132,7 +132,6 @@ internal enum BoundNodeKind
     MultiDimIndexAssignment = 1_048,
 
     ObjectLiteral = 1_060,
-    WithExpression = 1_065,
     CollectionCreation = 1_061,
     ArrayAllocation = 1_062,
     MultiDimArrayInit = 1_064,

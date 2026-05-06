@@ -2,8 +2,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Compliance;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class CrossFeatureInteractionTests(CompilationMode mode)
 {
     private AlderEngine CreateEngine(LanguageMode lang = LanguageMode.Standard, HashSet<Type>? allowedTypes = null)
@@ -11,7 +10,7 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         {
             o.LanguageMode = lang;
             if (allowedTypes != null)
-                o.Sandbox = SandboxOptions.Trusted() with { TrustedTypes = allowedTypes };
+                o.Security = SecurityOptions.Trusted() with { TrustedTypes = allowedTypes };
         });
 
     [Test]

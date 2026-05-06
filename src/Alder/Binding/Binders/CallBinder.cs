@@ -4,6 +4,7 @@ using Alder.Binding.Services;
 using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
+using Alder.Runtime.OverloadResolution;
 
 namespace Alder.Binding.Binders;
 
@@ -25,77 +26,51 @@ internal static class CallBinder
             .Select(argument => binder.Bind(argument, context))
             .ToImmutableArray();
         var typeArguments = call.TypeArguments?.ToImmutableArray() ?? ImmutableArray<string>.Empty;
-
+        var descriptors = BuildArgumentDescriptors(arguments);
         var hasSpecialArgs = arguments.Any(static argument =>
             argument is BoundNamedArgumentExpr or BoundOutArgExpr);
+        var service = hasSpecialArgs ? null : new CallBinderService(context.RuntimeContext);
 
         if (callee is BoundMethodGroupExpr methodGroup && !hasSpecialArgs)
         {
-            var hasLambdasOrMethodGroups = arguments.Any(static a => a is BoundLambdaExpr or BoundMethodGroupExpr);
+            var result = TryBindResolvedCall(
+                callee,
+                methodGroup.DeclaringType,
+                methodGroup.MethodName,
+                methodGroup.IsStatic,
+                arguments,
+                typeArguments,
+                descriptors,
+                context,
+                binder,
+                service!);
+            if (result != null)
+                return result;
 
-            if (!hasLambdasOrMethodGroups)
+            if (!methodGroup.IsStatic && methodGroup.DeclaringType != typeof(object))
             {
-                var argumentTypes = arguments.Select(static argument => argument.StaticType.ClrType).ToArray();
-                var callBinderService = new CallBinderService(context.RuntimeContext);
-
-                var bound = methodGroup.IsStatic
-                    ? callBinderService.TryBindStaticCall(methodGroup.DeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out var callPlan)
-                    : callBinderService.TryBindInstanceCall(methodGroup.DeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out callPlan);
-
-                if (bound)
-                {
-                    var returnType = callPlan!.SelectedMethod.ReturnType;
-                    var boundReturnType = TypeHelpers.IsValueTupleType(returnType)
-                        ? CreateTupleAwareBoundType(returnType, arguments.Insert(0, methodGroup.Target))
-                        : new BoundType(returnType);
-                    return new BoundResolvedCallExpr(callee, arguments, callPlan.Resolution, callPlan.IsStaticCall, callPlan.IsModuleCall, boundReturnType);
-                }
-
-                if (!methodGroup.IsStatic && methodGroup.DeclaringType != typeof(object))
-                {
-                    var ext = TryBindExtensionCall(
-                        methodGroup.Target, methodGroup.DeclaringType, methodGroup.MethodName,
-                        methodGroup.NullSafe, arguments, argumentTypes, context);
-                    if (ext != null) return ext;
-                }
-            }
-            else
-            {
-                var result = TryBindCallWithLambdas(callee, methodGroup, arguments, context, binder);
-                if (result != null)
-                    return result;
-
-                if (!methodGroup.IsStatic && methodGroup.DeclaringType != typeof(object))
-                {
-                    var ext = TryBindExtensionCallWithLambdas(
-                        methodGroup.Target, methodGroup.DeclaringType, methodGroup.MethodName,
-                        methodGroup.NullSafe, arguments, context, binder);
-                    if (ext != null) return ext;
-                }
+                var ext = TryBindExtensionCall(
+                    methodGroup.Target, methodGroup.DeclaringType, methodGroup.MethodName,
+                    methodGroup.NullSafe, arguments, typeArguments, descriptors, context, binder, service!);
+                if (ext != null) return ext;
             }
         }
 
         if (callee is BoundDynamicMemberAccessExpr dynAccess && !hasSpecialArgs &&
             dynAccess.Target.StaticType is not BoundUnknownType)
         {
-            var targetType = dynAccess.Target.StaticType.ClrType;
-            var hasLambdasOrMethodGroups = arguments.Any(static a => a is BoundLambdaExpr or BoundMethodGroupExpr);
-
-            if (!hasLambdasOrMethodGroups)
-            {
-                var argumentTypes = arguments.Select(static a => a.StaticType.ClrType).ToArray();
-                var ext = TryBindExtensionCall(
-                    dynAccess.Target, targetType, dynAccess.MemberName,
-                    dynAccess.NullSafe, arguments, argumentTypes, context);
-                if (ext != null) return ext;
-            }
-            else
-            {
-                var ext = TryBindExtensionCallWithLambdas(
-                    dynAccess.Target, targetType, dynAccess.MemberName,
-                    dynAccess.NullSafe, arguments, context, binder);
-                if (ext != null) return ext;
-            }
+            var ext = TryBindExtensionCall(
+                dynAccess.Target,
+                dynAccess.Target.StaticType.ClrType,
+                dynAccess.MemberName,
+                dynAccess.NullSafe,
+                arguments,
+                typeArguments,
+                descriptors,
+                context,
+                binder,
+                service!);
+            if (ext != null) return ext;
         }
 
         if (callee.StaticType is not BoundUnknownType)
@@ -103,8 +78,7 @@ internal static class CallBinder
             var calleeType = callee.StaticType.ClrType;
             if (typeof(Delegate).IsAssignableFrom(calleeType))
             {
-                var invokeMethod = calleeType.GetMethod("Invoke");
-                if (invokeMethod != null)
+                if (DelegateShapeInspector.TryGetInvoke(calleeType, out var invokeMethod))
                 {
                     var returnType = invokeMethod.ReturnType;
                     return new BoundDynamicCallExpr(callee, arguments, typeArguments,
@@ -122,30 +96,13 @@ internal static class CallBinder
         string methodName,
         bool nullSafe,
         ImmutableArray<BoundExpr> arguments,
-        Type[] argumentTypes,
-        BindingContext context)
-    {
-        var service = new CallBinderService(context.RuntimeContext);
-        if (!service.TryBindExtensionCall(targetType, methodName, argumentTypes, context.IsCaseSensitive, out var plan))
-            return null;
-
-        return BuildExtensionCallExpr(targetExpr, methodName, nullSafe, arguments, plan!, context);
-    }
-
-    private static BoundExpr? TryBindExtensionCallWithLambdas(
-        BoundExpr targetExpr,
-        Type targetType,
-        string methodName,
-        bool nullSafe,
-        ImmutableArray<BoundExpr> arguments,
+        ImmutableArray<string> typeArguments,
+        ArgumentDescriptor[] descriptors,
         BindingContext context,
-        BinderContext binder)
+        BinderContext binder,
+        CallBinderService service)
     {
-        var userDescriptors = BuildDescriptorsForLambdasAndMethodGroups(arguments);
-
-        var service = new CallBinderService(context.RuntimeContext);
-        if (!service.TryBindExtensionCallWithDescriptors(
-                targetType, methodName, userDescriptors, context.IsCaseSensitive, out var plan))
+        if (!service.TryBindExtensionCall(targetType, methodName, descriptors, context.IsCaseSensitive, typeArguments, out var plan))
             return null;
 
         var extensionType = plan!.SelectedMethod.DeclaringType ?? targetType;
@@ -168,48 +125,26 @@ internal static class CallBinder
             IsExtensionCall: true);
     }
 
-    private static BoundResolvedCallExpr BuildExtensionCallExpr(
-        BoundExpr targetExpr,
-        string methodName,
-        bool nullSafe,
-        ImmutableArray<BoundExpr> userArguments,
-        CallBindResult plan,
-        BindingContext context)
-    {
-        var extensionType = plan.SelectedMethod.DeclaringType ?? typeof(object);
-        var callee = new BoundMethodGroupExpr(
-            targetExpr, extensionType, methodName, nullSafe, IsStatic: true, BoundType.Unknown);
-
-        var allArguments = ImmutableArray.CreateBuilder<BoundExpr>(userArguments.Length + 1);
-        allArguments.Add(targetExpr);
-        allArguments.AddRange(userArguments);
-
-        var fullArguments = allArguments.ToImmutable();
-        return new BoundResolvedCallExpr(
-            callee, fullArguments, plan.Resolution,
-            plan.IsStaticCall, plan.IsModuleCall,
-            CreateTupleAwareBoundType(plan.SelectedMethod.ReturnType, fullArguments),
-            IsExtensionCall: true);
-    }
-
-    private static BoundExpr? TryBindCallWithLambdas(
+    private static BoundExpr? TryBindResolvedCall(
         BoundExpr callee,
-        BoundMethodGroupExpr methodGroup,
+        Type declaringType,
+        string methodName,
+        bool isStaticCall,
         ImmutableArray<BoundExpr> arguments,
+        ImmutableArray<string> typeArguments,
+        ArgumentDescriptor[] descriptors,
         BindingContext context,
-        BinderContext binder)
+        BinderContext binder,
+        CallBinderService service)
     {
-        var descriptors = BuildDescriptorsForLambdasAndMethodGroups(arguments);
-
-        var flags = BindingFlags.Public |
-                    (methodGroup.IsStatic ? BindingFlags.Static : BindingFlags.Instance);
-        if (!context.IsCaseSensitive)
-            flags |= BindingFlags.IgnoreCase;
-
-        var methods = context.RuntimeContext.TypeMetadata.GetMethods(methodGroup.DeclaringType, methodGroup.MethodName, flags);
-        var callBinderService = new CallBinderService(context.RuntimeContext);
-
-        if (!callBinderService.TryBindWithDescriptors(methods, descriptors, methodGroup.IsStatic, out var callPlan))
+        if (!service.TryBindCall(
+                declaringType,
+                methodName,
+                descriptors,
+                isStaticCall,
+                context.IsCaseSensitive,
+                typeArguments,
+                out var callPlan))
             return null;
 
         var resolution = callPlan!.Resolution;
@@ -241,8 +176,7 @@ internal static class CallBinder
                 return null;
 
             var delegateType = conversions[i].TargetType;
-            var invokeMethod = delegateType.GetMethod("Invoke");
-            if (invokeMethod == null)
+            if (!DelegateShapeInspector.TryGetInvoke(delegateType, out var invokeMethod))
                 return null;
 
             var invokeParams = invokeMethod.GetParameters();
@@ -385,7 +319,7 @@ internal static class CallBinder
     }
 
 
-    private static ArgumentDescriptor[] BuildDescriptorsForLambdasAndMethodGroups(ImmutableArray<BoundExpr> arguments)
+    private static ArgumentDescriptor[] BuildArgumentDescriptors(ImmutableArray<BoundExpr> arguments)
     {
         var descriptors = new ArgumentDescriptor[arguments.Length];
         for (var i = 0; i < arguments.Length; i++)
@@ -393,7 +327,7 @@ internal static class CallBinder
             descriptors[i] = arguments[i] switch
             {
                 BoundLambdaExpr lambda => ArgumentDescriptor.ForLambda(lambda.Parameters.Length, lambda),
-                BoundMethodGroupExpr mg => ArgumentDescriptor.ForMethodGroup(1, new StaticMethodRef(mg.DeclaringType, mg.MethodName)),
+                BoundMethodGroupExpr mg => ArgumentDescriptor.ForMethodGroup(1, new MethodRef(mg.DeclaringType, mg.MethodName)),
                 _ => ArgumentDescriptor.ForType(arguments[i].StaticType.ClrType)
             };
         }
@@ -419,7 +353,7 @@ internal static class CallBinder
         return arguments;
     }
 
-    private static bool TryBindStaticModuleCall(CallExpr call, BindingContext context, BinderContext binder, out BoundExpr boundCall)
+    internal static bool TryBindStaticModuleCall(CallExpr call, BindingContext context, BinderContext binder, out BoundExpr boundCall)
     {
         boundCall = null!;
         if (call.Callee is not MemberAccessExpr { Object: IdentifierExpr moduleIdentifier } memberAccess)
@@ -427,6 +361,9 @@ internal static class CallBinder
 
         var moduleName = moduleIdentifier.Name.Lexeme;
         if (context.RuntimeContext.Functions.ContainsKey(moduleName))
+            return false;
+
+        if (context.TryGetLocal(moduleName, out _, out _))
             return false;
 
         if (!context.RuntimeContext.Modules.TryGetValue(moduleName, out var moduleInfo))
@@ -440,7 +377,7 @@ internal static class CallBinder
         }
 
         if (!moduleInfo.Members.TryGetValue(memberAccess.Name.Lexeme, out var moduleMember) ||
-            moduleMember is not MethodInfo)
+            !moduleMember.HasMethods)
             return false;
 
         var arguments = call.Arguments
@@ -449,14 +386,16 @@ internal static class CallBinder
         if (arguments.Any(static argument => argument is BoundLambdaExpr))
             return false;
 
-        var argumentTypes = arguments.Select(static argument => argument.StaticType.ClrType).ToArray();
+        var descriptors = BuildArgumentDescriptors(arguments);
         var callBinderService = new CallBinderService(context.RuntimeContext);
 
-        if (!callBinderService.TryBindStaticCall(
+        if (!callBinderService.TryBindCall(
                 moduleInfo.Type,
                 memberAccess.Name.Lexeme,
-                argumentTypes,
+                descriptors,
+                isStaticCall: true,
                 context.IsCaseSensitive,
+                call.TypeArguments,
                 out var moduleCallPlan))
         {
             return false;

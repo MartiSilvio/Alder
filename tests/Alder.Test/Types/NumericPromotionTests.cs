@@ -17,8 +17,7 @@ namespace Alder.Test.Types;
 ///   - ECMA-334 §12.4.7.3: Binary numeric promotion
 ///   - ECMA-334 §12.11: Shift operators (left operand promotion)
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class NumericPromotionTests(CompilationMode mode)
 {
     #region Specific value and type verification for key edge cases

@@ -19,7 +19,7 @@ internal static class MemberAssignEvaluator
             return MemberAccess.SetResolvedMember(node.ResolvedMember, target, node.MemberName, value, ctx.Context);
         }
 
-        return AssignmentRuntime.ApplyMemberAssign(target, node.MemberName, value, ctx);
+        return AssignmentRuntime.ApplyMemberAssign(target, node.MemberName, value, ctx.Context);
     }
 
     public static async ValueTask<object?> EvaluateAsync(BoundMemberAssignExpr node, EvaluationContext ctx, CancellationToken ct)
@@ -33,6 +33,6 @@ internal static class MemberAssignEvaluator
             return MemberAccess.SetResolvedMember(node.ResolvedMember, target, node.MemberName, value, ctx.Context);
         }
 
-        return AssignmentRuntime.ApplyMemberAssign(target, node.MemberName, value, ctx);
+        return AssignmentRuntime.ApplyMemberAssign(target, node.MemberName, value, ctx.Context);
     }
 }

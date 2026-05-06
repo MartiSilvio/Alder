@@ -67,10 +67,7 @@ internal static class Operators
             value.GetType().Name);
     }
 
-    public static object? Add(object? left, object? right, AlderConfig config) =>
-        Add(left, right, config, null);
-
-    public static object? Add(object? left, object? right, AlderConfig config, AlderContext? context, bool isChecked = false,
+    public static object? Add(object? left, object? right, AlderConfig config, bool isChecked = false,
         bool isStringContext = false)
     {
         if (left is DateTime leftDate && right is TimeSpan rightSpan)
@@ -109,14 +106,11 @@ internal static class Operators
             TryInvokeUserDefinedBinaryOperator(left, right, "op_Addition", out var userResult, isChecked))
             return userResult;
 
-        // Extended mode repurposes + for object merge when no standard arithmetic or concatenation rule applies.
-        if (config.LanguageMode == LanguageMode.Standard)
-            throw new AlderException(
-                DiagnosticDescriptors.BadBinaryOps,
-                TokenLexemes.GetCanonical(TokenType.Plus),
-                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
-
-        return Extensions.ObjectMergeOperator.MergeObjects(left, right, config.Comparer, context);
+        throw new AlderException(
+            DiagnosticDescriptors.BadBinaryOps,
+            TokenLexemes.GetCanonical(TokenType.Plus),
+            TypeNameFormatter.Of(left),
+            TypeNameFormatter.Of(right));
     }
 
     public static object? Subtract(object? left, object? right, bool isChecked = false)
@@ -567,7 +561,7 @@ internal static class Operators
 
                 foreach (var type in searchTypes)
                 {
-                    foreach (var method in ReflectionRuntime.GetMethods(type, flags))
+                    foreach (var method in RuntimeTypeIntrospection.GetMethods(type, flags))
                     {
                         if (!string.Equals(method.Name, key.Op, StringComparison.Ordinal))
                             continue;

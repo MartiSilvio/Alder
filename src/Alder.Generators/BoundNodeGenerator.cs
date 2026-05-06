@@ -204,7 +204,7 @@ public sealed class BoundNodeGenerator : IIncrementalGenerator
             {
                 return new ChildInfo
                 {
-                    ParameterName = null!,
+                    ParameterName = string.Empty,
                     Kind = ChildKind.ContainerArray,
                     ContainerTypeFullName = elementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                     ContainerChildren = containerChildren,
@@ -220,7 +220,7 @@ public sealed class BoundNodeGenerator : IIncrementalGenerator
             {
                 return new ChildInfo
                 {
-                    ParameterName = null!,
+                    ParameterName = string.Empty,
                     Kind = ChildKind.PolymorphicContainerArray,
                     ContainerTypeFullName = elementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                     ContainerChildren = ImmutableArray<ContainerChildInfo>.Empty,
@@ -260,7 +260,7 @@ public sealed class BoundNodeGenerator : IIncrementalGenerator
 
     private static ImmutableArray<ContainerChildInfo> ClassifyContainerChildren(
         INamedTypeSymbol containerClass, INamedTypeSymbol boundExprSymbol, Compilation compilation,
-        INamedTypeSymbol immutableArraySymbol = null)
+        INamedTypeSymbol? immutableArraySymbol = null)
     {
         immutableArraySymbol ??= compilation.GetTypeByMetadataName(ImmutableArrayMetadataName);
         var builder = ImmutableArray.CreateBuilder<ContainerChildInfo>();
@@ -328,7 +328,7 @@ public sealed class BoundNodeGenerator : IIncrementalGenerator
         param.NullableAnnotation == NullableAnnotation.Annotated ||
         param.Type.NullableAnnotation == NullableAnnotation.Annotated;
 
-    private static bool IsImmutableArrayOf(ITypeSymbol type, INamedTypeSymbol elementBase, INamedTypeSymbol immutableArraySymbol)
+    private static bool IsImmutableArrayOf(ITypeSymbol type, INamedTypeSymbol elementBase, INamedTypeSymbol? immutableArraySymbol)
     {
         if (immutableArraySymbol == null) return false;
         if (type is not INamedTypeSymbol { IsGenericType: true } named) return false;
@@ -337,7 +337,7 @@ public sealed class BoundNodeGenerator : IIncrementalGenerator
     }
 
     private static bool IsNullableImmutableArrayOfBoundExpr(
-        ITypeSymbol type, INamedTypeSymbol boundExprSymbol, INamedTypeSymbol immutableArraySymbol)
+        ITypeSymbol type, INamedTypeSymbol boundExprSymbol, INamedTypeSymbol? immutableArraySymbol)
     {
         if (immutableArraySymbol == null) return false;
         if (type is not INamedTypeSymbol { IsGenericType: true, OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
@@ -660,7 +660,8 @@ public sealed class BoundNodeGenerator : IIncrementalGenerator
 
     private static void EmitChainFlattenRewriter(SourceWriter w, BoundNodeModel n)
     {
-        string leftName = null, rightName = null;
+        string? leftName = null;
+        string? rightName = null;
         foreach (var child in n.Children)
         {
             if (child.Kind == ChildKind.Direct)

@@ -13,8 +13,11 @@ namespace Alder.Benchmarks;
 [CategoriesColumn]
 public class TypedDelegateAmortizationBenchmarks : BenchmarkBase
 {
-    [Params(1, 10, 100, 1_000)]
+    [ParamsSource(nameof(ReuseCounts))]
     public int ReuseCount { get; set; }
+
+    public IEnumerable<int> ReuseCounts() =>
+        BenchmarkProfileContext.CurrentDefinition.CompilationReuseCounts;
 
     private BenchmarkData _data = null!;
 

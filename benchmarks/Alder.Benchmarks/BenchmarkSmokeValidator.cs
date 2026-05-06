@@ -4,16 +4,55 @@ namespace Alder.Benchmarks;
 
 public static class BenchmarkSmokeValidator
 {
+    public static IReadOnlyList<BenchmarkMatrixRow> BuildValidationRows(BenchmarkLane lane) =>
+        MatrixCatalogBuilder.BuildSupportedRows(lane);
+
     public static int Run()
     {
         var data = BenchmarkData.CreateStandard();
         var failures = new List<string>();
 
-        Console.WriteLine("=== Competitor scenarios ===");
-        foreach (var scenario in BenchmarkScenarios.GetCompetitorScenarios())
+        Console.WriteLine("=== Cross-engine scenarios ===");
+        foreach (var scenario in BenchmarkScenarios.GetCrossEngineScenarios())
         {
-            var parity = BenchmarkParityVerifier.VerifyCompetitorScenario(scenario, data);
+            var parity = BenchmarkParityVerifier.VerifyCrossEngineScenario(scenario, data);
             Console.WriteLine(parity.IsSuccess ? $"  PASS: {scenario.Name}" : $"  FAIL: {parity.Message}");
+            if (!parity.IsSuccess) failures.Add(parity.Message);
+        }
+
+        Console.WriteLine("\n=== Cross-engine matrix parity (pre-parsed) ===");
+        var preParsedRows = BuildValidationRows(BenchmarkLane.PreParsed);
+        var preParsedUnsupported = MatrixCatalogBuilder.BuildUnsupportedRows(BenchmarkLane.PreParsed);
+        foreach (var row in preParsedUnsupported)
+            Console.WriteLine($"  N/A: {row.CaseId}/{row.EvaluatorId} ({row.Capability.ReasonCode})");
+        foreach (var row in preParsedRows)
+        {
+            var parity = ParityRunner.VerifyRow(row, data);
+            Console.WriteLine(parity.IsSuccess ? $"  PASS: {row}" : $"  FAIL: {parity.Message}");
+            if (!parity.IsSuccess) failures.Add(parity.Message);
+        }
+
+        Console.WriteLine("\n=== Cross-engine matrix parity (warm) ===");
+        var warmRows = BuildValidationRows(BenchmarkLane.Warm);
+        var warmUnsupported = MatrixCatalogBuilder.BuildUnsupportedRows(BenchmarkLane.Warm);
+        foreach (var row in warmUnsupported)
+            Console.WriteLine($"  N/A: {row.CaseId}/{row.EvaluatorId} ({row.Capability.ReasonCode})");
+        foreach (var row in warmRows)
+        {
+            var parity = ParityRunner.VerifyRow(row, data);
+            Console.WriteLine(parity.IsSuccess ? $"  PASS: {row}" : $"  FAIL: {parity.Message}");
+            if (!parity.IsSuccess) failures.Add(parity.Message);
+        }
+
+        Console.WriteLine("\n=== Cross-engine matrix parity (cold) ===");
+        var coldRows = BuildValidationRows(BenchmarkLane.Cold);
+        var coldUnsupported = MatrixCatalogBuilder.BuildUnsupportedRows(BenchmarkLane.Cold);
+        foreach (var row in coldUnsupported)
+            Console.WriteLine($"  N/A: {row.CaseId}/{row.EvaluatorId} ({row.Capability.ReasonCode})");
+        foreach (var row in coldRows)
+        {
+            var parity = ParityRunner.VerifyRow(row, data);
+            Console.WriteLine(parity.IsSuccess ? $"  PASS: {row}" : $"  FAIL: {parity.Message}");
             if (!parity.IsSuccess) failures.Add(parity.Message);
         }
 
@@ -36,7 +75,7 @@ public static class BenchmarkSmokeValidator
         Console.WriteLine("\n=== Extended syntax scenarios ===");
         foreach (var scenario in BenchmarkScenarios.GetExtendedScenarios())
         {
-            var parity = BenchmarkParityVerifier.VerifyExtendedScenario(scenario, data);
+            var parity = BenchmarkParityVerifier.VerifyExtendedScenario(scenario, data, includeFec: false);
             Console.WriteLine(parity.IsSuccess ? $"  PASS: {scenario.Name}" : $"  FAIL: {parity.Message}");
             if (!parity.IsSuccess) failures.Add(parity.Message);
         }
@@ -118,4 +157,5 @@ public static class BenchmarkSmokeValidator
             Console.WriteLine($"  - {failure}");
         return 1;
     }
+
 }

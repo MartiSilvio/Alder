@@ -86,6 +86,8 @@ public enum DiagnosticCode
     CS0818 = 818,
     /// <summary>No best type found for an implicitly-typed array</summary>
     CS0826 = 826,
+    /// <summary>An anonymous type cannot have multiple properties with the same name</summary>
+    CS0833 = 833,
 
     /// <summary>; expected</summary>
     CS1002 = 1002,
@@ -207,21 +209,21 @@ public enum DiagnosticCode
     /// <summary>Feature requires LanguageMode.Extended</summary>
     ALDR0020 = 1_000_020,
 
-    /// <summary>Method calls blocked by sandbox</summary>
+    /// <summary>Method calls blocked by security policy</summary>
     ALDR0100 = 1_000_100,
-    /// <summary>Variable assignment blocked by sandbox</summary>
+    /// <summary>Variable assignment blocked by security policy</summary>
     ALDR0101 = 1_000_101,
-    /// <summary>Index assignment blocked by sandbox</summary>
+    /// <summary>Index assignment blocked by security policy</summary>
     ALDR0102 = 1_000_102,
-    /// <summary>Property read blocked by sandbox</summary>
+    /// <summary>Property read blocked by security policy</summary>
     ALDR0103 = 1_000_103,
-    /// <summary>Static member access blocked by sandbox</summary>
+    /// <summary>Static member access blocked by security policy</summary>
     ALDR0104 = 1_000_104,
-    /// <summary>Property assignment blocked by sandbox</summary>
+    /// <summary>Property assignment blocked by security policy</summary>
     ALDR0105 = 1_000_105,
-    /// <summary>Object construction blocked by sandbox</summary>
+    /// <summary>Object construction blocked by security policy</summary>
     ALDR0106 = 1_000_106,
-    /// <summary>Type blocked by sandbox</summary>
+    /// <summary>Type blocked by security policy</summary>
     ALDR0107 = 1_000_107,
     /// <summary>Reflection type access blocked</summary>
     ALDR0108 = 1_000_108,
@@ -267,6 +269,12 @@ public enum DiagnosticCode
     ALDR0314 = 1_000_314,
     /// <summary>Cannot resolve module instance</summary>
     ALDR0315 = 1_000_315,
+    /// <summary>Member requires generated dispatch in authoritative generated mode</summary>
+    ALDR0316 = 1_000_316,
+    /// <summary>Method requires generated dispatch in authoritative generated mode</summary>
+    ALDR0317 = 1_000_317,
+    /// <summary>Constructor requires generated dispatch in authoritative generated mode</summary>
+    ALDR0318 = 1_000_318,
 
     /// <summary>Cannot slice null</summary>
     ALDR0400 = 1_000_400,
@@ -280,6 +288,8 @@ public enum DiagnosticCode
     ALDR0404 = 1_000_404,
     /// <summary>Spread operator used outside array or object literal</summary>
     ALDR0405 = 1_000_405,
+    /// <summary>Cannot materialize projection of type '{0}' to '{1}': {2}</summary>
+    ALDR0406 = 1_000_406,
 }
 
 internal static class DiagnosticCodeExtensions

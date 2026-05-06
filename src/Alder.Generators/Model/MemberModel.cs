@@ -19,18 +19,9 @@ internal readonly record struct FieldModel(
 internal readonly record struct ParameterModel(
     string Name,
     string TypeFullName,
-    bool IsParams = false,
-    bool IsDelegate = false,
-    DelegateSignature? DelegateInfo = null);
-
-/// <summary>
-/// Delegate shape extracted from Roslyn symbols during generation.
-/// Emitters consume this directly instead of reparsing delegate types from strings.
-/// </summary>
-internal readonly record struct DelegateSignature(
-    ImmutableArray<string> ParamTypes,
-    string ReturnType,
-    bool IsAction);
+    string DeclarationTypeFullName,
+    bool IsOut = false,
+    bool IsParams = false);
 
 internal readonly record struct ConstructorModel(
     ImmutableArray<ParameterModel> Parameters);
@@ -46,17 +37,9 @@ internal readonly record struct MethodModel(
     string ReturnTypeFullName,
     ImmutableArray<ParameterModel> Parameters,
     bool IsStatic,
-    bool ReturnsVoid,
-    ImmutableArray<string> GenericTypeArgs = default)
+    bool ReturnsVoid)
 {
+    public bool HasOutParameters => Parameters.Any(static p => p.IsOut);
     public bool HasParams => Parameters.Length > 0 && Parameters[Parameters.Length - 1].IsParams;
     public int FixedParameterCount => HasParams ? Parameters.Length - 1 : Parameters.Length;
-    public bool IsGenericInstantiation => !GenericTypeArgs.IsDefaultOrEmpty;
-
-    /// <summary>
-    /// True when any generic type argument is object, which marks a shared-generic canonical root.
-    /// These entries keep NativeAOT canonical forms alive but are not safe dispatch candidates.
-    /// </summary>
-    public bool IsCanonicalRoot => IsGenericInstantiation &&
-        GenericTypeArgs.Any(a => a == "global::System.Object" || a == "object");
 }

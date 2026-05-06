@@ -1,222 +1,299 @@
-<!-- logo placeholder -->
-
-<h1 align="center">Alder</h1>
+# Alder: C# Expression Runtime
 
 <p align="center">
-<b>A lightweight C# runtime engine for .NET.</b><br>
-Full ECMA-334 language support, two execution backends, safe execution, AOT-ready, zero dependencies.
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/.NET%208+-512BD4?logo=dotnet&logoColor=white" alt=".NET 8+">
-  <img src="https://img.shields.io/badge/.NET%20Standard%202.0-512BD4?logo=dotnet&logoColor=white" alt=".NET Standard 2.0">
-  <img src="https://img.shields.io/badge/NativeAOT-ready-brightgreen" alt="NativeAOT ready">
-  <img src="https://img.shields.io/badge/dependencies-0-brightgreen" alt="Zero dependencies">
+  <a href="https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml"><img src="https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml/badge.svg?branch=master" alt=".NET CI"></a>
+  <img src="https://img.shields.io/badge/.NET-8%2B-512BD4?logo=dotnet&logoColor=white" alt=".NET 8+">
+  <img src="https://img.shields.io/badge/.NET%20Standard-2.0-512BD4?logo=dotnet&logoColor=white" alt=".NET Standard 2.0">
+  <img src="https://img.shields.io/badge/NativeAOT-generated%20dispatch-brightgreen" alt="NativeAOT generated dispatch">
+  <img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="No third-party runtime dependencies">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License"></a>
 </p>
 
 <p align="center">
-  <a href="#install">Install</a> &middot;
-  <a href="#why-alder">Why Alder</a> &middot;
-  <a href="#documentation">Docs</a> &middot;
-  <a href="#license">License</a>
+  <b>Parse, bind, validate, and execute C# expressions and statement blocks against CLR types.</b><br>
+  <sub>Interpreter-first execution, optional compiled delegates, Dynamic LINQ, security policy, expression-tree export, and NativeAOT generated dispatch.</sub>
 </p>
 
----
+<p align="center">
+  C# semantics&nbsp; · &nbsp;Native AOT&nbsp; · &nbsp;Async&nbsp; · &nbsp;Dynamic LINQ&nbsp; · &nbsp;Zero dependencies
+</p>
 
-From simple math to LINQ pipelines, pattern matching, iterators, and async/await:
+Alder evaluates C# expressions and statement blocks at runtime against your host's CLR types. Lambdas, query syntax, pattern matching, async, and iterators bind with ECMA-334 semantics. The interpreter runs the bound tree directly. It is the default path, and the path used under Native AOT. An opt-in compiled backend lowers the same tree to a `System.Linq.Expressions` delegate for hot synchronous workloads. Both backends share the same parser, binder, security policy, and execution limits. Both produce identical results.
+
+## At a glance
+
+- **C# expressions and statements at runtime.** Lambdas, queries, pattern matching, async, iterators, user-defined operators and conversions, evaluated with ECMA-334 7th edition semantics. [Support matrix](docs/reference/language/standard-mode-language-support.md).
+- **Native AOT through generated dispatch.** A source generator emits reflection-free dispatch from `[AlderRegistered]` declarations. The interpreter runs under AOT without trim warnings.
+- **Async inside expressions.** `EvaluateAsync` awaits inside the bound tree. `IAsyncEnumerable<T>`, `await foreach`, and iterators are first-class through the interpreter.
+- **One grammar, three surfaces.** Expression evaluation, Dynamic LINQ (`WhereDynamic`, `OrderByDynamic`), and `Expression<TDelegate>` export for EF Core all parse through the same binder, validate against the same security policy, and answer to the same execution limits.
+
+Targets `net8.0` and `netstandard2.0`. Zero third-party runtime dependencies.
+
+## A first look
 
 ```csharp
-var engine = new AlderEngine();
+using Alder;
 
-engine.Evaluate<int>("1 + 2"); // 3
-```
+AlderEval.Evaluate<int>("1 + 2");                                   // 3
+AlderEval.Evaluate<decimal>("price * 1.2m", new { price = 100m });  // 120m
 
-```csharp
-engine.Evaluate<double>("scores.Where(s => s >= 70).Average()"); // 87.75
-```
+using var engine = new AlderEngine();
 
-```csharp
-engine.Evaluate<string>("""
-    var letter = score switch
+var tier = engine.Evaluate<string>("""
+    var t = order switch
     {
-        >= 90 => "A",
-        >= 80 => "B",
-        >= 70 => "C",
-        _ => "F"
+        { Total: > 1000m, IsRush: true } => "premium-express",
+        { Total: > 1000m }               => "premium",
+        { IsRush: true }                 => "express",
+        _                                => "standard"
     };
-    return $"{letter} ({score})";
-    """);
-// "B (82)"
+    return t;
+    """, new { order });
 ```
 
+## End-to-end integration
+
 ```csharp
-engine.Evaluate<List<int>>("""
-    IEnumerable<int> Fib()
-    {
-        var a = 0; var b = 1;
-        while (true) { yield return a; var t = a; a = b; b = t + b; }
-    }
-    return Fib().Take(10).ToList();
-    """);
-// [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+using Alder;
+using Alder.Compiled;
+
+using var engine = new AlderEngine(options =>
+{
+    options.UseCompiler();
+    options.Security = SecurityOptions.Safe();
+    options.Aot.UseGeneratedContext(RulesAotContext.Default);
+});
+
+// Validate untrusted input before evaluation begins.
+if (!engine.TryValidate(rule, out var diagnostics))
+    return diagnostics;
+
+// Compiled synchronous evaluation against host-shaped types.
+var accepted = engine.Evaluate<bool>(rule, new { order, minimum = 500m });
+
+// Awaitable expression body, cooperating with cancellation and constraints.
+var quote = await engine.EvaluateAsync<decimal>(
+    "await pricing.QuoteAsync(order)",
+    new { order, pricing });
+
+// Runtime fragments exported as an Expression tree, translated by EF Core to SQL.
+var report = await db.Orders
+    .WhereDynamic(engine, """Status == "Open" && Total >= @0""", 250m)
+    .OrderByDynamic<Order, decimal>(engine, "Total")
+    .SelectDynamic<Order, OrderSummary>(engine, "new { Id, Total }")
+    .ToListAsync();
 ```
 
 ## Install
 
-```
+```bash
 dotnet add package Alder
 ```
 
-One package. Zero dependencies on .NET 8+. No Roslyn dependency. No runtime code generation required. Targets `net8.0` and `netstandard2.0`. AOT-compatible out of the box.
+The `Alder` package is the single public package. It ships the runtime, the optional `Alder.Compiled` API surface for JIT-capable consumers, and the source generator that produces AOT generated dispatch metadata.
 
-## Why Alder
+## What Alder runs
 
-**Full language.** Expressions, statements, LINQ with generic type inference, pattern matching (11 pattern types), switch expressions, async/await, iterators, lambdas, exception handling with `when` guards, `using`/`lock`, `goto`. Per ECMA-334.
+Standard mode evaluates C# at the expression and statement-block level against ECMA-334 7th edition semantics. Type and member declarations, namespaces, attributes, preprocessor directives, and unsafe code are out of scope. The full support matrix lives in [Standard mode language support](docs/reference/language/standard-mode-language-support.md).
 
-**Safe by design.** Security is a pipeline pass, not a runtime check. The entire expression tree is validated against your policy before a single instruction executes. No partial execution, no side effects. Eight permission flags, four-layer type blocking, execution limits.
+[Extended mode](docs/concepts/extended-language-mode.md) layers scripting sugar on the same parser: pipelines, regex predicates, SQL-style comparisons, ranges, date arithmetic, aggregate helpers. A valid C# expression produces the same result in either mode.
 
-**Lightweight.** A single NuGet package with zero dependencies on .NET 8+. No compiler SDK. No heavy runtime. The AOT source generator ships inside the same package.
+## The expression runtime
 
-**Two backends.** An interpreter with 76 source-generated evaluators for flexibility. An IL compiler that emits native delegates for speed. Same API, same results, your choice.
+The binder is Alder's architectural boundary. Everything before the binder determines what an expression *means*: types, conversions, overload resolution, member targets, assignment legality, control-flow shape, and the points where runtime dispatch is still required. Everything after executes those decisions while preserving security policy and execution limits.
 
-**Runs everywhere.** .NET 8+, .NET Standard 2.0, NativeAOT, Unity IL2CPP. The included AOT source generator emits reflection-free typed dispatch. Same behavior on every platform.
+The **interpreter** evaluates the bound tree directly. It is the default synchronous path, the engine for `EvaluateAsync(...)`, and the path used under NativeAOT and trimming-sensitive deployments.
 
-**Delegates to .NET.** `.Where()` calls the real `Enumerable.Where`. `Math.Round` calls the real `Math.Round`. Conversions follow CLR rules. Alder bridges dynamic evaluation to .NET, it doesn't reimplement it.
+The **compiled backend** lowers the same bound tree to a reusable delegate through `System.Linq.Expressions`. With `UseCompiler()` configured, synchronous `Evaluate(...)` uses that delegate path and recompiles when the relevant type surface changes.
 
-## Capabilities
+Both backends share the same parser, binder, validation pipeline, security policy, execution limits, and language semantics. They produce identical results. Divergence is a defect.
 
-<details>
-<summary><b>Compile to native IL</b></summary>
-<br>
+Architecture: [Architecture](docs/concepts/architecture.md), [Binding system](docs/concepts/binding-system.md), [Execution model](docs/reference/execution-model.md).
+
+## Async expressions
+
+`EvaluateAsync(...)` runs through the interpreter and awaits expression-level asynchronous work directly inside the bound tree.
 
 ```csharp
-var engine = new AlderEngine(o => o.UseCompiler());
-
-var compiled = engine.Compile<int>(
-    "Enumerable.Range(1, n).Where(x => x % 3 == 0 || x % 5 == 0).Sum()");
-engine.SetVariable<int>("n", 1000);
-compiled.Invoke(); // 233168
+var prices = await engine.EvaluateAsync<decimal[]>(
+    """
+    var quotes = await pricing.FetchAsync(symbols);
+    return quotes.Select(q => q.Bid).ToArray();
+    """,
+    new { symbols, pricing });
 ```
 
-First call: parse, bind, emit expression tree, compile to IL, execute. After: execute cached native delegate. Backend is swappable via `IExpressionCompiler`.
+`await` cooperates with `CancellationToken` and execution constraints. Long-running expressions surface `OperationCanceledException` or `AlderExecutionLimitException` at expression-level checkpoints. Iterators, `await foreach`, and `IAsyncEnumerable<T>` are first-class inside the same evaluation tree.
 
-</details>
+See [Async execution](docs/concepts/async-execution.md).
 
-<details>
-<summary><b>LINQ Dynamic</b></summary>
-<br>
+## Dynamic LINQ
 
-String-based LINQ on any `IEnumerable<T>` or `IQueryable<T>`. On `IQueryable<T>`, produces expression trees that EF Core translates to SQL.
+Dynamic LINQ adapts runtime fragments into LINQ pipelines across three execution surfaces.
 
 ```csharp
-AlderEval.Configure(o => o.UseCompiler());
+using Alder;
+using Alder.Compiled;
 
-var engineers = people.WhereDynamic("x => x.Department == \"Engineering\"");
-var total = people.SumDynamic("x => x.Salary");
+using var engine = new AlderEngine(options => options.UseCompiler());
+
+var page = orders
+    .WhereDynamic(engine, """Status == "Open" && Total >= @0""", 250m)
+    .OrderByDynamic<Order, decimal>(engine, "Total")
+    .SelectDynamic<Order, OrderSummary>(
+        engine,
+        "new { Id, CustomerName = Customer.Name, Total }")
+    .TakeDynamic(25)
+    .ToList();
 ```
 
-</details>
+`IEnumerable<T>` runs in process through compiled delegates. `IQueryable<T>` exports expression trees and calls the matching `Queryable` operators; provider translation belongs to the provider. `IAsyncEnumerable<T>` streams through compiled delegates during asynchronous enumeration.
 
-<details>
-<summary><b>Secure evaluation</b></summary>
-<br>
+Filtering, ordering, projection, flattening, grouping, joins, group joins, paging, set operations, element operators, quantifiers, and aggregates are covered. `DynamicQueryPlan` captures a parsed fragment and exposes both the expression-tree view and the compiled delegate view for reuse across operators, provider-backed query assembly, and validation.
 
-Three presets: `Trusted()` (full access), `Safe()` (property reads + assignment), `Strict()` (read-only). Default deny lists cover file I/O, networking, process execution, reflection, threading.
+The full operator matrix is in [Use Dynamic LINQ](docs/guides/use-dynamic-linq.md).
+
+## LINQ expression-tree export
+
+Alder produces `Expression<TDelegate>` trees that LINQ providers translate.
 
 ```csharp
-var engine = new AlderEngine(o =>
+using System.Linq.Expressions;
+
+Expression<Func<Order, bool>> predicate =
+    engine.ParseAsExpression<Func<Order, bool>>(
+        """order => order.Total >= 500m && order.Status == "Open" """);
+```
+
+EF Core can translate filtering, ordering, projection, grouping, flattening, joins, group joins, paging, null-coalescing predicates, string methods, and `EF.Property<T>(...)` for the verified shapes Alder emits. The export surface is narrower than runtime evaluation: statement-bodied lambdas, assignments, dynamic call shapes, collection expressions, and reflection-leaking members are rejected before provider translation begins.
+
+Details in [Compiled backend](docs/concepts/compiled-backend.md).
+
+## Security policy
+
+`SecurityOptions` controls authority. `Trusted()`, `Safe()`, and `Strict()` presets cover most policies; allow and deny lists cover concrete CLR types and namespaces. Reflection metadata is blocked at evaluation boundaries so expressions can compare types and read names without escaping into reflective discovery or invocation.
+
+```csharp
+options.Security = SecurityOptions.Safe() with
 {
-    o.Sandbox = SandboxOptions.Safe();
-    o.Constraints = new ExecutionConstraints
-    {
-        MaxStatements = 10_000,
-        MaxLoopIterations = 1_000,
-        MaxTimeout = TimeSpan.FromSeconds(5)
-    };
+    AllowConstruction = true,
+    TrustedTypes = [typeof(StringBuilder)],
+};
+```
+
+The default deny surface is broad: reflection, file and process access, networking, interop, security-sensitive runtime services, and data access are denied by default. The boundary is in-process. Alder constrains expression behavior inside the host runtime; it does not provide process or operating-system isolation.
+
+See [Security model](docs/operations/security-model.md).
+
+## Execution limits
+
+`ExecutionConstraints` bounds work. Limits apply across the interpreter, the compiled backend, and generated dispatch.
+
+```csharp
+options.Constraints = new ExecutionConstraints
+{
+    MaxStatements     = 10_000,
+    MaxLoopIterations = 1_000,
+    MaxTimeout        = TimeSpan.FromSeconds(2),
+};
+```
+
+Exceeded limits surface as `AlderExecutionLimitException` carrying the limit type, configured value, observed value, executed statement count, and elapsed time. `SecurityOptions.MaxCollectionSize` bounds collection-producing results separately.
+
+## NativeAOT
+
+Alder runs under NativeAOT through interpreted evaluation backed by generated dispatch metadata. A source generator produces reflection-free dispatch code from `[AlderRegistered]` declarations on a partial `AlderTypeContext`.
+
+```csharp
+using Alder.Aot;
+
+[AlderRegistered(typeof(Order))]
+[AlderRegistered(typeof(Customer))]
+public partial class RulesAotContext : AlderTypeContext;
+```
+
+```csharp
+var engine = new AlderEngine(options =>
+{
+    options.Aot.UseGeneratedContext(RulesAotContext.Default);
 });
 ```
 
-</details>
+JIT deployments adopt generated coverage incrementally because reflection fallback remains available. NativeAOT deployments use generated dispatch as the authoritative route for reflection-sensitive operations.
 
-<details>
-<summary><b>Typed variables</b></summary>
-<br>
+See [Deploy with NativeAOT](docs/guides/nativeaot-deployment.md) and [AOT and generated dispatch](docs/operations/aot-and-generated-dispatch.md).
 
-`SetVariable<T>` gives the binder the variable's type at semantic analysis time. Member access, LINQ, and overload resolution are resolved at bind time. Child engines isolate variables for multi-tenant scenarios.
+## Reuse and performance
 
-```csharp
-engine.SetVariable<List<Order>>("orders", orderList);
+Parse once. Bind once. Compile once. Reuse across the lifetime of the engine.
 
-var result = engine.Evaluate<string>("""
-    var shipped = orders.Where(o => o.Status == "Shipped").ToList();
-    return $"{shipped.Count} shipped, ${shipped.Sum(o => o.Total):F2} total";
-    """);
-```
-
-</details>
-
-<details>
-<summary><b>Async/await</b></summary>
-<br>
+`AlderExpression` preserves parsed syntax across evaluations and engines. The engine caches bound and compiled state across calls against the same context type surface. `Compile<TDelegate>(...)` produces a typed synchronous delegate for hot paths. `DynamicQueryPlan` reuses parsed query fragments across operators, expression-tree export, and delegate execution.
 
 ```csharp
-var result = await engine.EvaluateAsync<int>("""
-    var a = await Task.FromResult(10);
-    var b = await Task.FromResult(20);
-    return a + b;
-    """);
-// 30
+var expression = engine.Parse("price * (1 - discount)");
+
+var first  = engine.Evaluate<double>(expression, new { price = 100.0, discount = 0.10 });
+var second = engine.Evaluate<double>(expression, new { price = 250.0, discount = 0.10 });
+
+var isVisible = engine.Compile<Func<decimal, decimal, bool>>(
+    "total >= minimum", "total", "minimum");
 ```
 
-`CancellationToken` is auto-injected into method calls that accept one.
+Cache invalidation is conservative. A value-only change keeps prior work. A declared-type change rebinds because overload resolution, conversion legality, and the resolved-versus-dynamic boundary may shift.
 
-</details>
+Benchmarks for the parser, binder, interpreter, compiled backend, and Dynamic LINQ live under [`benchmarks/Alder.Benchmarks`](benchmarks/Alder.Benchmarks). Run them locally to compare against your workload:
 
-<details>
-<summary><b>NativeAOT and IL2CPP</b></summary>
-<br>
+```bash
+dotnet run -c Release --project benchmarks/Alder.Benchmarks
+```
 
-Incremental source generator emits typed dispatch at compile time. No reflection on AOT platforms.
+See [Execution and reuse](docs/operations/execution-and-reuse.md).
+
+## Host integration
+
+Hosts assemble Alder's expression-facing world through `AlderOptions`. Variables come from typed values, anonymous objects, dictionaries, positional `@0` placeholders, or runtime-type-preserving inputs. Host APIs reach expressions through global functions, named modules, attributed registration (`[AlderModule]`, `[AlderFunction]`), registered assemblies, imported namespaces, and extension-method containers. Modules resolve through `IServiceProvider` so module-backed expressions obtain instance targets from the host container. Child engines inherit configuration with isolated local variable state.
 
 ```csharp
-[AlderRegistered(typeof(List<int>))]
-[AlderRegistered(typeof(DateTime))]
-public partial class MyTypeContext : AlderTypeContext { }
-
-var engine = new AlderEngine(o => o.Aot.UseGeneratedContext(new MyTypeContext()));
+var engine = new AlderEngine(options =>
+{
+    options.Modules.Register<PricingModule>("pricing");
+    options.Functions.Register("hash", args => Sha256((string)args[0]!));
+    options.Types.AddNamespace("Acme.Domain");
+    options.Types.AddExtensionMethods<MoneyExtensions>();
+});
 ```
 
-</details>
+See [Configuration](docs/reference/configuration.md), [Register types and extension methods](docs/guides/type-registration.md), [Expose functions and modules](docs/guides/functions-and-modules.md), and [Choose variables and child engines](docs/guides/variables-context-and-child-engines.md).
 
-<details>
-<summary><b>Extended mode</b></summary>
-<br>
+## Diagnostics and tracing
 
-Features we love from other languages, brought to C#. Comprehensions, pipeline operator, chained comparisons, bare math functions, and more. All valid Standard C# still works unchanged.
+Parse, bind, validation, compilation, export, and runtime failures surface as `AlderException` with structured `AlderDiagnostic` values: codes (Roslyn `CS####` where applicable, `ALDR####` otherwise), human-readable messages, and source spans.
 
 ```csharp
-var ext = new AlderEngine(o => o.LanguageMode = LanguageMode.Extended);
-
-ext.Evaluate("[x * x for x in 1..=10 if x % 2 == 0]");  // [4, 16, 36, 64, 100]
-ext.Evaluate("5 |> (x => x * 2)");                        // 10
-ext.Evaluate("0 <= score <= 100");                         // chained comparison
-ext.Evaluate("""now() + 30.days""");                       // date arithmetic
+if (!engine.TryValidate(source, out var diagnostics))
+{
+    foreach (var d in diagnostics)
+        log.Warn("{Code} at {Span}: {Message}", d.Code, d.Span, d.Message);
+}
 ```
 
-Power (`**`), pipeline (`|>`), comprehensions, bare math (`sin`, `cos`, `sqrt`), aggregates (`sum`, `avg`), date/time sugar, SQL operators (`in`, `like`, `between`), slicing, `let..in`, `unless`/`until`.
+`EvaluateWithTrace(...)` returns a tree showing each evaluated node, its inputs, its output, and the execution path it took.
 
-</details>
+See [Diagnostics and debugging](docs/operations/diagnostics-and-debugging.md).
 
 ## Documentation
 
-- **[Getting Started](docs/getting-started.md)** - Install, evaluate, inject variables, compile, secure, deploy
-- **[Standard Mode](docs/language/standard.md)** - Full ECMA-334 language reference
-- **[Extended Mode](docs/language/extended.md)** - Power, pipeline, comprehensions, bare math, SQL operators
-- **[Engine API](docs/engine/index.md)** - AlderEngine, AlderOptions, variables, compilation, modules, diagnostics
-- **[Security](docs/security/sandbox.md)** - Sandbox presets, type blocking, execution limits
-- **[AOT](docs/aot/overview.md)** - Source generators, typed dispatch, NativeAOT/IL2CPP
-- **[Architecture](docs/architecture/index.md)** - Pipeline internals: binder, overload resolution, type inference, compiler
+Full documentation lives in [`docs/`](docs/README.md), organized as concepts, guides, reference, and operations.
+
+## Build from source
+
+```bash
+dotnet restore
+dotnet build
+dotnet test
+```
+
+Repository layout, test-suite organization, and the AOT-matrix harness are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

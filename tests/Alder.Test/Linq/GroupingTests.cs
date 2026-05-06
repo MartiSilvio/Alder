@@ -2,8 +2,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Linq;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class GroupingTests(CompilationMode mode)
 {
     [Test]
@@ -47,9 +46,8 @@ public class GroupingTests(CompilationMode mode)
     [Test]
     public void GroupBy_CanPassToFunctionAcceptingIGrouping()
     {
-        var engine = new AlderEngine(o =>
+        var engine = TestEngineFactory.Create(mode, o =>
         {
-            if (mode == CompilationMode.Compiled) o.UseCompiler();
             o.Functions.Register("SumGroup", args =>
             {
                 var group = (IGrouping<bool, int>)args[0]!;

@@ -1,0 +1,80 @@
+name: Bug report
+description: Report incorrect Alder behavior or a regression.
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Include the smallest expression, host setup, or test case that reproduces the issue.
+      render: csharp
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should Alder do? If this is C# semantics, include the Roslyn behavior if known.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include exception text, diagnostic codes, spans, or result values when relevant.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Language semantics / parity
+        - Parser / lexer
+        - Binder / overload resolution
+        - Interpreter
+        - Compiled backend
+        - Dynamic LINQ / IQueryable
+        - AOT / generated dispatch
+        - Security policy
+        - Documentation
+        - Build / packaging
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Regression
+      description: Did this work in an earlier version or commit?
+      options:
+        - Not sure
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include Alder version or commit, .NET version, OS, language mode, security options, compiler setting, and AOT/generated context details if relevant.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: I reduced this to the smallest expression or host setup I can.
+          required: true
+        - label: I am not reporting a vulnerability publicly.
+          required: true
+title: "[Bug]: "

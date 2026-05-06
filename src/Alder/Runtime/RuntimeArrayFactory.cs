@@ -7,9 +7,11 @@ internal static class RuntimeArrayFactory
         if (elementType is null) throw new ArgumentNullException(nameof(elementType));
         if (rank < 1) throw new ArgumentOutOfRangeException(nameof(rank));
 
+#pragma warning disable IL3050
         return rank == 1
             ? elementType.MakeArrayType()
             : elementType.MakeArrayType(rank);
+#pragma warning restore IL3050
     }
 
     internal const int DefaultMaxCollectionSize = 10_000_000;
@@ -33,16 +35,20 @@ internal static class RuntimeArrayFactory
         if (length > maxLength)
             throw new AlderException(Diagnostics.DiagnosticDescriptors.ArrayLengthExceeded,
                 length.ToString(), maxLength.ToString());
+#pragma warning disable IL3050
         return Array.CreateInstance(elementType, length);
+#pragma warning restore IL3050
     }
 
     public static Array Create(Type elementType, int[] lengths)
     {
         if (lengths is null) throw new ArgumentNullException(nameof(lengths));
 
+#pragma warning disable IL3050
         return lengths.Length == 1
             ? Create(elementType, lengths[0])
             : Array.CreateInstance(elementType, lengths);
+#pragma warning restore IL3050
     }
 
     /// <summary>
@@ -118,7 +124,7 @@ internal static class RuntimeArrayFactory
             return source.ToArray();
 
         if (hasNull && commonType.IsValueType)
-            commonType = RuntimeGenericFactory.CloseGenericType(typeof(Nullable<>), [commonType]);
+            commonType = RuntimeGenericClosure.CloseType(typeof(Nullable<>), [commonType]);
 
         var array = Create(commonType, source.Count);
         for (var i = 0; i < source.Count; i++)

@@ -3,8 +3,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Security;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class CaseSensitivityTests(CompilationMode mode)
 {
     [Test]
@@ -12,7 +11,7 @@ public class CaseSensitivityTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o => {
             o.IsCaseSensitive = true;
-            o.Sandbox = SandboxOptions.Trusted();
+            o.Security = SecurityOptions.Trusted();
         });
         engine.SetVariable("text", "hello");
 
@@ -26,7 +25,7 @@ public class CaseSensitivityTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o => {
             o.IsCaseSensitive = true;
-            o.Sandbox = SandboxOptions.Trusted();
+            o.Security = SecurityOptions.Trusted();
         });
         engine.SetVariable("text", "hello");
 
@@ -40,7 +39,7 @@ public class CaseSensitivityTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o => {
             o.IsCaseSensitive = false;
-            o.Sandbox = SandboxOptions.Trusted();
+            o.Security = SecurityOptions.Trusted();
         });
         engine.SetVariable("text", "hello");
 
@@ -54,7 +53,7 @@ public class CaseSensitivityTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o => {
             o.IsCaseSensitive = true;
-            o.Sandbox = SandboxOptions.Trusted();
+            o.Security = SecurityOptions.Trusted();
         });
         engine.SetVariable("text", "hello");
 
@@ -68,7 +67,7 @@ public class CaseSensitivityTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o => {
             o.IsCaseSensitive = true;
-            o.Sandbox = SandboxOptions.Trusted();
+            o.Security = SecurityOptions.Trusted();
         });
         engine.SetVariable("text", "hello");
 
@@ -85,7 +84,7 @@ public class CaseSensitivityTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o => {
             o.IsCaseSensitive = false;
-            o.Sandbox = SandboxOptions.Trusted();
+            o.Security = SecurityOptions.Trusted();
         });
         engine.SetVariable("text", "hello");
 
@@ -99,7 +98,7 @@ public class CaseSensitivityTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o => {
             o.IsCaseSensitive = true;
-            o.Sandbox = SandboxOptions.Trusted();
+            o.Security = SecurityOptions.Trusted();
         });
 
         var result = engine.Evaluate("Math.Abs(-5)");

@@ -2,8 +2,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Integration;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [NonParallelizable]
 public class ConsoleOutputTests(CompilationMode mode)
 {
@@ -14,7 +13,7 @@ public class ConsoleOutputTests(CompilationMode mode)
         {
             o.Types.AddAssembly(typeof(Console).Assembly);
             o.Types.AddNamespace("System");
-            o.Sandbox = SandboxOptions.Trusted() with
+            o.Security = SecurityOptions.Trusted() with
             {
                 TrustedTypes = [typeof(Console)]
             };
@@ -40,7 +39,7 @@ public class ConsoleOutputTests(CompilationMode mode)
         {
             o.Types.AddAssembly(typeof(Console).Assembly);
             o.Types.AddNamespace("System");
-            o.Sandbox = SandboxOptions.Trusted() with
+            o.Security = SecurityOptions.Trusted() with
             {
                 TrustedTypes = [typeof(Console)]
             };

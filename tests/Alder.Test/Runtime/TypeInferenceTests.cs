@@ -1,5 +1,5 @@
 using System.Reflection;
-using Alder.Runtime;
+using Alder.Runtime.OverloadResolution;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Runtime;
@@ -150,8 +150,7 @@ public class TypeInferenceTests
         Assert.That(result![0], Is.EqualTo(typeof(string)));
     }
 
-    [TestFixture(CompilationMode.Interpreted)]
-    [TestFixture(CompilationMode.Compiled)]
+    [TestFixtureSource(typeof(CompilationModeFixtures), nameof(CompilationModeFixtures.All))]
     public class LambdaOutputTypeInference(CompilationMode mode)
     {
         [Test]

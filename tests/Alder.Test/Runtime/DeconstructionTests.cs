@@ -7,8 +7,7 @@ namespace Alder.Test.Runtime;
 /// Tests for tuple deconstruction (ECMA-334 §12.7 - Deconstruction).
 /// Engine-only tests: error assertions, SetVariable with non-serializable types.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class DeconstructionTests(CompilationMode mode)
 {
     #region Engine-only: error tests

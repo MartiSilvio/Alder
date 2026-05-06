@@ -15,8 +15,7 @@ namespace Alder.Test.Runtime;
 /// Each test creates a fresh engine, optionally configuring RegisterNamespace/RegisterAssembly, then
 /// evaluates an expression that depends on type resolution working correctly.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class TypeResolverTests(CompilationMode mode)
 {
     private AlderEngine CreateEngine(Action<AlderOptions>? configure = null)
@@ -24,9 +23,8 @@ public class TypeResolverTests(CompilationMode mode)
         if (configure == null)
             return TestEngineFactory.Create(mode);
 
-        return new AlderEngine(o =>
+        return TestEngineFactory.Create(mode, o =>
         {
-            if (mode == CompilationMode.Compiled) o.UseCompiler();
             configure(o);
         });
     }
@@ -195,6 +193,18 @@ public class TypeResolverTests(CompilationMode mode)
         var engine = CreateEngine();
         var result = engine.Evaluate("new Dictionary<int, string>()");
         Assert.That(result, Is.TypeOf<Dictionary<int, string>>());
+    }
+
+    [Test]
+    public void ResolveType_ImplicitBcl_PrefersExactNonGenericTypeOverFriendlyGenericAlias()
+    {
+        var engine = CreateEngine();
+
+        var taskType = (Type)engine.Evaluate("typeof(Task)")!;
+        var valueTaskType = (Type)engine.Evaluate("typeof(ValueTask)")!;
+
+        Assert.That(taskType, Is.EqualTo(typeof(Task)));
+        Assert.That(valueTaskType, Is.EqualTo(typeof(ValueTask)));
     }
 
     #endregion

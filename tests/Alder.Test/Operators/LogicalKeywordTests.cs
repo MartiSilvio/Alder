@@ -7,8 +7,7 @@ namespace Alder.Test.Operators;
 /// <summary>
 /// Tests for 'and', 'or', 'not' keywords (Alder extension, not standard C#).
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class LogicalKeywordTests(CompilationMode mode)
 {
     // Short-circuit tests (engine-only: use SetVariable)

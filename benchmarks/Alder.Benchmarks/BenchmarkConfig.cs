@@ -16,12 +16,9 @@ public sealed class SteadyStateConfig : ManualConfig
 {
     public SteadyStateConfig()
     {
-        var quick = Environment.GetEnvironmentVariable("BDN_QUICK");
-        AddJob(quick != null
+        AddJob(BenchmarkProfileContext.UsesShortRun
             ? Job.ShortRun.WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
-            : Job.Default
-                .WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
-                .WithLaunchCount(2));
+            : Job.Default.WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80));
 
         AddDiagnoser(MemoryDiagnoser.Default);
         AddExporter(MarkdownExporter.GitHub);
@@ -45,12 +42,64 @@ public sealed class ColdStartConfig : ManualConfig
 {
     public ColdStartConfig()
     {
-        AddJob(Job.Default
-            .WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
-            .WithStrategy(RunStrategy.ColdStart)
-            .WithLaunchCount(10)
-            .WithWarmupCount(0)
-            .WithIterationCount(1));
+        AddJob(BenchmarkProfileContext.UsesShortRun
+            ? Job.ShortRun.WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
+            : Job.Default
+                .WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
+                .WithStrategy(RunStrategy.ColdStart)
+                .WithLaunchCount(10)
+                .WithWarmupCount(0)
+                .WithIterationCount(1));
+
+        AddDiagnoser(MemoryDiagnoser.Default);
+        AddExporter(MarkdownExporter.GitHub);
+        AddExporter(HtmlExporter.Default);
+        AddExporter(CsvMeasurementsExporter.Default);
+        AddColumnProvider(DefaultColumnProviders.Instance);
+        AddColumn(
+            StatisticColumn.Median,
+            StatisticColumn.StdDev,
+            StatisticColumn.Min,
+            StatisticColumn.Max);
+        WithOrderer(new DefaultOrderer(SummaryOrderPolicy.FastestToSlowest));
+    }
+}
+
+public sealed class DynamicLinqConfig : ManualConfig
+{
+    public DynamicLinqConfig()
+    {
+        AddJob(BenchmarkProfileContext.IsPublishable && !BenchmarkProfileContext.UsesShortRun
+            ? Job.Default.WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
+            : Job.ShortRun.WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80));
+
+        AddDiagnoser(MemoryDiagnoser.Default);
+        AddExporter(MarkdownExporter.GitHub);
+        AddExporter(HtmlExporter.Default);
+        AddExporter(CsvMeasurementsExporter.Default);
+        AddColumnProvider(DefaultColumnProviders.Instance);
+        AddColumn(
+            StatisticColumn.Median,
+            StatisticColumn.StdDev,
+            StatisticColumn.Min,
+            StatisticColumn.Max);
+        WithOrderer(new DefaultOrderer(SummaryOrderPolicy.FastestToSlowest));
+    }
+}
+
+public sealed class DynamicLinqColdStartConfig : ManualConfig
+{
+    public DynamicLinqColdStartConfig()
+    {
+        var publishable = BenchmarkProfileContext.IsPublishable;
+        AddJob(BenchmarkProfileContext.UsesShortRun
+            ? Job.ShortRun.WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
+            : Job.Default
+                .WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
+                .WithStrategy(RunStrategy.ColdStart)
+                .WithLaunchCount(publishable ? 10 : 3)
+                .WithWarmupCount(0)
+                .WithIterationCount(1));
 
         AddDiagnoser(MemoryDiagnoser.Default);
         AddExporter(MarkdownExporter.GitHub);
@@ -74,12 +123,14 @@ public sealed class MonitoringConfig : ManualConfig
 {
     public MonitoringConfig()
     {
-        AddJob(Job.Default
-            .WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
-            .WithStrategy(RunStrategy.Monitoring)
-            .WithLaunchCount(3)
-            .WithWarmupCount(3)
-            .WithIterationCount(15));
+        AddJob(BenchmarkProfileContext.UsesShortRun
+            ? Job.ShortRun.WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
+            : Job.Default
+                .WithRuntime(BenchmarkDotNet.Environments.CoreRuntime.Core80)
+                .WithStrategy(RunStrategy.Monitoring)
+                .WithLaunchCount(3)
+                .WithWarmupCount(3)
+                .WithIterationCount(15));
 
         AddDiagnoser(MemoryDiagnoser.Default);
         AddExporter(MarkdownExporter.GitHub);

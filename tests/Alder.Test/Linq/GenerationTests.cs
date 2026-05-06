@@ -2,8 +2,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Linq;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class GenerationTests(CompilationMode mode)
 {
     #region DefaultIfEmpty
@@ -69,9 +68,8 @@ public class GenerationTests(CompilationMode mode)
     [Test]
     public void Enumerable_Range()
     {
-        var engine = new AlderEngine(o =>
+        var engine = TestEngineFactory.Create(mode, o =>
         {
-            if (mode == CompilationMode.Compiled) o.UseCompiler();
             o.Modules.Register("Enumerable", typeof(Enumerable));
         });
 
@@ -82,9 +80,8 @@ public class GenerationTests(CompilationMode mode)
     [Test]
     public void Enumerable_Repeat()
     {
-        var engine = new AlderEngine(o =>
+        var engine = TestEngineFactory.Create(mode, o =>
         {
-            if (mode == CompilationMode.Compiled) o.UseCompiler();
             o.Modules.Register("Enumerable", typeof(Enumerable));
         });
 

@@ -12,8 +12,7 @@ namespace Alder.Test.Runtime;
 ///   - MathRound (single arg, two args) -> TestData/Runtime/OverloadResolution/
 ///   - MathMax (int, mixed int/long) -> TestData/OverloadResolution/ and TestData/Runtime/OverloadResolution/
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class OverloadResolutionTests(CompilationMode mode)
 {
     #region Extension Method Precedence (ECMA-334 §12.8.9.2)
@@ -130,9 +129,8 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void MultiTypeParamGenericInference_Zip_Works()
     {
-        var engine = new AlderEngine(o =>
+        var engine = TestEngineFactory.Create(mode, o =>
         {
-            if (mode == CompilationMode.Compiled) o.UseCompiler();
             o.Types.AddAssembly(typeof(Enumerable).Assembly);
             o.Types.AddNamespace("System.Linq");
         });
@@ -149,9 +147,8 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void MultiTypeParamGenericInference_ToDictionary_Works()
     {
-        var engine = new AlderEngine(o =>
+        var engine = TestEngineFactory.Create(mode, o =>
         {
-            if (mode == CompilationMode.Compiled) o.UseCompiler();
             o.Types.AddAssembly(typeof(Enumerable).Assembly);
             o.Types.AddNamespace("System.Linq");
         });

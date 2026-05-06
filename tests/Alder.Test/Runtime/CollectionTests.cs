@@ -4,10 +4,9 @@ namespace Alder.Test.Runtime;
 
 /// <summary>
 /// All tests engine-only: Alder-specific [...] collection expression syntax (Roslyn rejects CS9176
-/// without target type), anonymous objects as mutable IDictionary (not value-comparable).
+/// without target type), structural projections via new { ... }.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class CollectionTests(CompilationMode mode)
 {
 
@@ -25,15 +24,15 @@ public class CollectionTests(CompilationMode mode)
 
 
 
-    // Engine-only: anonymous object returns IDictionary, not compiler-generated type
+    // Engine-only: structural projections are runtime-generated CLR objects.
     [Test]
     public void Eval_AnonymousObject()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
-        var result = engine.Evaluate("""new { Name = "John", Age = 30 } """) as IDictionary<string, object?>;
+        var result = engine.Evaluate("""new { Name = "John", Age = 30 } """);
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["Name"], Is.EqualTo("John"));
-        Assert.That(result["Age"], Is.EqualTo(30));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Name"), Is.EqualTo("John"));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Age"), Is.EqualTo(30));
     }
 
     [Test]

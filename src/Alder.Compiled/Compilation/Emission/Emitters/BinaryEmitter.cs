@@ -148,7 +148,7 @@ internal static class BinaryEmitter
 
         return op switch
         {
-            TokenType.Plus => LinqExpression.Call(AddMethod, left, right, ctx.ConfigParam, ctx.ContextParam, LinqExpression.Constant(ctx.IsChecked), LinqExpression.Constant(isStringContext)),
+            TokenType.Plus => LinqExpression.Call(AddMethod, left, right, ctx.ConfigParam, LinqExpression.Constant(ctx.IsChecked), LinqExpression.Constant(isStringContext)),
             TokenType.Minus => LinqExpression.Call(SubtractMethod, left, right, LinqExpression.Constant(ctx.IsChecked)),
             TokenType.Star => LinqExpression.Call(MultiplyMethod, left, right, LinqExpression.Constant(ctx.IsChecked)),
             TokenType.Slash => LinqExpression.Call(DivideMethod, left, right),

@@ -1,0 +1,24 @@
+Typed dispatch: TestTypes_MyModelMetadata
+Type: global::TestTypes.MyModel
+TryGet members:
+- Name
+- Count
+TrySet members:
+- Name
+- Count
+TryGetStatic members:
+- GlobalCount
+TryGetIndex key types:
+- string
+TrySetIndex key types:
+- string
+TryCreate arities:
+- 0
+- 1
+TryInvoke:
+- Add: arities [2]
+- Describe: arities [1]
+- SumAll: params >= 0
+- TryRead: arities [1]; out [0]
+TryInvokeStatic:
+- Multiply: arities [2]

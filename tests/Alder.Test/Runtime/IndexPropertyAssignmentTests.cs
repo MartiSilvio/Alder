@@ -6,11 +6,10 @@ namespace Alder.Test.Runtime;
 /// <summary>
 /// Engine-only tests for index and property assignment.
 /// All tests use Alder-specific syntax ([1,2,3] collection expressions,
-/// mutable anonymous objects, SetVariable with non-serializable types).
+/// structural projections, SetVariable with non-serializable types).
 /// No tests migratable to .csx parity format.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class IndexPropertyAssignmentTests(CompilationMode mode)
 {
     #region Index Assignment - Array/List
@@ -91,33 +90,30 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region Index Assignment - Dictionary (Alder anonymous objects as dictionaries)
+    #region Index Assignment - Structural Projections
 
-    // Alder-specific: anonymous objects are mutable dictionaries -- engine-only tests
     [Test]
-    public void IndexAssignment_Dictionary_SetsValue()
+    public void IndexAssignment_StructuralProjection_IsRejected()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
-        var result = engine.Evaluate(@"
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
             var dict = new { name = ""John"" };
             dict[""name""] = ""Jane"";
             return dict[""name""];
-        ");
-
-        Assert.That(result, Is.EqualTo("Jane"));
+        "));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0021));
     }
 
     [Test]
-    public void IndexAssignment_Dictionary_AddsNewKey()
+    public void IndexAssignment_StructuralProjection_AddKey_IsRejected()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
-        var result = engine.Evaluate(@"
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
             var dict = new { name = ""John"" };
             dict[""age""] = 30;
             return dict[""age""];
-        ");
-
-        Assert.That(result, Is.EqualTo(30));
+        "));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0021));
     }
 
     [Test]
@@ -133,72 +129,67 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     }
 
     [Test]
-    public void IndexAssignment_Dictionary_ReturnsAssignedValue()
+    public void IndexAssignment_StructuralProjection_ReturnsAssignedValue_IsRejected()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
-        var result = engine.Evaluate(@"
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
             var dict = new { a = 1 };
             var x = dict[""a""] = 100;
             return x;
-        ");
-
-        Assert.That(result, Is.EqualTo(100));
+        "));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0021));
     }
 
     #endregion
 
-    #region Property Assignment - Anonymous Object (Alder-specific: mutable anonymous objects)
+    #region Property Assignment - Structural Projections
 
     [Test]
-    public void PropertyAssignment_AnonymousObject_SetsValue()
+    public void PropertyAssignment_StructuralProjection_SetsValue_IsRejected()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
-        var result = engine.Evaluate(@"
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
             var obj = new { Name = ""John"" };
             obj.Name = ""Jane"";
             return obj.Name;
-        ");
-
-        Assert.That(result, Is.EqualTo("Jane"));
+        "));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0200));
     }
 
     [Test]
-    public void PropertyAssignment_AnonymousObject_AddsNewProperty()
+    public void PropertyAssignment_StructuralProjection_AddsNewProperty_IsRejected()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
-        var result = engine.Evaluate(@"
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
             var obj = new { Name = ""John"" };
             obj.Age = 30;
             return obj.Age;
-        ");
-
-        Assert.That(result, Is.EqualTo(30));
+        "));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1061));
     }
 
     [Test]
-    public void PropertyAssignment_ReturnsAssignedValue()
+    public void PropertyAssignment_StructuralProjection_ReturnsAssignedValue_IsRejected()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
-        var result = engine.Evaluate(@"
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
             var obj = new { Value = 0 };
             var x = obj.Value = 42;
             return x;
-        ");
-
-        Assert.That(result, Is.EqualTo(42));
+        "));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0200));
     }
 
     [Test]
-    public void PropertyAssignment_NestedObject()
+    public void PropertyAssignment_NestedStructuralProjection_IsRejected()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
-        var result = engine.Evaluate(@"
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
             var obj = new { Inner = new { Value = 10 } };
             obj.Inner.Value = 99;
             return obj.Inner.Value;
-        ");
-
-        Assert.That(result, Is.EqualTo(99));
+        "));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0200));
     }
 
     [Test]
@@ -259,39 +250,37 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region Property Assignment - In Loops (Alder-specific: mutable anonymous objects)
+    #region Property Assignment - In Loops
 
     [Test]
-    public void PropertyAssignment_InForLoop_Works()
+    public void PropertyAssignment_InForLoop_OnStructuralProjection_IsRejected()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
-        var result = engine.Evaluate(@"
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
         {
             var obj = new { Counter = 0 };
             for (var i = 0; i < 5; i++) {
                 obj.Counter = obj.Counter + 1;
             }
             return obj.Counter;
-        }");
-
-        Assert.That(result, Is.EqualTo(5));
+        }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0200));
     }
 
     #endregion
 
-    #region Mixed Index and Property Assignment (Alder-specific: mutable anonymous objects)
+    #region Mixed Index and Property Assignment
 
     [Test]
-    public void MixedAssignment_ArrayOfObjects()
+    public void MixedAssignment_ArrayOfStructuralProjections_IsRejected()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
-        var result = engine.Evaluate(@"
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
             var items = [new { Value = 1 }, new { Value = 2 }];
             items[0].Value = 100;
             return items[0].Value;
-        ");
-
-        Assert.That(result, Is.EqualTo(100));
+        "));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0200));
     }
 
     [Test]

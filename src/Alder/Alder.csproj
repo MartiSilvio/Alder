@@ -7,13 +7,13 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);CA1822;CA1512;CA1513</NoWarn>
     <PackageId>Alder</PackageId>
-    <Version>0.1.0-preview.1</Version>
-    <Authors>Silvio Martignetti</Authors>
-    <Description>A fully featured, zero-dependency C# runtime engine with AOT-first dispatch, built to the ECMA-334 spec.</Description>
+    <Description>C# expression runtime for .NET applications. Parse, bind, validate, and execute C# expressions and statement blocks against CLR types, with interpreter-first execution, optional compiled delegates, Dynamic LINQ, security policy, expression-tree export, and NativeAOT generated dispatch.</Description>
     <IsPackable>true</IsPackable>
-    <IsAotCompatible>true</IsAotCompatible>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</IsAotCompatible>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>obj/Generated</CompilerGeneratedFilesOutputPath>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);AddCompiledBackendToPackage</TargetsForTfmSpecificBuildOutput>
+    <TargetsForTfmSpecificDebugSymbolsInPackage>$(TargetsForTfmSpecificDebugSymbolsInPackage);AddCompiledBackendSymbolsToPackage</TargetsForTfmSpecificDebugSymbolsInPackage>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
@@ -27,11 +27,47 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\..\README.md"
+          Pack="true"
+          PackagePath="\"
+          Visible="false" />
+    <None Include="..\..\assets\brand\alder-icon.png"
+          Pack="true"
+          PackagePath="\"
+          Visible="false" />
     <None Include="..\Alder.Generators\bin\$(Configuration)\netstandard2.0\Alder.Generators.dll"
           Pack="true"
-          PackagePath="analyzers/dotnet/cs"
+          PackagePath="analyzers/dotnet/cs/"
           Visible="false" />
   </ItemGroup>
+
+  <Target Name="BuildSinglePackageAssets" BeforeTargets="GenerateNuspec">
+    <MSBuild Projects="..\Alder.Generators\Alder.Generators.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);TargetFramework=netstandard2.0" />
+    <MSBuild Projects="..\Alder.Compiled\Alder.Compiled.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);TargetFramework=net8.0" />
+  </Target>
+
+  <Target Name="AddCompiledBackendToPackage" Condition="'$(TargetFramework)' == 'net8.0'">
+    <ItemGroup>
+      <BuildOutputInPackage Include="$(MSBuildThisFileDirectory)..\Alder.Compiled\bin\$(Configuration)\net8.0\Alder.Compiled.dll">
+        <FinalOutputPath>$(MSBuildThisFileDirectory)..\Alder.Compiled\bin\$(Configuration)\net8.0\Alder.Compiled.dll</FinalOutputPath>
+        <TargetPath>Alder.Compiled.dll</TargetPath>
+      </BuildOutputInPackage>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="AddCompiledBackendSymbolsToPackage" Condition="'$(TargetFramework)' == 'net8.0'">
+    <ItemGroup>
+      <TfmSpecificDebugSymbolsFile Include="$(MSBuildThisFileDirectory)..\Alder.Compiled\bin\$(Configuration)\net8.0\Alder.Compiled.pdb">
+        <FinalOutputPath>$(MSBuildThisFileDirectory)..\Alder.Compiled\bin\$(Configuration)\net8.0\Alder.Compiled.pdb</FinalOutputPath>
+        <TargetPath>Alder.Compiled.pdb</TargetPath>
+        <TargetFramework>$(TargetFramework)</TargetFramework>
+      </TfmSpecificDebugSymbolsFile>
+    </ItemGroup>
+  </Target>
   
   <ItemGroup>
     <Compile Update="Binding\Binder.Assignments.cs">
@@ -71,6 +107,30 @@
       <DependentUpon>AlderEngine.cs</DependentUpon>
     </Compile>
     <Compile Update="AlderEngine.Registration.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.CompiledInvocationState.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.Evaluation.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.EvaluationAsync.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.EvaluationState.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.ExpressionState.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.Parsing.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.Validation.cs">
+      <DependentUpon>AlderEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="AlderEngine.Tracing.cs">
       <DependentUpon>AlderEngine.cs</DependentUpon>
     </Compile>
   </ItemGroup>

@@ -1,4 +1,3 @@
-using Alder.Compilation;
 using Alder.Binding;
 using Alder.Parsing;
 using Alder.Runtime;
@@ -10,14 +9,6 @@ namespace Alder.Compiled.Compilation;
 /// </summary>
 internal static class ILExpressionCompiler
 {
-    /// <summary>
-    /// Returns a cached compiled delegate for an expression string, compiling it if needed.
-    /// </summary>
-    public static CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache, AlderConfig config)
-    {
-        return cache.GetOrAdd(expressionText, _ => TryCompile(ast, config));
-    }
-
     /// <summary>
     /// Attempts to compile a parsed expression into a native delegate.
     /// </summary>
@@ -83,13 +74,17 @@ internal static class ILExpressionCompiler
             var configParam = LinqExpression.Parameter(typeof(AlderConfig), "config");
             var constraintStateParam = LinqExpression.Parameter(typeof(ExecutionConstraintState), "constraintState");
             var ctParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
+            var resolvedDispatchMode =
+                !MethodDispatchCache.DynamicCodeSupported
+                    ? Emission.ResolvedDispatchMode.RuntimeDispatch
+                    : Emission.ResolvedDispatchMode.Direct;
 
             var emitter = new BoundExpressionEmitter(
                 contextParam,
                 configParam,
                 constraintStateParam,
-                ctParam,
-                config.PreferResolvedRuntimeDispatch);
+                resolvedDispatchMode,
+                ctParam);
             var body = emitter.EmitRoot(bound);
             if (body.Type != typeof(object))
                 body = LinqExpression.Convert(body, typeof(object));

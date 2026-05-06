@@ -28,8 +28,13 @@ internal static class MemberAccess
         if (target == null)
             throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "member", name);
 
-        if (TypedDispatchHelper.TrySetMember(context.Config, target.GetType(), name, target, value))
-            return value;
+        if (!MethodDispatchCache.DynamicCodeSupported)
+        {
+            if (TypedDispatchHelper.TrySetMember(context.Config, target.GetType(), member.Name, target, value))
+                return value;
+
+            throw new AlderException(DiagnosticDescriptors.GeneratedMemberRequired, target.GetType().Name, name);
+        }
 
         if (member is PropertyInfo { CanWrite: true } property)
         {
@@ -37,11 +42,17 @@ internal static class MemberAccess
             return value;
         }
 
+        if (member is PropertyInfo readonlyProperty)
+            throw new AlderException(DiagnosticDescriptors.ReadonlyPropertyAssignment, readonlyProperty.Name);
+
         if (member is FieldInfo { IsInitOnly: false } field)
         {
             field.SetValue(target, value);
             return value;
         }
+
+        if (member is FieldInfo { IsInitOnly: true })
+            throw new AlderException(DiagnosticDescriptors.ReadonlyAssignment);
 
         throw new AlderException(DiagnosticDescriptors.UnsupportedMemberType, member.GetType().Name);
     }
@@ -71,7 +82,7 @@ internal static class MemberAccess
                 if (resolvedType != null)
                 {
                     if (!context.Config.Security.IsTypeAllowed(resolvedType))
-                        throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, resolvedType.Name);
+                        throw new AlderException(DiagnosticDescriptors.SecurityPolicyTypeBlocked, resolvedType.Name);
                     return resolvedType;
                 }
 
@@ -81,36 +92,22 @@ internal static class MemberAccess
                 // Once the path is neither a resolvable type nor a namespace prefix, the chain is invalid.
                 throw new AlderException(DiagnosticDescriptors.TypeNotFound, accumulated);
             }
-            case Type staticType when TypedDispatchHelper.TryGetStaticMember(context.Config, staticType, name, out var aotStaticValue):
-                return aotStaticValue;
             // If typed static dispatch misses, the Type instance itself remains a valid receiver for instance metadata access.
             case Type staticType:
             {
-                var staticTypeCache = context.TypeMetadata;
-                var staticBindingFlags = BindingFlags.Public | BindingFlags.Static;
-                if (!context.Config.IsCaseSensitive)
-                    staticBindingFlags |= BindingFlags.IgnoreCase;
-
-                var staticProp = staticTypeCache.GetProperty(staticType, name, staticBindingFlags);
-                if (staticProp != null)
-                    return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), "static property", name);
-
-                var staticField = staticTypeCache.GetField(staticType, name, staticBindingFlags);
-                if (staticField != null)
-                    return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), "static field", name);
-
-                var staticMethods = staticTypeCache.GetMethods(staticType, name, staticBindingFlags);
-                if (staticMethods.Length > 0)
-                    return new StaticMethodRef(staticType, name);
+                if (TryGetStaticTypeMember(staticType, name, context, out var staticValue))
+                    return staticValue;
                 break;
             }
-            // Modules are an explicit part of the configured surface, so their members are checked before ordinary sandboxed reflection.
-            case ModuleInfo module when module.Members.TryGetValue(name, out var memberInfo):
+            // Modules are an explicit part of the configured surface, so their members are checked before ordinary security-controlled reflection.
+            case ModuleInfo module when module.Members.TryGetValue(name, out var memberEntry):
             {
-                if (memberInfo is MethodInfo m)
-                    return new ModuleMethodRef(module, context.ServiceProvider, m);
+                if (memberEntry.HasMethods)
+                    return new ModuleMethodRef(module, context.ServiceProvider, name);
 
                 // Properties and fields resolve immediately because the value, not the member group, is the expression result.
+                var memberInfo = (MemberInfo?)memberEntry.Property ?? memberEntry.Field
+                    ?? throw new AlderException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
                 var isStatic = memberInfo switch
                 {
                     PropertyInfo p => p.GetMethod?.IsStatic ?? p.SetMethod?.IsStatic ?? false,
@@ -130,55 +127,7 @@ internal static class MemberAccess
                 throw new AlderException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
         }
 
-        switch (obj)
-        {
-            case IDictionary<string, object?> dict when dict.TryGetValue(name, out var value):
-                return TypeHelpers.GuardReflectionLeak(value, "property", name);
-            case IDictionary<string, object?> dict:
-            {
-                if (!context.Config.IsCaseSensitive)
-                {
-                    foreach (var key in dict.Keys)
-                    {
-                        if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
-                            return TypeHelpers.GuardReflectionLeak(dict[key], "property", name);
-                    }
-                }
-
-                throw new AlderException(DiagnosticDescriptors.MemberNotFound, obj.GetType().Name, name);
-            }
-        }
-
-        if (obj is NamedTupleValue namedTuple)
-        {
-            if (namedTuple.TryGetIndex(name, out var idx))
-                return namedTuple[idx];
-            // Named tuples still expose the underlying Item1, Item2, and Rest fields when name lookup misses.
-            obj = namedTuple.Tuple;
-        }
-
-        var type = obj.GetType();
-
-        if (TypeHelpers.IsValueTupleType(type) && TryAccessLargeTupleItem(obj, name, out var tupleItem))
-            return tupleItem;
-
-        if (TypedDispatchHelper.TryGetMember(context.Config, type, name, obj, out var typedValue))
-            return typedValue;
-
-        var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
-        if (!context.Config.IsCaseSensitive)
-            bindingFlags |= BindingFlags.IgnoreCase;
-
-        var typeMetadata = context.TypeMetadata;
-        var prop = typeMetadata.GetProperty(type, name, bindingFlags);
-        if (prop != null)
-            return TypeHelpers.GuardReflectionLeak(typeMetadata.GetPropertyValue(prop, obj), "property", name);
-
-        var field = typeMetadata.GetField(type, name, bindingFlags);
-        if (field != null)
-            return TypeHelpers.GuardReflectionLeak(field.GetValue(obj), "field", name);
-
-        return new MethodRef(obj, name);
+        return GetObjectMember(obj, name, context);
     }
 
     public static object? GetIndex(object? obj, object? index, AlderContext context)
@@ -212,7 +161,7 @@ internal static class MemberAccess
             {
                 var (offset, len) = sysRange.GetOffsetAndLength(arr.Length);
                 var elemType = arr.GetType().GetElementType()!;
-                var result = Array.CreateInstance(elemType, len);
+                var result = RuntimeArrayFactory.Create(elemType, len);
                 Array.Copy(arr, offset, result, 0, len);
                 return result;
             }
@@ -261,6 +210,9 @@ internal static class MemberAccess
         if (TypedDispatchHelper.TryGetIndex(context.Config, type, obj, index!, out var aotIndexValue))
             return aotIndexValue;
 
+        if (!MethodDispatchCache.DynamicCodeSupported)
+            throw new AlderException(DiagnosticDescriptors.GeneratedMemberRequired, type.Name, "this[]");
+
         var indexer = FindMatchingIndexer(type, index);
 
         if (indexer != null)
@@ -275,7 +227,7 @@ internal static class MemberAccess
             }
             catch (Exception ex) when (ex is not AlderException)
             {
-                throw new AlderException(DiagnosticDescriptors.IndexerAccessFailed, ex.Message);
+                throw new AlderException(DiagnosticDescriptors.IndexerAccessFailed, ex, ex.Message);
             }
         }
 
@@ -288,6 +240,12 @@ internal static class MemberAccess
             throw new AlderException(DiagnosticDescriptors.NullPropertyAssignment, name);
 
         var caseInsensitive = !context.Config.IsCaseSensitive;
+
+        if (obj is StructuralObjectValue structural &&
+            structural.TryGetValue(name, context.Config.IsCaseSensitive, out _))
+        {
+            throw new AlderException(DiagnosticDescriptors.ReadonlyPropertyAssignment, name);
+        }
 
         if (obj is IDictionary<string, object?> dict)
         {
@@ -311,6 +269,9 @@ internal static class MemberAccess
         if (TypedDispatchHelper.TrySetMember(context.Config, type, name, obj, value))
             return;
 
+        if (!MethodDispatchCache.DynamicCodeSupported)
+            throw new AlderException(DiagnosticDescriptors.GeneratedMemberRequired, type.Name, name);
+
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
         if (caseInsensitive)
             bindingFlags |= BindingFlags.IgnoreCase;
@@ -319,7 +280,7 @@ internal static class MemberAccess
         if (prop != null)
         {
             if (!prop.CanWrite)
-                throw new AlderException(DiagnosticDescriptors.ReadonlyAssignment);
+                throw new AlderException(DiagnosticDescriptors.ReadonlyPropertyAssignment, prop.Name);
             prop.SetValue(obj, value);
             return;
         }
@@ -366,6 +327,9 @@ internal static class MemberAccess
         if (TypedDispatchHelper.TrySetIndex(context.Config, type, obj, index!, value))
             return;
 
+        if (!MethodDispatchCache.DynamicCodeSupported)
+            throw new AlderException(DiagnosticDescriptors.GeneratedMemberRequired, type.Name, "this[]");
+
         var indexer = FindMatchingIndexer(type, index);
 
         if (indexer != null && indexer.CanWrite)
@@ -391,19 +355,23 @@ internal static class MemberAccess
         if (property.GetMethod?.IsStatic == true)
         {
             var declaringType = property.DeclaringType ?? property.ReflectedType!;
-            if (TypedDispatchHelper.TryGetStaticMember(context.Config, declaringType, name, out var aotValue))
-                return aotValue;
-
-            return TypeHelpers.GuardReflectionLeak(property.GetValue(null), "static property", name);
+            return GetResolvedStaticValue(
+                context,
+                declaringType,
+                name,
+                property.Name,
+                "static property",
+                () => property.GetValue(null));
         }
 
-        if (target == null)
-            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "property", name);
-
-        if (TypedDispatchHelper.TryGetMember(context.Config, target.GetType(), name, target, out var typedValue))
-            return typedValue;
-
-        return TypeHelpers.GuardReflectionLeak(context.TypeMetadata.GetPropertyValue(property, target), "property", name);
+        return GetResolvedInstanceValue(
+            context,
+            target,
+            name,
+            property.Name,
+            "property",
+            "property",
+            instance => context.TypeMetadata.GetPropertyValue(property, instance));
     }
 
     private static object? GetResolvedField(FieldInfo field, object? target, string name, AlderContext context)
@@ -411,19 +379,176 @@ internal static class MemberAccess
         if (field.IsStatic)
         {
             var declaringType = field.DeclaringType ?? field.ReflectedType!;
-            if (TypedDispatchHelper.TryGetStaticMember(context.Config, declaringType, name, out var aotValue))
-                return aotValue;
-
-            return TypeHelpers.GuardReflectionLeak(field.GetValue(null), "static field", name);
+            return GetResolvedStaticValue(
+                context,
+                declaringType,
+                name,
+                field.Name,
+                "static field",
+                () => field.GetValue(null));
         }
 
-        if (target == null)
-            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "field", name);
+        return GetResolvedInstanceValue(
+            context,
+            target,
+            name,
+            field.Name,
+            "field",
+            "field",
+            instance => field.GetValue(instance));
+    }
 
-        if (TypedDispatchHelper.TryGetMember(context.Config, target.GetType(), name, target, out var typedValue))
+    private static object? GetResolvedStaticValue(
+        AlderContext context,
+        Type declaringType,
+        string requestedName,
+        string dispatchName,
+        string accessKind,
+        Func<object?> readValue)
+    {
+        if (!MethodDispatchCache.DynamicCodeSupported)
+        {
+            if (TypedDispatchHelper.TryGetStaticMember(context.Config, declaringType, dispatchName, out var aotValue))
+                return aotValue;
+
+            throw new AlderException(DiagnosticDescriptors.GeneratedMemberRequired, declaringType.Name, requestedName);
+        }
+
+        return TypeHelpers.GuardReflectionLeak(readValue(), accessKind, requestedName);
+    }
+
+    private static object? GetResolvedInstanceValue(
+        AlderContext context,
+        object? target,
+        string requestedName,
+        string dispatchName,
+        string nullAccessKind,
+        string accessKind,
+        Func<object, object?> readValue)
+    {
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, nullAccessKind, requestedName);
+
+        if (!MethodDispatchCache.DynamicCodeSupported)
+        {
+            if (TypedDispatchHelper.TryGetMember(context.Config, target.GetType(), dispatchName, target, out var typedValue))
+                return typedValue;
+
+            throw new AlderException(DiagnosticDescriptors.GeneratedMemberRequired, target.GetType().Name, requestedName);
+        }
+
+        return TypeHelpers.GuardReflectionLeak(readValue(target), accessKind, requestedName);
+    }
+
+    private static bool TryGetStaticTypeMember(
+        Type staticType,
+        string name,
+        AlderContext context,
+        out object? value)
+    {
+        if (!context.Config.Security.IsTypeAllowed(staticType))
+            throw new AlderException(DiagnosticDescriptors.SecurityPolicyTypeBlocked, staticType.Name);
+
+        if (TypedDispatchHelper.TryGetStaticMember(context.Config, staticType, name, out value))
+            return true;
+
+        if (!MethodDispatchCache.DynamicCodeSupported)
+            throw new AlderException(DiagnosticDescriptors.GeneratedMemberRequired, staticType.Name, name);
+
+        var staticBindingFlags = BindingFlags.Public | BindingFlags.Static;
+        if (!context.Config.IsCaseSensitive)
+            staticBindingFlags |= BindingFlags.IgnoreCase;
+
+        var typeMetadata = context.TypeMetadata;
+        var staticProp = typeMetadata.GetProperty(staticType, name, staticBindingFlags);
+        if (staticProp != null)
+        {
+            value = TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), "static property", name);
+            return true;
+        }
+
+        var staticField = typeMetadata.GetField(staticType, name, staticBindingFlags);
+        if (staticField != null)
+        {
+            value = TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), "static field", name);
+            return true;
+        }
+
+        var staticMethods = typeMetadata.GetMethods(staticType, name, staticBindingFlags);
+        if (staticMethods.Length > 0)
+        {
+            value = new MethodRef(staticType, name);
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static object? GetObjectMember(object obj, string name, AlderContext context)
+    {
+        if (obj is StructuralObjectValue structural &&
+            structural.TryGetValue(name, context.Config.IsCaseSensitive, out var structuralValue))
+        {
+            return TypeHelpers.GuardReflectionLeak(structuralValue, "property", name);
+        }
+
+        if (obj is IDictionary<string, object?> dict)
+            return GetDictionaryMember(dict, obj.GetType().Name, name, context.Config.IsCaseSensitive);
+
+        if (obj is NamedTupleValue namedTuple)
+        {
+            if (namedTuple.TryGetIndex(name, out var idx))
+                return namedTuple[idx];
+            obj = namedTuple.Tuple;
+        }
+
+        var type = obj.GetType();
+
+        if (TypeHelpers.IsValueTupleType(type) && TryAccessLargeTupleItem(obj, name, out var tupleItem))
+            return tupleItem;
+
+        if (TypedDispatchHelper.TryGetMember(context.Config, type, name, obj, out var typedValue))
             return typedValue;
 
-        return TypeHelpers.GuardReflectionLeak(field.GetValue(target), "field", name);
+        if (!MethodDispatchCache.DynamicCodeSupported)
+            throw new AlderException(DiagnosticDescriptors.GeneratedMemberRequired, type.Name, name);
+
+        var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
+        if (!context.Config.IsCaseSensitive)
+            bindingFlags |= BindingFlags.IgnoreCase;
+
+        var typeMetadata = context.TypeMetadata;
+        var prop = typeMetadata.GetProperty(type, name, bindingFlags);
+        if (prop != null)
+            return TypeHelpers.GuardReflectionLeak(typeMetadata.GetPropertyValue(prop, obj), "property", name);
+
+        var field = typeMetadata.GetField(type, name, bindingFlags);
+        if (field != null)
+            return TypeHelpers.GuardReflectionLeak(field.GetValue(obj), "field", name);
+
+        return new MethodRef(obj, name);
+    }
+
+    private static object? GetDictionaryMember(
+        IDictionary<string, object?> dict,
+        string typeName,
+        string name,
+        bool isCaseSensitive)
+    {
+        if (dict.TryGetValue(name, out var value))
+            return TypeHelpers.GuardReflectionLeak(value, "property", name);
+
+        if (!isCaseSensitive)
+        {
+            foreach (var key in dict.Keys)
+            {
+                if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
+                    return TypeHelpers.GuardReflectionLeak(dict[key], "property", name);
+            }
+        }
+
+        throw new AlderException(DiagnosticDescriptors.MemberNotFound, typeName, name);
     }
 
     private static bool TryAccessLargeTupleItem(object tuple, string name, out object? value)
@@ -455,7 +580,7 @@ internal static class MemberAccess
     {
         var indexType = index?.GetType();
 
-        foreach (var property in ReflectionRuntime.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
+        foreach (var property in RuntimeTypeIntrospection.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
         {
             var parameters = property.GetIndexParameters();
             if (parameters.Length == 1 &&
@@ -463,12 +588,12 @@ internal static class MemberAccess
                 return property;
         }
 
-        // §12.8.12.3: if an indexer with the right arity exists but the argument type doesn't
+        // §12.8.11.3: if an indexer with the right arity exists but the argument type doesn't
         // match, Roslyn reports CS1503 rather than CS0021. Detect that case and throw the more
         // precise diagnostic so the argument-type-mismatch path surfaces to the caller.
         if (indexType != null)
         {
-            foreach (var property in ReflectionRuntime.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
+            foreach (var property in RuntimeTypeIntrospection.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
             {
                 var parameters = property.GetIndexParameters();
                 if (parameters.Length == 1)

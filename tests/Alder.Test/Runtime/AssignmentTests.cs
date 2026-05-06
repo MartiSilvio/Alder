@@ -1,4 +1,4 @@
-// Engine-only: Alder-specific syntax ([1,2,3] collection expressions, mutable anonymous objects),
+// Engine-only: Alder-specific syntax ([1,2,3] collection expressions, structural object projections),
 // SetVariable API, RegisterExtensionMethods, pre-parsed engine reuse, error assertions.
 // Migratable parity tests extracted to TestData/Runtime/Assignment/*.csx.
 
@@ -7,26 +7,24 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Runtime;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class AssignmentTests(CompilationMode mode)
 {
     #region Alder-Specific Syntax (Engine-Only)
 
-    // Engine-only: mutable anonymous objects as IDictionary
+    // Engine-only: structural object projections
     [Test]
     public void Assignment_AnonymousObject_WorksCorrectly()
     {
         var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate(@"
             var obj = new { Name = ""John"" };
-            obj = new { Name = ""Jane"", Age = 30 };
+            obj = new { Name = ""Jane"" };
             return obj;
-        ") as IDictionary<string, object?>;
+        ");
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["Name"], Is.EqualTo("Jane"));
-        Assert.That(result["Age"], Is.EqualTo(30));
+        Assert.That(TestHelpers.ReadProjectedMember(result, "Name"), Is.EqualTo("Jane"));
     }
 
     #endregion

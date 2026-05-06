@@ -1,4 +1,3 @@
-using System.Dynamic;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
@@ -10,37 +9,40 @@ internal static class ObjectLiteralEvaluator
 {
     public static object? Evaluate(BoundObjectLiteralExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        IDictionary<string, object?> result = new ExpandoObject();
-        foreach (var property in node.Properties)
-        {
-            if (property.IsSpread)
-            {
-                var spreadValue = ctx.Evaluate(property.Value, ct);
-                CollectionFactory.SpreadIntoDict(result, spreadValue, ctx.Context);
-                continue;
-            }
-
-            result[property.PropertyName!] = ctx.Evaluate(property.Value, ct);
-        }
-
-        return result;
+        var values = EvaluateValues(
+            node,
+            static (context, property, token) => context.Evaluate(property.Value, token),
+            ctx,
+            ct);
+        return CreateObject(node, values);
     }
 
     public static async ValueTask<object?> EvaluateAsync(BoundObjectLiteralExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        IDictionary<string, object?> result = new ExpandoObject();
-        foreach (var property in node.Properties)
-        {
-            if (property.IsSpread)
-            {
-                var spreadValue = await ctx.EvaluateAsync(property.Value, ct);
-                CollectionFactory.SpreadIntoDict(result, spreadValue, ctx.Context);
-                continue;
-            }
+        var values = new object?[node.Properties.Length];
+        for (var i = 0; i < node.Properties.Length; i++)
+            values[i] = await ctx.EvaluateAsync(node.Properties[i].Value, ct);
 
-            result[property.PropertyName!] = await ctx.EvaluateAsync(property.Value, ct);
-        }
+        return CreateObject(node, values);
+    }
 
-        return result;
+    private static object?[] EvaluateValues(
+        BoundObjectLiteralExpr node,
+        Func<EvaluationContext, BoundObjectLiteralProperty, CancellationToken, object?> evaluate,
+        EvaluationContext ctx,
+        CancellationToken ct)
+    {
+        var values = new object?[node.Properties.Length];
+        for (var i = 0; i < node.Properties.Length; i++)
+            values[i] = evaluate(ctx, node.Properties[i], ct);
+        return values;
+    }
+
+    private static StructuralObjectValue CreateObject(BoundObjectLiteralExpr node, object?[] values)
+    {
+        if (((BoundStructuralType)node.StaticType).StructuralInfo is not { } structuralInfo)
+            throw new InvalidOperationException("Structural object literal missing runtime type metadata.");
+
+        return StructuralObjectTypeFactory.Create(structuralInfo, values);
     }
 }

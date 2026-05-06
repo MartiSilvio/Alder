@@ -10,8 +10,7 @@ namespace Alder.Test.Runtime;
 /// Engine-only tests: error assertions, SetVariable with null/non-serializable types.
 /// Parity tests migrated to TestData/Runtime/NullHandling/*.csx
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class NullHandlingTests(CompilationMode mode)
 {
 

@@ -8,18 +8,18 @@ using Alder.Security;
 namespace Alder;
 
 /// <summary>
-/// Selects the language surface accepted by <see cref="AlderEngine"/>.
+/// Selects the syntax accepted by <see cref="AlderEngine"/>.
 /// </summary>
 public enum LanguageMode
 {
     /// <summary>
-    /// Accepts the standard C#-aligned Alder surface.
+    /// Accepts standard C# syntax supported by Alder.
     /// Choose this mode when you want Alder to stay within its non-extended language set.
     /// </summary>
     Standard,
 
     /// <summary>
-    /// Accepts the standard surface plus Alder-specific extensions.
+    /// Accepts the standard syntax plus Alder-specific extensions.
     /// This mode enables features such as chained comparisons, pipelines, and other extended syntax forms.
     /// </summary>
     Extended
@@ -37,16 +37,16 @@ public sealed class AlderOptions
     public bool IsCaseSensitive { get; set; } = true;
 
     /// <summary>
-    /// Selects the accepted language surface.
+    /// Selects the accepted syntax.
     /// The default is <see cref="Alder.LanguageMode.Standard"/>.
     /// </summary>
     public LanguageMode LanguageMode { get; set; } = LanguageMode.Standard;
 
     /// <summary>
     /// Controls which runtime operations evaluation may perform.
-    /// The default is <see cref="SandboxOptions.Trusted"/>.
+    /// The default is <see cref="SecurityOptions.Trusted"/>.
     /// </summary>
-    public SandboxOptions Sandbox { get; set; } = SandboxOptions.Trusted();
+    public SecurityOptions Security { get; set; } = SecurityOptions.Trusted();
 
     /// <summary>
     /// Sets runtime guardrails such as statement, loop, and timeout limits.
@@ -66,7 +66,6 @@ public sealed class AlderOptions
     internal ICompiledProvider? Compiler { get; set; }
 
     internal StringComparer StringComparer => IsCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
-    internal StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
     /// <summary>
     /// Configures module-style registrations whose members are surfaced to expressions.
@@ -160,7 +159,7 @@ public sealed class AlderOptions
         /// </summary>
         /// <param name="moduleName">Name used inside expressions.</param>
         /// <param name="type">The module type to register.</param>
-        /// <param name="members">The members to expose, keyed by name.</param>
+        /// <param name="members">The members to expose, keyed by name. Each entry must contain either one or more methods, or a single property or field.</param>
         public ModuleBuilder Register(
             string moduleName,
             [DynamicallyAccessedMembers(
@@ -168,9 +167,9 @@ public sealed class AlderOptions
                 DynamicallyAccessedMemberTypes.PublicMethods |
                 DynamicallyAccessedMemberTypes.PublicProperties |
                 DynamicallyAccessedMemberTypes.PublicFields)] Type type,
-            IReadOnlyDictionary<string, MemberInfo> members)
+            IReadOnlyDictionary<string, IReadOnlyCollection<MemberInfo>> members)
         {
-            RegisteredTypes.Add(new RegisteredType(type, null, moduleName, members));
+            RegisteredTypes.Add(new RegisteredType(type, null, moduleName, ModuleMemberMetadata.BuildFromMemberMap(members, _options.StringComparer)));
             return this;
         }
 
@@ -365,7 +364,7 @@ public sealed class AlderOptions
         Type Type,
         object? Instance,
         string? ModuleName,
-        IReadOnlyDictionary<string, MemberInfo> Members);
+        IReadOnlyDictionary<string, ModuleMemberEntry> Members);
 }
 
 /// <summary>
@@ -373,7 +372,7 @@ public sealed class AlderOptions
 /// Start from <see cref="Trusted"/>, <see cref="Safe"/>, or <see cref="Strict"/>,
 /// then refine the individual flags when needed.
 /// </summary>
-public sealed record SandboxOptions
+public sealed record SecurityOptions
 {
     /// <summary>
     /// Allows method calls.
@@ -446,9 +445,9 @@ public sealed record SandboxOptions
     public TimeSpan RegexTimeout { get; init; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
-    /// Creates a fully permissive sandbox for trusted code.
+    /// Creates a fully permissive security policy for trusted code.
     /// </summary>
-    public static SandboxOptions Trusted() => new()
+    public static SecurityOptions Trusted() => new()
     {
         AllowMethodCalls = true,
         AllowPropertyRead = true,
@@ -461,10 +460,10 @@ public sealed record SandboxOptions
     };
 
     /// <summary>
-    /// Creates a sandbox that allows reads, assignment, and index writes,
+    /// Creates a security policy that allows reads, assignment, and index writes,
     /// but disallows method calls and object construction.
     /// </summary>
-    public static SandboxOptions Safe() => new()
+    public static SecurityOptions Safe() => new()
     {
         AllowPropertyRead = true,
         AllowStaticPropertyRead = true,
@@ -475,9 +474,9 @@ public sealed record SandboxOptions
     };
 
     /// <summary>
-    /// Creates a minimal read-oriented sandbox.
+    /// Creates a minimal read-oriented security policy.
     /// </summary>
-    public static SandboxOptions Strict() => new()
+    public static SecurityOptions Strict() => new()
     {
         AllowPropertyRead = true,
         AllowStaticPropertyRead = true,

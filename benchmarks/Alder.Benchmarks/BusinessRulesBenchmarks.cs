@@ -14,11 +14,17 @@ namespace Alder.Benchmarks;
 [CategoriesColumn]
 public class BusinessRulesBenchmarks : BenchmarkBase
 {
-    [Params(5, 10, 25)]
+    [ParamsSource(nameof(RuleCounts))]
     public int RuleCount { get; set; }
 
-    [Params(100, 1_000)]
+    [ParamsSource(nameof(EntityCounts))]
     public int EntityCount { get; set; }
+
+    public IEnumerable<int> RuleCounts() =>
+        BenchmarkProfileContext.CurrentDefinition.BusinessRuleCounts;
+
+    public IEnumerable<int> EntityCounts() =>
+        BenchmarkProfileContext.CurrentDefinition.BusinessRuleEntityCounts;
 
     private List<Product> _entities = null!;
     private Func<Product, bool>[] _nativeRules = null!;

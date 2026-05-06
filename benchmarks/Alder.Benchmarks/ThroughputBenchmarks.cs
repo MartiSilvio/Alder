@@ -13,8 +13,11 @@ namespace Alder.Benchmarks;
 [CategoriesColumn]
 public class ThroughputBenchmarks : BenchmarkBase
 {
-    [Params(1, 2, 4, 8)]
+    [ParamsSource(nameof(ThreadCounts))]
     public int ThreadCount { get; set; }
+
+    public IEnumerable<int> ThreadCounts() =>
+        BenchmarkProfileContext.CurrentDefinition.ThroughputThreadCounts;
 
     private const int TotalOperations = 10_000;
 
@@ -28,7 +31,6 @@ public class ThroughputBenchmarks : BenchmarkBase
     private AlderExpression _fecScalar = null!;
     private AlderExpression _interpLinq = null!;
     private AlderExpression _compLinq = null!;
-    private AlderExpression _fecLinq = null!;
 
     private const string ScalarExpr = "Math.Abs(10 - 3) + Math.Max(3, 7)";
     private const string LinqExpr = "numbers.Where(x => x > 500).Count()";
@@ -48,14 +50,12 @@ public class ThroughputBenchmarks : BenchmarkBase
 
         _interpLinq = _interpEngine.Parse(LinqExpr);
         _compLinq = _compEngine.Parse(LinqExpr);
-        _fecLinq = _fecEngine.Parse(LinqExpr);
 
         _interpEngine.Evaluate(_interpScalar);
         _compEngine.Evaluate(_compScalar);
         _fecEngine.Evaluate(_fecScalar);
         _interpEngine.Evaluate(_interpLinq);
         _compEngine.Evaluate(_compLinq);
-        _fecEngine.Evaluate(_fecLinq);
 
         var expectedScalar = _interpEngine.Evaluate(_interpScalar);
         var compiledScalar = _compEngine.Evaluate(_compScalar);
@@ -67,11 +67,9 @@ public class ThroughputBenchmarks : BenchmarkBase
 
         var expectedLinq = _interpEngine.Evaluate(_interpLinq);
         var compiledLinq = _compEngine.Evaluate(_compLinq);
-        var fecLinq = _fecEngine.Evaluate(_fecLinq);
-        if (!BenchmarkParityVerifier.AreEquivalent(expectedLinq, compiledLinq)
-            || !BenchmarkParityVerifier.AreEquivalent(expectedLinq, fecLinq))
+        if (!BenchmarkParityVerifier.AreEquivalent(expectedLinq, compiledLinq))
             throw new InvalidOperationException(
-                $"Throughput LINQ parity failure: interpreted={expectedLinq}, compiled={compiledLinq}, fec={fecLinq}");
+                $"Throughput LINQ parity failure: interpreted={expectedLinq}, compiled={compiledLinq}");
     }
 
     [GlobalCleanup]
@@ -110,9 +108,5 @@ public class ThroughputBenchmarks : BenchmarkBase
     [Benchmark]
     [BenchmarkCategory("Operational/ConcurrentThroughput/Linq")]
     public object Compiled_LINQ() => RunParallel(_compEngine, _compLinq);
-
-    [Benchmark]
-    [BenchmarkCategory("Operational/ConcurrentThroughput/Linq")]
-    public object CompiledFec_LINQ() => RunParallel(_fecEngine, _fecLinq);
 
 }

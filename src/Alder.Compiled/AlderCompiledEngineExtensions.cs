@@ -1,9 +1,7 @@
 using System.Linq.Expressions;
-using Alder.Binding;
-using Alder.Binding.BoundNodes;
 using Alder.Compiled.Compilation;
+using Alder.Compiled.DynamicLinq;
 using Alder.Diagnostics;
-using Alder.Parsing;
 using Alder.Runtime;
 
 namespace Alder.Compiled;
@@ -19,6 +17,7 @@ public static class AlderCompiledEngineExtensions
         typeof(AlderCompiledEngineExtensions).GetMethod(
             nameof(InvokeTypedCompiled),
             BindingFlags.NonPublic | BindingFlags.Static)!;
+    
     /// <summary>
     /// Parses source and immediately attempts compilation.
     /// </summary>
@@ -49,13 +48,13 @@ public static class AlderCompiledEngineExtensions
         var parsed = engine.Parse(expression);
         if (!engine.TryCompile(parsed))
         {
-            var reason = parsed.CompilationFailureReason ?? "Unknown compilation failure";
+            var reason = access.GetCompilationFailureReason(parsed) ?? "Unknown compilation failure";
             throw new AlderException(
                 DiagnosticDescriptors.StrictCompilationFailed,
                 $"Cannot compile expression '{expression}': {reason}");
         }
 
-        var compiledInfo = parsed.GetCompiledInfo()!;
+        var compiledInfo = access.GetCompiledInfo(parsed)!;
         var typeVersion = compiledInfo.TypeVersion
             ?? throw new InvalidOperationException("Compiled expression info has no type version. Compilation did not stamp a version.");
         return new AlderCompiledExpression<T>(compiledInfo.Delegate!, engine, access.Config, typeVersion);
@@ -70,6 +69,15 @@ public static class AlderCompiledEngineExtensions
     /// <exception cref="InvalidOperationException">Thrown when the expression cannot be compiled to IL.</exception>
     public static AlderCompiledExpression<object?> Compile(this AlderEngine engine, string expression)
         => Compile<object?>(engine, expression);
+
+    /// <summary>
+    /// Creates a reusable Dynamic LINQ plan factory bound to this engine.
+    /// </summary>
+    public static IDynamicQueryPlanFactory CreateDynamicQueryPlanFactory(this AlderEngine engine)
+    {
+        engine.GetCompiledFeatureAccess().ThrowIfDisposed();
+        return new AlderDynamicQueryPlanFactory(engine);
+    }
 
     /// <summary>
     /// Compiles source and returns a <see cref="Func{TResult}"/> that closes over the engine state.
@@ -243,17 +251,11 @@ public static class AlderCompiledEngineExtensions
         object?[] values,
         CancellationToken cancellationToken)
     {
-        var parentContext = engine.GetContextForCompiled();
-        if (parentContext.GetTypeInferenceVersion() != parentTypeVersion)
-            throw new AlderException(DiagnosticDescriptors.CompiledExpressionStale);
-
-        var childContext = parentContext.CreateChild();
+        using var state = engine.CreateCompiledInvocationState(parentTypeVersion, cancellationToken);
         for (var i = 0; i < parameterNames.Length; i++)
-            childContext.Define(parameterNames[i], values[i], parameterTypes[i]);
+            state.ExecutionContext.Define(parameterNames[i], values[i], parameterTypes[i]);
 
-        var constraintState = new ExecutionConstraintState();
-        constraintState.Reset(config.Constraints);
-        return compiledDelegate(childContext, config, constraintState, cancellationToken);
+        return compiledDelegate(state.ExecutionContext, config, state.ConstraintState, cancellationToken);
     }
 
     /// <summary>
@@ -276,8 +278,6 @@ public static class AlderCompiledEngineExtensions
         AlderEngine engine, string expression, Dictionary<string, object?>? additionalVariables)
         where TDelegate : Delegate
     {
-        var access = engine.GetCompiledFeatureAccess();
-        access.ThrowIfDisposed();
         try
         {
             var delegateType = typeof(TDelegate);
@@ -286,98 +286,38 @@ public static class AlderCompiledEngineExtensions
                     DiagnosticDescriptors.ParseAsExpressionRequiresGenericDelegate,
                     delegateType.Name);
 
-            var genericArgs = delegateType.GetGenericArguments();
-            var paramTypes = genericArgs[..^1];
-            var returnType = genericArgs[^1];
-
-            var lexer = new Lexer(expression);
-            var tokens = lexer.Tokenize();
-            var parser = ExpressionParser.CreateForSubExpression(tokens, LanguageMode.Standard);
-            var ast = parser.Parse();
-
-            Expr bodyAst;
-            var parameterScope = new Dictionary<string, ParameterExpression>();
-            ParameterExpression[] parameterExpressions;
-
-            var isNonLambdaBody = false;
-
-            if (ast is LambdaExpr lambdaExpr)
-            {
-                if (lambdaExpr.Parameters.Count != paramTypes.Length)
-                    throw new AlderException(
-                        DiagnosticDescriptors.CantConvAnonMethParams,
-                        delegateType.Name);
-
-                parameterExpressions = new ParameterExpression[paramTypes.Length];
-                for (var i = 0; i < paramTypes.Length; i++)
-                {
-                    var paramName = lambdaExpr.Parameters[i].Name.Lexeme;
-                    var paramExpr = LinqExpression.Parameter(paramTypes[i], paramName);
-                    parameterScope[paramName] = paramExpr;
-                    parameterExpressions[i] = paramExpr;
-                }
-
-                bodyAst = lambdaExpr.Body;
-            }
-            else if (paramTypes.Length == 0)
-            {
-                parameterExpressions = [];
-                bodyAst = ast;
-                isNonLambdaBody = true;
-            }
-            else
-            {
-                throw new AlderException(
-                    DiagnosticDescriptors.ParseAsExpressionRequiresLambda,
-                    "x => x > 5");
-            }
-
-            var engineVariables = access.CollectEngineVariables();
-
-            if (additionalVariables != null)
-                foreach (var (key, value) in additionalVariables)
-                    engineVariables[key] = value;
-
-            var config = access.Config;
-
-            var bindingRuntimeContext = new AlderContext(config);
-            foreach (var pair in engineVariables)
-                bindingRuntimeContext.Define(pair.Key, pair.Value, pair.Value?.GetType() ?? typeof(object));
-
-            for (var i = 0; i < parameterExpressions.Length; i++)
-            {
-                var parameterName = parameterExpressions[i].Name!;
-                bindingRuntimeContext.Define(parameterName, null, paramTypes[i]);
-            }
-
-            var binder = new Binding.Binder();
-            var boundBody = binder.Bind(bodyAst, new BindingContext(bindingRuntimeContext));
-
-            if (isNonLambdaBody)
-                boundBody = UnwrapReturnValue(boundBody);
-
-            var emitter = new ExpressionTreeEmitter(parameterScope, engineVariables, config.TypeResolver);
-            var body = emitter.Emit(boundBody);
+            var returnType = delegateType.GetGenericArguments()[^1];
+            var prepared = QueryExpressionPreparer.PrepareParseAsExpression(
+                engine,
+                expression,
+                delegateType,
+                additionalVariables);
+            var body = new QueryTreeExporter(prepared.Parameters, prepared.CapturedVariables)
+                .Export(prepared.BoundBody);
 
             if (body.Type != returnType)
             {
+                if (!body.Type.IsValueType && returnType.IsAssignableFrom(body.Type))
+                    return LinqExpression.Lambda<TDelegate>(body, prepared.Parameters);
+
                 try
                 {
                     body = LinqExpression.Convert(body, returnType);
                 }
-                catch (InvalidOperationException)
+                catch (InvalidOperationException ex)
                 {
                     throw new AlderException(
                         DiagnosticDescriptors.CantConvAnonMethReturnType,
+                        ex,
                         delegateType.Name);
                 }
             }
 
-            return LinqExpression.Lambda<TDelegate>(body, parameterExpressions);
+            return LinqExpression.Lambda<TDelegate>(body, prepared.Parameters);
         }
-        catch (InsufficientExecutionStackException)
+        catch (InsufficientExecutionStackException ex)
         {
-            throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
+            throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded, ex);
         }
     }
 
@@ -427,19 +367,5 @@ public static class AlderCompiledEngineExtensions
     {
         engine.GetCompiledFeatureAccess().ThrowIfDisposed();
         return ParseAsExpression<TDelegate>(engine, expression, additionalVariables).Compile();
-    }
-
-    private static BoundExpr UnwrapReturnValue(BoundExpr expr)
-    {
-        if (expr is BoundReturnExpr { Value: not null } ret)
-            return ret.Value;
-        if (expr is BoundBlockExpr block)
-        {
-            if (block.Statements.Length == 1 && block.Statements[0] is BoundReturnExpr { Value: not null } blockRet)
-                return blockRet.Value;
-            if (block.ReturnExpr != null)
-                return block.ReturnExpr;
-        }
-        return expr;
     }
 }
