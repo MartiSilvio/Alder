@@ -24,10 +24,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Alder.Generators\Alder.Generators.csproj" PrivateAssets="all" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\README.md"
+    <None Include="..\..\NUGET.md"
           Pack="true"
           PackagePath="\"
           Visible="false" />
