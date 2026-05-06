@@ -289,7 +289,7 @@ public class SecurityPolicyAttackTests(CompilationMode mode)
     [Test]
     public void Attack_DeepNesting_DepthLimited()
     {
-        var depth = 600;
+        var depth = 1100;
         var expr = string.Join("", Enumerable.Repeat("(", depth)) +
                    "1" +
                    string.Join("", Enumerable.Repeat(")", depth));

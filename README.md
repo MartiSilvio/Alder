@@ -31,12 +31,18 @@ Targets `net8.0` and `netstandard2.0`. Zero third-party runtime dependencies.
 
 ## A first look
 
+`AlderEval` is the static entry point. Calls run against a default engine and need no setup:
+
 ```csharp
 using Alder;
 
 AlderEval.Evaluate<int>("1 + 2");                                   // 3
 AlderEval.Evaluate<decimal>("price * 1.2m", new { price = 100m });  // 120m
+```
 
+`AlderEngine` exposes the same evaluation surface as an instance you own and configure. The choice between the two is about lifecycle and configuration, not capability:
+
+```csharp
 using var engine = new AlderEngine();
 
 var tier = engine.Evaluate<string>("""
@@ -53,6 +59,8 @@ var tier = engine.Evaluate<string>("""
 
 ## End-to-end integration
 
+A configured `AlderEngine` carries compiler, security policy, and generated AOT dispatch into every call it serves:
+
 ```csharp
 using Alder;
 using Alder.Compiled;
@@ -63,20 +71,32 @@ using var engine = new AlderEngine(options =>
     options.Security = SecurityOptions.Safe();
     options.Aot.UseGeneratedContext(RulesAotContext.Default);
 });
+```
 
-// Validate untrusted input before evaluation begins.
+`TryValidate` surfaces parser and binder diagnostics without executing the expression, available whenever you want diagnostics ahead of a call:
+
+```csharp
 if (!engine.TryValidate(rule, out var diagnostics))
     return diagnostics;
+```
 
-// Compiled synchronous evaluation against host-shaped types.
+Synchronous evaluation dispatches through the compiled backend against host-shaped types:
+
+```csharp
 var accepted = engine.Evaluate<bool>(rule, new { order, minimum = 500m });
+```
 
-// Awaitable expression body, cooperating with cancellation and constraints.
+Awaitable expression bodies cooperate with cancellation and constraints:
+
+```csharp
 var quote = await engine.EvaluateAsync<decimal>(
     "await pricing.QuoteAsync(order)",
     new { order, pricing });
+```
 
-// Runtime fragments exported as an Expression tree, translated by EF Core to SQL.
+Runtime fragments export as `Expression` trees so EF Core can translate them to SQL:
+
+```csharp
 var report = await db.Orders
     .WhereDynamic(engine, """Status == "Open" && Total >= @0""", 250m)
     .OrderByDynamic<Order, decimal>(engine, "Total")

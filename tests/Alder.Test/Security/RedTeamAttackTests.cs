@@ -112,7 +112,7 @@ public class RedTeamAttackTests(CompilationMode mode)
     [Test]
     public void Attack_DeepNesting_DepthLimited()
     {
-        var depth = 600;
+        var depth = 1100;
         var expr = new string('(', depth) + "1" + new string(')', depth);
         var ex = Assert.Throws<AlderException>(() => TestEngineFactory.Create(mode).Evaluate(expr));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8078));
