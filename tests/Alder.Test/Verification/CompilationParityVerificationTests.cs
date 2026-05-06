@@ -7,8 +7,7 @@ namespace Alder.Test.Verification;
 /// Each test evaluates an expression in both interpreted and compiled mode
 /// and asserts identical results (same value, same type, same exception if thrown).
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [Parallelizable(ParallelScope.Children)]
 public class CompilationParityVerificationTests(CompilationMode mode)
 {

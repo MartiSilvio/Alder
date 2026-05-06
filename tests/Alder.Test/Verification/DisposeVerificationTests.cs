@@ -8,8 +8,7 @@ namespace Alder.Test.Verification;
 /// ObjectDisposedException after disposal, and that parent/child disposal interactions
 /// are correct.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [Parallelizable(ParallelScope.Children)]
 public class DisposeVerificationTests(CompilationMode mode)
 {
@@ -133,6 +132,7 @@ public class DisposeVerificationTests(CompilationMode mode)
 
     // --- Compiled extension methods after dispose ---
 
+#if NET8_0_OR_GREATER
     [Test]
     public void AfterDispose_CompileExpression_ThrowsObjectDisposed()
     {
@@ -143,6 +143,7 @@ public class DisposeVerificationTests(CompilationMode mode)
         Assert.Throws<ObjectDisposedException>(() =>
             engine.CompileExpression<Func<int>>("return 1;"));
     }
+#endif
 
     // --- Parent/child disposal interactions ---
 

@@ -8,8 +8,7 @@ namespace Alder.Test.Compliance;
 /// Proves every Extended-only feature is rejected in Standard mode with the correct
 /// exception type and FeatureName, and that each feature works in Extended mode.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class StandardModeNegativeTests(CompilationMode mode)
 {
     private Action<AlderOptions> StandardOptions => o => o.LanguageMode = LanguageMode.Standard;

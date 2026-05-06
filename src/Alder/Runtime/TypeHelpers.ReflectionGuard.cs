@@ -18,14 +18,14 @@ internal static partial class TypeHelpers
     private static bool IsForbiddenReflectionTypeCore(Type type)
     {
         // Type objects are safe metadata (typeof(), GetType(), GetGenericTypeDefinition()).
-        // They can't invoke code or bypass the sandbox on their own.
+        // They can't invoke code or bypass the security policy on their own.
         // Dangerous operations on Type (GetMethod, GetField, etc.) return MemberInfo
         // subtypes which ARE still blocked below.
         if (typeof(Type).IsAssignableFrom(type))
             return false;
 
         // Block other MemberInfo subtypes (MethodInfo, PropertyInfo, FieldInfo, etc.)
-        // which enable dynamic invocation and bypass the sandbox.
+        // which enable dynamic invocation and bypass the security policy.
         if (typeof(MemberInfo).IsAssignableFrom(type))
             return true;
 

@@ -150,6 +150,7 @@ public class ThreadSafetyVerificationTests
         Assert.That(engine.Evaluate("return shared;"), Is.EqualTo(100L), "Parent should be unaffected");
     }
 
+#if NET8_0_OR_GREATER
     // Variable type changes during compiled evaluation must fail safely.
     [Test]
     public void CompiledEvaluation_VariableTypeChange_DoesNotCrash()
@@ -196,4 +197,5 @@ public class ThreadSafetyVerificationTests
         Assert.That(exceptions, Is.Empty,
             () => $"Unexpected exception: {exceptions.FirstOrDefault()?.GetType().Name}: {exceptions.FirstOrDefault()?.Message}");
     }
+#endif
 }

@@ -91,6 +91,7 @@ public class ErrorPositionTests
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
+#if NET8_0_OR_GREATER
     [Test]
     public void BindingError_TypeResolution_ReportsPosition_Compiled()
     {
@@ -100,4 +101,5 @@ public class ErrorPositionTests
         Assert.That(ex.Column, Is.Not.Null);
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
+#endif
 }

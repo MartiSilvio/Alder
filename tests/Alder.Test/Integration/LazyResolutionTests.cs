@@ -4,8 +4,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Integration;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class LazyResolutionTests(CompilationMode mode)
 {
     [SetUp]
@@ -84,8 +83,7 @@ public class LazyResolutionTests(CompilationMode mode)
     }
 }
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class MemberFilteringTests(CompilationMode mode)
 {
     [Test]

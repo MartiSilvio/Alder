@@ -8,8 +8,7 @@ namespace Alder.Test.Runtime;
 /// All tests engine-only: ExpandoObject dynamic member access, SetVariable with
 /// non-serializable types (ExpandoObject, List{int}), AlderException error assertion.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class MemberAccessTests(CompilationMode mode)
 {
     #region Engine-only: SetVariable with long type
@@ -112,9 +111,8 @@ public class MemberAccessTests(CompilationMode mode)
     [Test]
     public void ExtensionMethodLookup_RespectsCaseSensitivityOption()
     {
-        var engine = new AlderEngine(o =>
+        var engine = TestEngineFactory.Create(mode, o =>
         {
-            if (mode == CompilationMode.Compiled) o.UseCompiler();
             o.IsCaseSensitive = true;
             o.Types.AddExtensionMethods(typeof(MemberAccessExtensionProbe));
         });
@@ -126,9 +124,8 @@ public class MemberAccessTests(CompilationMode mode)
     [Test]
     public void ExtensionMethod_SupportsNamedArguments()
     {
-        var engine = new AlderEngine(o =>
+        var engine = TestEngineFactory.Create(mode, o =>
         {
-            if (mode == CompilationMode.Compiled) o.UseCompiler();
             o.Types.AddExtensionMethods(typeof(MemberAccessExtensionProbe));
         });
 

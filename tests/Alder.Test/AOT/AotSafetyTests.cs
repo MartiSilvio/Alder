@@ -34,7 +34,12 @@ public class AotSafetyTests
     [Test]
     public void TryInvokeFast_KnownStaticMethod_ReturnsCorrectResult()
     {
-        Assert.That(RuntimeFeature.IsDynamicCodeSupported, Is.True,
+#if NET472
+        var dynamicCodeSupported = true;
+#else
+        var dynamicCodeSupported = RuntimeFeature.IsDynamicCodeSupported;
+#endif
+        Assert.That(dynamicCodeSupported, Is.True,
             "This test requires JIT; the smoke script covers NativeAOT");
 
         var absMethod = typeof(Math).GetMethod(nameof(Math.Abs), [typeof(int)])!;
@@ -431,8 +436,7 @@ public class AotSafetyTests
         Assert.That(result, Is.EqualTo(3));
     }
 
-    [TestCase(CompilationMode.Interpreted)]
-    [TestCase(CompilationMode.Compiled)]
+    [TestCaseSource(typeof(CompilationModeFixtures), nameof(CompilationModeFixtures.AllModes))]
     public void SimulatedAot_ResolvedBuiltInProperty_RemainsAvailable(CompilationMode mode)
     {
         using var _ = RuntimeGenericClosure.OverrideDynamicCodeSupportForTesting(false);
@@ -444,8 +448,7 @@ public class AotSafetyTests
         Assert.That(result, Is.EqualTo(5));
     }
 
-    [TestCase(CompilationMode.Interpreted)]
-    [TestCase(CompilationMode.Compiled)]
+    [TestCaseSource(typeof(CompilationModeFixtures), nameof(CompilationModeFixtures.AllModes))]
     public void SimulatedAot_ResolvedBuiltInMethod_RemainsAvailable(CompilationMode mode)
     {
         using var _ = RuntimeGenericClosure.OverrideDynamicCodeSupportForTesting(false);
@@ -457,8 +460,7 @@ public class AotSafetyTests
         Assert.That(result, Is.EqualTo(true));
     }
 
-    [TestCase(CompilationMode.Interpreted)]
-    [TestCase(CompilationMode.Compiled)]
+    [TestCaseSource(typeof(CompilationModeFixtures), nameof(CompilationModeFixtures.AllModes))]
     public void SimulatedAot_BuiltInResolvedProperty_RemainsAvailable_WithAdditionalGeneratedContext(CompilationMode mode)
     {
         using var _ = RuntimeGenericClosure.OverrideDynamicCodeSupportForTesting(false);

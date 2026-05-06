@@ -9,8 +9,7 @@ namespace Alder.Test.Security;
 /// are blocked in all modes. Type objects are allowed — they are inert metadata.
 /// The guard blocks the next step: MethodInfo, FieldInfo, etc. which enable invocation.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class ReflectionBlockingTests(CompilationMode mode)
 {
     #region Type Objects Are Allowed

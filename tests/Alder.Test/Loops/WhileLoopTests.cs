@@ -5,8 +5,7 @@ namespace Alder.Test.Loops;
 // Engine-only: this file keeps only while-specific control-flow coverage.
 // Generic limit, cancellation, parsing, and pre-parsed API coverage lives elsewhere.
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class WhileLoopTests(CompilationMode mode)
 {
     [Test]

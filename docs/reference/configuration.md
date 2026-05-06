@@ -5,7 +5,7 @@ description: Reference for Alder engine configuration, option builders, AOT cont
 
 # Configuration
 
-`AlderOptions` is the mutable configuration surface used before engine construction. `AlderEngine` captures those options as an immutable runtime model: language mode, sandbox policy, execution limits, registered modules and functions, type-resolution metadata, compiler settings, service-provider integration, and AOT dispatch metadata.
+`AlderOptions` is the mutable configuration surface used before engine construction. `AlderEngine` captures those options as an immutable runtime model: language mode, security policy, execution limits, registered modules and functions, type-resolution metadata, compiler settings, service-provider integration, and AOT dispatch metadata.
 
 ## Construction
 
@@ -23,7 +23,7 @@ Configuration is materialized once, at engine construction time. Mutating the or
 
 - `IsCaseSensitive`: controls name matching for registered functions, modules, and relevant runtime member lookup.
 - `LanguageMode`: selects the accepted language surface, such as `Standard` or `Extended`.
-- `Sandbox`: defines the security policy used during validation and execution.
+- `Security`: defines the security policy used during validation and execution.
 - `Constraints`: sets runtime limits such as statement count, loop iterations, and timeout.
 - `ExpressionCompiler`: selects the delegate compiler used by compiled execution.
 - `ServiceProvider`: supplies module instances through dependency injection.
@@ -36,6 +36,7 @@ Configuration is materialized once, at engine construction time. Mutating the or
 
 Compiled execution is enabled by calling `UseCompiler()` from the `Alder.Compiled` namespace during engine configuration:
 
+<!-- test: UseCompiler -->
 ```csharp
 using Alder.Compiled;
 
@@ -173,7 +174,7 @@ This affects both runtime lookup and collision behavior at registration time.
 ## Runtime consequences
 
 - parsing and validation use `LanguageMode`
-- sandbox validation uses `Sandbox`
+- security policy validation uses `Security`
 - runtime limits use `Constraints`
 - type lookup uses the registered assemblies and namespaces
 - extension method binding uses registered extension-method containers

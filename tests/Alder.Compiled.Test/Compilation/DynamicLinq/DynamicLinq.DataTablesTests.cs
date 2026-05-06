@@ -93,7 +93,7 @@ public partial class DynamicLinqTests
         }
 
         [Test]
-        public void IQueryable_DataRow_WhereDynamic_FieldExtension_IsBlockedByDefaultSandbox()
+        public void IQueryable_DataRow_WhereDynamic_FieldExtension_IsBlockedByDefaultSecurityOptions()
         {
             using var engine = new AlderEngine(options =>
             {
@@ -119,7 +119,7 @@ public partial class DynamicLinqTests
                 options.UseCompiler();
                 options.Types.AddAssembly(typeof(DataRowExtensions).Assembly);
                 options.Types.AddExtensionMethods(typeof(DataRowExtensions));
-                options.Sandbox = SandboxOptions.Safe() with
+                options.Security = SecurityOptions.Safe() with
                 {
                     TrustedNamespaces = ["System.Data"]
                 };

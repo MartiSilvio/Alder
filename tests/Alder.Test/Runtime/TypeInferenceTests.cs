@@ -150,8 +150,7 @@ public class TypeInferenceTests
         Assert.That(result![0], Is.EqualTo(typeof(string)));
     }
 
-    [TestFixture(CompilationMode.Interpreted)]
-    [TestFixture(CompilationMode.Compiled)]
+    [TestFixtureSource(typeof(CompilationModeFixtures), nameof(CompilationModeFixtures.All))]
     public class LambdaOutputTypeInference(CompilationMode mode)
     {
         [Test]

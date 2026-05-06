@@ -7,8 +7,7 @@ namespace Alder.Test.Extensions;
 /// for polyglot extended features. Happy-path behavior is covered by .csx parity
 /// tests in TestData/ValidExpressions/SyntaxSugar/.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class PolyglotEdgeCaseTests(CompilationMode mode)
 {
     [Test]

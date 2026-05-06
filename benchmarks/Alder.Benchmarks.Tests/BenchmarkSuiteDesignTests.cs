@@ -255,6 +255,24 @@ public class BenchmarkSuiteDesignTests
     }
 
     [Test]
+    public void TypedDelegateCompilationBenchmarks_SetupKeepsCompiledDelegatesInvokable()
+    {
+        var benchmark = new TypedDelegateCompilationBenchmarks();
+
+        try
+        {
+            benchmark.Setup();
+
+            Assert.That(benchmark.Scalar_TypedDelegate(), Is.EqualTo(benchmark.Scalar_EngineEvaluate()));
+            Assert.That(benchmark.Rule_TypedDelegate(), Is.EqualTo(benchmark.Rule_EngineEvaluate()));
+        }
+        finally
+        {
+            benchmark.Cleanup();
+        }
+    }
+
+    [Test]
     public void CatalogManifest_IncludesDynamicLinqParsedPlanLane()
     {
         var manifest = BenchmarkManifestWriter.BuildCatalogManifest();

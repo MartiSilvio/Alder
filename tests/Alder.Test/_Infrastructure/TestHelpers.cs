@@ -70,6 +70,14 @@ public static class TestHelpers
         return File.ReadAllText(fullPath).Trim();
     }
 
+    public static string GetRelativePath(string relativeTo, string path)
+    {
+        var baseUri = new Uri(AppendDirectorySeparatorChar(Path.GetFullPath(relativeTo)));
+        var pathUri = new Uri(Path.GetFullPath(path));
+        return Uri.UnescapeDataString(baseUri.MakeRelativeUri(pathUri).ToString())
+            .Replace('/', Path.DirectorySeparatorChar);
+    }
+
 
     public static IDictionary<string, object?> CreateItem(string name, double price)
     {
@@ -154,6 +162,11 @@ public static class TestHelpers
         var match = RoslynCodeRegex.Match(message);
         return match.Success ? match.Value : null;
     }
+
+    private static string AppendDirectorySeparatorChar(string path) =>
+        path.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+            ? path
+            : path + Path.DirectorySeparatorChar;
 
     private static string? TrySerializeList(IList list)
     {

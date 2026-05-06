@@ -5,12 +5,11 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Security;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class ResourceConstraintTests(CompilationMode mode)
 {
     private static AlderEngine CreateEngine(long? maxStatements = null, long? maxLoopIterations = null,
-        TimeSpan? maxTimeout = null, CompilationMode mode = CompilationMode.Compiled)
+        TimeSpan? maxTimeout = null, CompilationMode mode = CompilationMode.Interpreted)
     {
         return TestEngineFactory.Create(mode, o => o.Constraints = new ExecutionConstraints
         {

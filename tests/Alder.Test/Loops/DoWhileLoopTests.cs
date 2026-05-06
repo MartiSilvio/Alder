@@ -5,8 +5,7 @@ namespace Alder.Test.Loops;
 // Engine-only: this file keeps only do-while-specific behavior that still adds signal
 // beyond the shared limit/cancellation/parsing API suites.
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class DoWhileLoopTests(CompilationMode mode)
 {
     // Engine-only: SetVariable

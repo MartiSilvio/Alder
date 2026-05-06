@@ -25,6 +25,7 @@ Type registration expands C# resolution. Function and module registration expose
 
 The examples use this host model:
 
+<!-- test: TypeRegistration_AddAssembly_ResolvesQualifiedType -->
 ```csharp
 namespace Billing;
 
@@ -57,7 +58,7 @@ var value = engine.Evaluate<decimal>(
     "Billing.Money.FromDollars(125m).Amount");
 ```
 
-Assembly registration is the broadest type-resolution switch. It makes the assembly searchable; it does not automatically allow every operation on every type. Sandbox policy still validates construction, static access, method calls, property reads, assignment, and mutation before evaluation proceeds.
+Assembly registration is the broadest type-resolution switch. It makes the assembly searchable; it does not automatically allow every operation on every type. Security policy still validates construction, static access, method calls, property reads, assignment, and mutation before evaluation proceeds.
 
 Use assembly registration for stable model or helper assemblies where expression authors genuinely need type names. For small host operations, prefer functions or modules.
 
@@ -109,6 +110,7 @@ Extension methods are callable host code. Register containers deliberately, espe
 
 Use a registered function when the expression should see one global operation and the host wants explicit control over argument conversion:
 
+<!-- test: TypeRegistration_FunctionAlternative_ExposesNarrowOperation -->
 ```csharp
 var engine = new AlderEngine(options =>
 {
@@ -131,6 +133,7 @@ The delegate receives evaluated arguments as `object?[]`. That makes functions u
 
 Use a module when a set of operations should live behind a named expression-facing owner:
 
+<!-- test: TypeRegistration_ModuleAlternative_ExposesGroupedOperation -->
 ```csharp
 public sealed class PricingRules
 {
@@ -152,15 +155,15 @@ Modules keep the expression surface organized and can use explicit-only registra
 
 ## Security boundaries
 
-Registration controls visibility. Sandbox policy controls authority.
+Registration controls visibility. Security policy controls authority.
 
-An assembly or namespace can make a type name resolvable while the sandbox still rejects construction, static access, method calls, property reads, or mutation. A function, module, or extension method can also carry side effects that Alder cannot infer from its signature. Treat every registered surface as part of the host's expression-facing API.
+An assembly or namespace can make a type name resolvable while the security policy still rejects construction, static access, method calls, property reads, or mutation. A function, module, or extension method can also carry side effects that Alder cannot infer from its signature. Treat every registered surface as part of the host's expression-facing API.
 
 For user-authored expressions:
 
 - register only the assemblies, namespaces, and extension containers the expression surface needs
 - prefer small functions or explicit-only modules for business operations
-- use `SandboxOptions.Safe()` or a stricter custom policy
+- use `SecurityOptions.Safe()` or a stricter custom policy
 - deny broad namespaces or types when application assemblies expose mixed-trust APIs
 - validate expressions under the same engine policy used for execution
 
@@ -185,7 +188,7 @@ Type registration and generated dispatch solve different parts of the problem. `
 - Wrong type selected: remove broad namespace imports or use a fully qualified type name.
 - Extension method not found: register the static extension-method container with `Types.AddExtensionMethods(...)`.
 - Extension overload mismatch: check the receiver type and argument types visible to binding.
-- Sandbox failure after successful binding: adjust sandbox policy, or replace broad type access with a narrower function or module.
+- Security policy failure after successful binding: adjust security policy, or replace broad type access with a narrower function or module.
 - Works under JIT but fails after publish: add generated contexts for reached runtime types and avoid assembly scanning as the only deployment inventory.
 
 ## Related pages

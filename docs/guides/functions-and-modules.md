@@ -37,6 +37,7 @@ Registering the same function name again replaces the previous delegate. Name ma
 
 `[AlderFunction]` exposes methods as global functions when the containing type is registered through `Modules.RegisterFromType(...)` and the type is not an `[AlderModule]`.
 
+<!-- test: AttributedFunctions_RegisterAsGlobalFunctions_WithOptionalParameters -->
 ```csharp
 using Alder;
 using Alder.Attributes;
@@ -97,6 +98,7 @@ For instance members, Alder resolves the module target in this order:
 
 Use an explicit instance when the module carries request-specific state:
 
+<!-- test: ExplicitModuleInstances_AreReused -->
 ```csharp
 public sealed class TenantRules(string tenantId)
 {
@@ -121,6 +123,7 @@ Explicit instances are reused for every module access through that engine. Servi
 
 `[AlderModule]` lets the type declare its expression-facing name:
 
+<!-- test: AttributedModules_RegisterFromType -->
 ```csharp
 using Alder;
 using Alder.Attributes;
@@ -176,12 +179,13 @@ Use attributed functions when the operation has a stable CLR signature and shoul
 
 Use modules when the API should remain grouped under an expression-facing owner. Modules preserve product boundaries: the host decides which object or type becomes visible, and expressions access that surface through a module name.
 
-For untrusted or tenant-authored expressions, prefer small purpose-built functions and explicit-only modules over broad service objects. That keeps the expression-facing API aligned with the sandbox policy and leaves fewer host capabilities reachable from expressions.
+For untrusted or tenant-authored expressions, prefer small purpose-built functions and explicit-only modules over broad service objects. That keeps the expression-facing API aligned with the security policy and leaves fewer host capabilities reachable from expressions.
 
 ## Expose async APIs
 
 Task-returning functions and module methods are ordinary host call targets. Use `EvaluateAsync(...)` when the expression should await them:
 
+<!-- test: AsyncModuleMethods_CanBeAwaited -->
 ```csharp
 public sealed class PricingService
 {

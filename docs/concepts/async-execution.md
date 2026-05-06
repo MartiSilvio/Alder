@@ -18,7 +18,7 @@ Async evaluation begins at the same semantic boundary as synchronous evaluation:
 3. run security validation and optimization passes
 4. execute the processed bound tree through the async interpreter path
 
-The parser, binder, diagnostics, sandbox policy, and execution constraints are shared. What changes is the execution mechanism after binding. `Evaluate(...)` dispatches to the compiled backend when a compiler is configured. `EvaluateAsync(...)` dispatches to the interpreter regardless of compiler configuration.
+The parser, binder, diagnostics, security policy, and execution constraints are shared. What changes is the execution mechanism after binding. `Evaluate(...)` dispatches to the compiled backend when a compiler is configured. `EvaluateAsync(...)` dispatches to the interpreter regardless of compiler configuration.
 
 Alder's compiled backend lowers bound code into `System.Linq.Expressions` and then into delegates. That route is well-suited to synchronous execution; separate export APIs use expression trees for provider integration. `System.Linq.Expressions` does not provide the async execution model Alder needs, so asynchronous evaluation awaits inside the interpreter. The interpreter can await intermediate results inside the runtime tree, propagate asynchronous control flow, and continue evaluation after the awaited operation completes.
 
@@ -34,6 +34,7 @@ Alder's compiled backend lowers bound code into `System.Linq.Expressions` and th
 
 The return type is `ValueTask`, which fits the execution model well. Some expressions complete without suspension, and Alder can return those results without allocating a fresh `Task` for every call. Other expressions await asynchronous operations and complete asynchronously in the ordinary way.
 
+<!-- test: EvaluateAsync_ExecutesTextAndParsedExpressions -->
 ```csharp
 var engine = new AlderEngine();
 
@@ -46,6 +47,7 @@ var total = await engine.EvaluateAsync<int>("""
 
 Pre-parsed expressions remain reusable on the async path:
 
+<!-- test: EvaluateAsync_ExecutesTextAndParsedExpressions -->
 ```csharp
 var engine = new AlderEngine();
 var expr = engine.Parse("await Task.FromResult(@0 + @1)");
@@ -68,11 +70,13 @@ The runtime consequences are the ones an experienced C# user expects:
 - awaiting a non-awaitable value is a diagnostic error
 - `await` is disallowed inside the body of a `lock` statement
 
+<!-- test: Await_ProducesValuesAndNullForTaskResults -->
 ```csharp
 var result = await engine.EvaluateAsync("""await Task.FromResult("hello")""");
 // result == "hello"
 ```
 
+<!-- test: Await_ProducesValuesAndNullForTaskResults -->
 ```csharp
 var result = await engine.EvaluateAsync("await Task.Delay(1)");
 // result == null
@@ -89,6 +93,7 @@ The async runtime distinguishes between two cases:
 
 Only `await` unwraps. If an expression calls an async method but does not await the returned task, Alder returns that task object as the expression result.
 
+<!-- test: EvaluateAsync_ReturnsRawTask_WhenExpressionDoesNotAwait -->
 ```csharp
 var raw = await engine.EvaluateAsync("svc.ComputeAsync(10, 20)");
 // raw is a Task<int>
@@ -115,6 +120,7 @@ Because async execution runs through the interpreter, `await` can appear inside 
 - local variable initialization
 - delegate and module calls that return tasks
 
+<!-- test: Await_CanSuspendInsideControlFlow -->
 ```csharp
 var result = await engine.EvaluateAsync("""
     var sum = 0;
@@ -173,7 +179,7 @@ Awaited external work remains external work. Alder measures the evaluation's wal
 
 ## Exceptions and diagnostics
 
-Async execution converges on the same diagnostic model as the rest of Alder. Parse errors, binding failures, sandbox rejections, semantic errors, and execution-limit failures still surface as `AlderException` or `AlderExecutionLimitException` with structured diagnostic information.
+Async execution converges on the same diagnostic model as the rest of Alder. Parse errors, binding failures, security policy rejections, semantic errors, and execution-limit failures still surface as `AlderException` or `AlderExecutionLimitException` with structured diagnostic information.
 
 That includes source enrichment. When interpreted async evaluation throws an `AlderException` without a populated span, the evaluator enriches the exception from the most recently evaluated bound expression so callers still get useful line, column, and span data.
 
@@ -194,6 +200,7 @@ Two usage rules follow from that:
 
 Async execution is the natural choice when expressions call host-provided services that already expose `Task` or `ValueTask`.
 
+<!-- test: AsyncModuleMethods_CanBeAwaited -->
 ```csharp
 var engine = new AlderEngine(o => o.Modules.Register<AsyncService>("svc"));
 
@@ -208,6 +215,7 @@ var result = await engine.EvaluateAsync("""
 
 If the same async rule runs repeatedly, parse it once and evaluate the `AlderExpression` repeatedly. That removes repeated parse work while preserving the async execution path.
 
+<!-- test: AsyncExpressions_CanReuseParsedRulesWithTypedPerCallVariables -->
 ```csharp
 var expr = engine.Parse("""
     var value = await source();
@@ -219,6 +227,7 @@ var expr = engine.Parse("""
 
 Anonymous-object variables preserve property types for binding. That produces better semantic resolution than treating every per-call value as `object`.
 
+<!-- test: AsyncExpressions_CanReuseParsedRulesWithTypedPerCallVariables -->
 ```csharp
 var ok = await engine.EvaluateAsync<bool>(
     "await job.IsReadyAsync() && retries < maxRetries",

@@ -10,8 +10,7 @@ namespace Alder.Test.Runtime;
 /// Covers: primitive types, anonymous objects, nested lambdas, LINQ aggregates,
 /// custom extension methods, mixed argument types, edge cases.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class LambdaOverloadResolutionTests(CompilationMode mode)
 {
     #region Sum with lambda selector — delegate return type disambiguation

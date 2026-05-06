@@ -9,8 +9,7 @@ namespace Alder.Test.Runtime;
 /// error assertions, LINQ extension method calls.
 /// Parity tests migrated to TestData/Runtime/NamedParameter/*.csx
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class NamedParameterTests(CompilationMode mode)
 {
     #region Engine-only: RegisterModule (Alder-specific API)
@@ -19,9 +18,8 @@ public class NamedParameterTests(CompilationMode mode)
     [Test]
     public void Eval_NamedParameter_SkipOptionalWithNamed()
     {
-        var engine = new AlderEngine(o =>
+        var engine = TestEngineFactory.Create(mode, o =>
         {
-            if (mode == CompilationMode.Compiled) o.UseCompiler();
             o.Modules.Register<TestModule>("Test", instance: new TestModule());
         });
 

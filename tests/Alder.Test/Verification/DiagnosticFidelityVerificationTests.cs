@@ -8,8 +8,7 @@ namespace Alder.Test.Verification;
 /// Verifies that CS-prefixed error codes match Roslyn's semantics: same code for the same
 /// error condition. Also verifies no raw-string AlderException usage exists.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [Parallelizable(ParallelScope.Children)]
 public class DiagnosticFidelityVerificationTests(CompilationMode mode)
 {

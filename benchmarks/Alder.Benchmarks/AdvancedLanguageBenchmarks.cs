@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.Scripting;
 namespace Alder.Benchmarks;
 
 /// <summary>
-/// Measures Alder language features that exercise the full runtime engine: control flow, statement blocks, lambdas, async, and dispatch.
+/// Measures Alder language features that exercise the full expression runtime: control flow, statement blocks, lambdas, async, and dispatch.
 /// The comparison set is Native C# and Roslyn scripting.
 /// </summary>
 [Config(typeof(SteadyStateConfig))]

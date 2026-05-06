@@ -13,7 +13,7 @@ Use [Use Dynamic LINQ](../guides/use-dynamic-linq.md) for workflow examples and 
 
 Dynamic LINQ is Alder's runtime query-composition layer. It fits applications where the host owns the source and surrounding LINQ pipeline while predicates, selectors, keys, joins, projections, or aggregate selectors come from stored filters, configurable views, report definitions, policy-controlled search screens, or user-authored query fragments.
 
-Each fragment passes through Alder's expression pipeline: parsing, binding, diagnostics, sandbox validation, type resolution, and conversion rules. After binding, the LINQ layer adapts the result into delegates for `IEnumerable<T>` and async streams, expression trees for `IQueryable<T>`, or reusable `DynamicQueryPlan` instances. Dynamic LINQ is the query adapter over Alder's core semantics.
+Each fragment passes through Alder's expression pipeline: parsing, binding, diagnostics, security policy validation, type resolution, and conversion rules. After binding, the LINQ layer adapts the result into delegates for `IEnumerable<T>` and async streams, expression trees for `IQueryable<T>`, or reusable `DynamicQueryPlan` instances. Dynamic LINQ is the query adapter over Alder's core semantics.
 
 The surrounding execution remains LINQ: `Enumerable`, `Queryable`, or an in-process async-stream pipeline.
 
@@ -25,7 +25,7 @@ Runtime values are passed separately from expression text through positional pla
 
 ## Typed binding
 
-Every Dynamic LINQ fragment is bound against a CLR type surface. Predicates, selectors, joins, and projections use the same member lookup, overload resolution, conversions, nullable behavior, object construction, indexers, extension methods, and sandbox policy as ordinary Alder expressions.
+Every Dynamic LINQ fragment is bound against a CLR type surface. Predicates, selectors, joins, and projections use the same member lookup, overload resolution, conversions, nullable behavior, object construction, indexers, extension methods, and security policy as ordinary Alder expressions.
 
 Typed overloads make the result contract explicit. Non-generic overloads preserve runtime flexibility when a view, report, or stored query determines the shape. Both routes share the same parser and binder; they differ in the result contract the host asks Alder to produce.
 
@@ -74,7 +74,7 @@ String-based Dynamic LINQ extension operators such as `WhereDynamic("...")`, `Se
 
 Expression-tree export is a separate surface. `ParseAsExpression<TDelegate>(...)`, `ParsePredicate(...)`, `ParseSelector(...)`, and `ParseLambda(...)` can prepare expression trees without calling `UseCompiler()`. Compiling those trees to delegates still requires dynamic code support.
 
-Use the global engine when one query policy applies across the process. Pass an explicit `AlderEngine` when tenant boundaries, sandbox settings, type visibility, extension methods, or query validation policy belong to a specific application boundary. NativeAOT and IL2CPP-style deployments should keep runtime expression evaluation on Alder's interpreter and generated dispatch path outside the Dynamic LINQ operator surface.
+Use the global engine when one query policy applies across the process. Pass an explicit `AlderEngine` when tenant boundaries, security settings, type visibility, extension methods, or query validation policy belong to a specific application boundary. NativeAOT and IL2CPP-style deployments should keep runtime expression evaluation on Alder's interpreter and generated dispatch path outside the Dynamic LINQ operator surface.
 
 ## Dynamic LINQ and `Evaluate(...)`
 

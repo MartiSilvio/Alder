@@ -5,7 +5,7 @@ description: How Alder reports parse, bind, validation, compilation, export, and
 
 # Diagnostics and debugging
 
-Alder reports problems through structured diagnostics. The same diagnostic model covers parsing, binding, validation, sandbox checks, execution limits, runtime dispatch, compiled execution, expression-tree export, and AOT generated-dispatch failures. Hosts can treat expression failures as data: code, message, source span, line, column, severity, and phase context.
+Alder reports problems through structured diagnostics. The same diagnostic model covers parsing, binding, validation, security policy checks, execution limits, runtime dispatch, compiled execution, expression-tree export, and AOT generated-dispatch failures. Hosts can treat expression failures as data: code, message, source span, line, column, severity, and phase context.
 
 Parse and validate before activation. Execute only expressions that were accepted under the same engine policy they will use in production. When execution fails, log the diagnostic code and source location before the raw exception text. That gives stored expressions, user-authored rules, and provider-facing query fragments a stable operational contract.
 
@@ -13,6 +13,7 @@ Parse and validate before activation. Execute only expressions that were accepte
 
 `AlderDiagnostic` is the structured diagnostic record:
 
+<!-- test: DiagnosticModel_ExposesFormattedCodeAndSourceLocation -->
 ```csharp
 public sealed record AlderDiagnostic(
     DiagnosticSeverity Severity,
@@ -27,6 +28,7 @@ public sealed record AlderDiagnostic(
 
 The exception path uses `AlderException`. It carries the same diagnostics in `Diagnostics` and exposes first-diagnostic convenience properties:
 
+<!-- test: DiagnosticModel_ExposesFormattedCodeAndSourceLocation -->
 ```csharp
 catch (AlderException ex)
 {
@@ -51,7 +53,7 @@ Alder uses Roslyn-compatible `CS` codes when the failure corresponds to C# behav
 - `ALDR0003`: an explicit compiled wrapper is stale because the visible variable type surface changed after compilation.
 - `ALDR0010`-`ALDR0012`: compiled/export API shape errors, such as invalid `ParseAsExpression` delegate type or parameter-count mismatch.
 - `ALDR0020`: an Extended-mode feature was used under Standard mode.
-- `ALDR0100`-`ALDR0108`: sandbox policy blocked a method call, assignment, property access, construction, type access, or reflection type.
+- `ALDR0100`-`ALDR0108`: security policy blocked a method call, assignment, property access, construction, type access, or reflection type.
 - `ALDR0200`-`ALDR0203`: execution constraints were exceeded.
 - `ALDR0300`-`ALDR0318`: runtime semantic and dispatch failures, including null member access, failed invocation, unsupported runtime shapes, module instance resolution, and authoritative generated-mode misses.
 - `ALDR0400`-`ALDR0406`: Extended-language runtime failures such as invalid slicing, spread placement, chained comparison support, and projection materialization.
@@ -62,6 +64,7 @@ Code-first handling should group by family only when that is operationally usefu
 
 Parsing turns source text into an `AlderExpression`. Parse failures are syntax and lexical failures: incomplete expressions, invalid literals, unterminated strings, unexpected tokens, and excessive nesting. `Parse(...)` throws `AlderException`; `TryParse(...)` returns `false` with parse diagnostics.
 
+<!-- test: TryParseAndTryValidate_ReturnStructuredDiagnosticsWithoutExecuting -->
 ```csharp
 if (!engine.TryParse(source, out var parsed, out var parseDiagnostics))
 {
@@ -73,6 +76,7 @@ Binding is the semantic boundary. The binder resolves names, types, members, ove
 
 `TryValidate(...)` is the host-facing validation probe for syntax and binding. It parses, binds, collects semantic diagnostics, reports multiple unbound identifiers when possible, and does not execute user code:
 
+<!-- test: TryParseAndTryValidate_ReturnStructuredDiagnosticsWithoutExecuting -->
 ```csharp
 if (!engine.TryValidate(source, out var diagnostics))
 {
@@ -80,7 +84,7 @@ if (!engine.TryValidate(source, out var diagnostics))
 }
 ```
 
-Runtime failures occur after the expression is bound and evaluation has started. They include null member access, method invocation failures, sandbox rejections, execution limits, failed casts that depend on runtime values, AOT generated-dispatch misses, and exceptions thrown by host methods. These failures normally surface through `Evaluate(...)`, `EvaluateAsync(...)`, compiled wrappers, or expression-tree delegates.
+Runtime failures occur after the expression is bound and evaluation has started. They include null member access, method invocation failures, security policy rejections, execution limits, failed casts that depend on runtime values, AOT generated-dispatch misses, and exceptions thrown by host methods. These failures normally surface through `Evaluate(...)`, `EvaluateAsync(...)`, compiled wrappers, or expression-tree delegates.
 
 ## Exception types
 
@@ -88,6 +92,7 @@ Most Alder-controlled failures use `AlderException`. It is the common exception 
 
 Execution limits use `AlderExecutionLimitException`, a subclass of `AlderException`. It adds operational fields:
 
+<!-- test: ExecutionConstraints_ReportLimitType -->
 ```csharp
 catch (AlderExecutionLimitException ex)
 {
@@ -112,6 +117,7 @@ Interpreted evaluation enriches runtime `AlderException` instances from the acti
 
 For diagnostic displays, use span information as the canonical range and line/column as the human-facing entry point:
 
+<!-- test: DiagnosticModel_ExposesFormattedCodeAndSourceLocation -->
 ```csharp
 foreach (var diagnostic in diagnostics)
 {
@@ -129,7 +135,7 @@ Stored expressions should move through an activation pipeline:
 1. Parse or validate under the production engine configuration.
 2. Reject expressions with diagnostics before they become active.
 3. Store the original source text, expression identifier, engine policy version, and validation diagnostics.
-4. Activate only after the host has accepted the expression under the same language mode, sandbox, type registrations, functions, modules, AOT contexts, and compiler setting used for execution.
+4. Activate only after the host has accepted the expression under the same language mode, security policy, type registrations, functions, modules, AOT contexts, and compiler setting used for execution.
 5. Revalidate when the host changes the expression-facing type surface or policy.
 
 Validation is not execution. It catches syntax and semantic failures without invoking host methods, enumerating data, mutating state, or hitting execution limits. Runtime failures still need production handling because they depend on values, nulls, provider behavior, host method exceptions, timeouts, cancellation, and deployment metadata.
@@ -140,6 +146,7 @@ Use `TryValidate(...)` for activation. Use `TryEvaluate(...)` only when a host w
 
 `EvaluateWithTrace(...)` executes through the interpreter with tracing enabled, even when the engine has a compiler configured. It returns `EvaluationTraceResult`:
 
+<!-- test: EvaluateWithTrace_CapturesValuesTypesSourceAndPartialErrors -->
 ```csharp
 var trace = engine.EvaluateWithTrace(
     "price * (1 - discount) + tax",
@@ -160,6 +167,7 @@ Each `TraceNode` records the bound node kind, source substring, span, value, val
 
 Trace data is structured enough for rule editors and support tooling:
 
+<!-- test: EvaluateWithTrace_CapturesValuesTypesSourceAndPartialErrors -->
 ```csharp
 var root = trace.Tree;
 var discounted = root.Children[0];
@@ -179,6 +187,7 @@ Console.WriteLine(discount.Span.End);   // end-exclusive source offset
 
 Failed evaluations keep the partial tree:
 
+<!-- test: EvaluateWithTrace_CapturesValuesTypesSourceAndPartialErrors -->
 ```csharp
 engine.SetVariable("x", 0);
 
@@ -201,6 +210,7 @@ When `UseCompiler()` is configured, synchronous `Evaluate(...)` uses the compile
 
 `TryCompile(...)` is a probe. It returns `false` when no compiler is configured or when compilation cannot produce an invocable delegate. `Compile(AlderExpression)` and compiled extension APIs throw `ALDR0001` when strict compilation fails:
 
+<!-- test: CompiledExpressionWrapper_SeesValueChanges_AndRejectsTypeSurfaceChanges -->
 ```csharp
 var expression = engine.Parse("x + 1");
 
@@ -216,6 +226,7 @@ catch (AlderException ex) when (ex.ErrorCode == DiagnosticCode.ALDR0001)
 
 `AlderCompiledExpression<T>` captures the parent context type version at compile time. Value changes remain visible. Type-surface changes invalidate the wrapper. Invoking a stale wrapper throws `ALDR0003`:
 
+<!-- test: CompiledExpressionWrapper_SeesValueChanges_AndRejectsTypeSurfaceChanges -->
 ```csharp
 var compiled = engine.Compile<int>("x + 1");
 engine.SetVariable<int>("x", 1);
@@ -235,6 +246,7 @@ The exported tree supports a narrower set of expression-shaped constructs than A
 
 `TryParseAsExpression<TDelegate>(...)` returns `false` with diagnostics for parsing, binding, and export failures:
 
+<!-- test: TryParseAsExpression_ReturnsFalseWithDiagnostics_ForExportUnsupportedBody -->
 ```csharp
 if (!engine.TryParseAsExpression<Func<Order, bool>>(
         "o => { return o.Total > 100m; }",
@@ -274,7 +286,7 @@ Keep raw source logging under the host application's data policy. Expression tex
 
 ## Debugging stored expressions
 
-Stored expressions should be debugged against the same engine configuration that executes them. Differences in language mode, sandbox policy, registered types, functions, modules, variable types, generated contexts, or compiler configuration change the diagnostic surface.
+Stored expressions should be debugged against the same engine configuration that executes them. Differences in language mode, security policy, registered types, functions, modules, variable types, generated contexts, or compiler configuration change the diagnostic surface.
 
 A practical debugging loop is:
 

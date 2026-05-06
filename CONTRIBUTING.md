@@ -1,6 +1,6 @@
 # Contributing to Alder
 
-Alder is an embeddable C# runtime engine with compiler-style parsing and semantic binding. Changes need to preserve C# semantics, keep the interpreted and compiled backends aligned, and avoid adding runtime dependencies.
+Alder is an embeddable C# expression runtime with compiler-style parsing and semantic binding. Changes need to preserve C# semantics, keep the interpreted and compiled backends aligned, and avoid adding runtime dependencies.
 
 ## Start Here
 
@@ -26,14 +26,14 @@ Use the smallest test shape that proves the behavior without duplicating coverag
 | Parser or lexer shape | `tests/Alder.Test/Parsing/` plus corpus coverage when the parsed behavior is executable |
 | Binder services, overload resolution services, or dispatch internals | `tests/Alder.Test/Binding/` or `tests/Alder.Test/Runtime/` |
 | Engine API behavior, caching, variables, child engines, lifecycle, options, or diagnostics surface | Focused fixture tests under `tests/Alder.Test/Core/`, `Integration/`, `Runtime/`, or `Verification/` |
-| Compiled backend behavior | `tests/Alder.Test/Compilation/` and parity coverage where the behavior is shared |
-| Dynamic LINQ provider behavior | `tests/Alder.Test/Compilation/DynamicLinq/` or `DynamicLinqEfCore/` |
+| Compiled backend behavior | `tests/Alder.Compiled.Test/Compilation/` and parity coverage in `tests/Alder.Test/` where the behavior is shared |
+| Dynamic LINQ provider behavior | `tests/Alder.Compiled.Test/Compilation/DynamicLinq/` or `DynamicLinqEfCore/` |
 | AOT or generated dispatch behavior | `tests/Alder.Test/AOT/`, `tests/Alder.Test/Verification/`, and `scripts/aot-matrix.sh` |
-| Documentation examples | `tests/Alder.Test/Docs/` with a matching `<!-- test: TestName -->` marker in the Markdown |
+| Documentation examples | `tests/*/Docs/` with a matching `<!-- test: TestName -->` marker in the Markdown |
 
 The `.csx` corpus is the default place for language behavior. Do not add a hand-written fixture just to assert that an expression returns the same value under both backends. The parity runner already does that for corpus files in interpreted and compiled modes and compares the result against Roslyn.
 
-Use a backend-parameterized fixture when the behavior is not just a language expression: engine API calls, option wiring, cache state, compiled delegate availability, diagnostics metadata, sandbox configuration, generated dispatch integration, or provider translation.
+Use a backend-parameterized fixture when the behavior is not just a language expression: engine API calls, option wiring, cache state, compiled delegate availability, diagnostics metadata, security configuration, generated dispatch integration, or provider translation.
 
 ## Corpus Tests
 
@@ -67,7 +67,7 @@ Good fixture targets include:
 - Parse once, evaluate many times.
 - Variable scoping and per-call variable behavior.
 - Diagnostic spans, codes, and exception shape.
-- Security policy and sandbox decisions.
+- Security policy decisions.
 - Compiled delegate generation, fallback counts, and provider translation.
 - AOT generated context registration and dispatch paths.
 
@@ -85,19 +85,26 @@ must point to a real test that covers the exact sample or claim nearby. Do not a
 
 Documentation tests should prove documented Alder behavior. They are not a replacement for corpus parity tests.
 
+## Test Projects
+
+`tests/Alder.Test` is the shared runtime and parity suite. It targets `net8.0` and `net472`; compiled-mode fixture coverage runs only on `net8.0`, while `net472` runs the interpreted lane.
+
+`tests/Alder.Compiled.Test` is the compiled backend suite. It targets `net8.0` and owns IL compiler, FastExpressionCompiler adapter, Dynamic LINQ, and EF Core provider coverage.
+
 ## Useful Commands
 
 ```bash
 dotnet build
-dotnet test
+dotnet test --configuration Release --framework net8.0
+dotnet test tests/Alder.Test/Alder.Test.csproj --configuration Release --framework net472
 dotnet test --filter "FullyQualifiedName~Alder.Test.Docs"
+dotnet test tests/Alder.Compiled.Test/Alder.Compiled.Test.csproj --filter "FullyQualifiedName~DynamicLinq"
 dotnet test --filter "FullyQualifiedName~AotGeneratedDispatchDocTests"
-dotnet test --filter "FullyQualifiedName~DynamicLinq"
 dotnet test --filter "DisplayName~LangRef_Literal"
 ./scripts/aot-matrix.sh
 ```
 
-Run the narrowest useful command while developing. Before merging a runtime change, run the broader tests that cover the affected backend, parser, binder, security, and AOT paths.
+Run the narrowest useful command while developing. On macOS or Linux, the `net472` test command requires Mono; CI runs that lane on Windows. Before merging a runtime change, run the broader tests that cover the affected backend, parser, binder, security, and AOT paths.
 
 ## Runtime Changes
 
@@ -106,7 +113,7 @@ Runtime changes need to account for:
 - Interpreted execution.
 - Compiled execution.
 - AOT generated dispatch.
-- Security sandbox behavior.
+- Security policy behavior.
 - Diagnostic code and span fidelity.
 
 When changing method dispatch, overload resolution, member access, or type registration, verify that generated `TryInvoke` and `TryInvokeStatic` paths still integrate.

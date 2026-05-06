@@ -290,29 +290,29 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ExtendedModeRequired =
         new(DiagnosticCode.ALDR0020, "Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.");
 
-    public static readonly DiagnosticDescriptor SandboxMethodCallBlocked =
-        new(DiagnosticCode.ALDR0100, "Method calls blocked by sandbox: {0}");
+    public static readonly DiagnosticDescriptor SecurityPolicyMethodCallBlocked =
+        new(DiagnosticCode.ALDR0100, "Method calls blocked by security policy: {0}");
 
-    public static readonly DiagnosticDescriptor SandboxAssignmentBlocked =
-        new(DiagnosticCode.ALDR0101, "Assignment blocked by sandbox: {0}");
+    public static readonly DiagnosticDescriptor SecurityPolicyAssignmentBlocked =
+        new(DiagnosticCode.ALDR0101, "Assignment blocked by security policy: {0}");
 
-    public static readonly DiagnosticDescriptor SandboxIndexAssignmentBlocked =
-        new(DiagnosticCode.ALDR0102, "Index assignment blocked by sandbox: [{0}] = ...");
+    public static readonly DiagnosticDescriptor SecurityPolicyIndexAssignmentBlocked =
+        new(DiagnosticCode.ALDR0102, "Index assignment blocked by security policy: [{0}] = ...");
 
-    public static readonly DiagnosticDescriptor SandboxPropertyAccessBlocked =
-        new(DiagnosticCode.ALDR0103, "Property access blocked by sandbox: {0}");
+    public static readonly DiagnosticDescriptor SecurityPolicyPropertyAccessBlocked =
+        new(DiagnosticCode.ALDR0103, "Property access blocked by security policy: {0}");
 
-    public static readonly DiagnosticDescriptor SandboxStaticMemberAccessBlocked =
-        new(DiagnosticCode.ALDR0104, "Static member access blocked by sandbox: {0}.{1}");
+    public static readonly DiagnosticDescriptor SecurityPolicyStaticMemberAccessBlocked =
+        new(DiagnosticCode.ALDR0104, "Static member access blocked by security policy: {0}.{1}");
 
-    public static readonly DiagnosticDescriptor SandboxPropertyAssignmentBlocked =
-        new(DiagnosticCode.ALDR0105, "Property assignment blocked by sandbox: {0}");
+    public static readonly DiagnosticDescriptor SecurityPolicyPropertyAssignmentBlocked =
+        new(DiagnosticCode.ALDR0105, "Property assignment blocked by security policy: {0}");
 
-    public static readonly DiagnosticDescriptor SandboxConstructionBlocked =
-        new(DiagnosticCode.ALDR0106, "Object construction blocked by sandbox: new {0}()");
+    public static readonly DiagnosticDescriptor SecurityPolicyConstructionBlocked =
+        new(DiagnosticCode.ALDR0106, "Object construction blocked by security policy: new {0}()");
 
-    public static readonly DiagnosticDescriptor SandboxTypeBlocked =
-        new(DiagnosticCode.ALDR0107, "Type '{0}' is blocked by the sandbox");
+    public static readonly DiagnosticDescriptor SecurityPolicyTypeBlocked =
+        new(DiagnosticCode.ALDR0107, "Type '{0}' is blocked by the security policy");
 
     public static readonly DiagnosticDescriptor ReflectionTypeAccessBlocked =
         new(DiagnosticCode.ALDR0108, "Access to reflection types is not allowed: {0} ({1})");

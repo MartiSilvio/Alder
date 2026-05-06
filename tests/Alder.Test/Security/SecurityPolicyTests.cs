@@ -3,15 +3,14 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Security;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
-public class SandboxModeTests(CompilationMode mode)
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
+public class SecurityPolicyTests(CompilationMode mode)
 {
     [Test]
     public void Safe_AllowPropertyReadFalse_BlocksPropertyAccess()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = SandboxOptions.Safe() with { AllowPropertyRead = false });
+            o.Security = SecurityOptions.Safe() with { AllowPropertyRead = false });
         engine.SetVariable("text", "hello");
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.Length"));
@@ -22,7 +21,7 @@ public class SandboxModeTests(CompilationMode mode)
     public void Safe_AllowAssignmentFalse_BlocksSimpleAssignment()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = SandboxOptions.Safe() with { AllowAssignment = false });
+            o.Security = SecurityOptions.Safe() with { AllowAssignment = false });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("""
             var x = 1;
@@ -36,7 +35,7 @@ public class SandboxModeTests(CompilationMode mode)
     public void Safe_AllowAssignmentFalse_AllowsVariableDeclaration()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = SandboxOptions.Safe() with { AllowAssignment = false });
+            o.Security = SecurityOptions.Safe() with { AllowAssignment = false });
 
         var result = engine.Evaluate("""
             var x = 5;
@@ -50,7 +49,7 @@ public class SandboxModeTests(CompilationMode mode)
     public void Safe_AllowPropertySetFalse_BlocksPropertyAssignment()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false });
+            o.Security = SecurityOptions.Safe() with { AllowPropertySet = false });
         engine.SetVariable("obj", new TestMutableObject { Value = 10 });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("obj.Value = 99"));
@@ -61,7 +60,7 @@ public class SandboxModeTests(CompilationMode mode)
     public void Safe_AllowPropertySetFalse_AllowsPropertyRead()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false });
+            o.Security = SecurityOptions.Safe() with { AllowPropertySet = false });
         engine.SetVariable("obj", new TestMutableObject { Value = 10 });
 
         var result = engine.Evaluate("obj.Value");
@@ -72,7 +71,7 @@ public class SandboxModeTests(CompilationMode mode)
     public void Safe_AllowIndexSetFalse_BlocksArrayIndexAssignment()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false });
+            o.Security = SecurityOptions.Safe() with { AllowIndexSet = false });
         engine.SetVariable("items", new[] { 1, 2, 3 });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("items[0] = 99"));
@@ -83,7 +82,7 @@ public class SandboxModeTests(CompilationMode mode)
     public void Safe_AllowIndexSetFalse_AllowsDictionaryRead()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false });
+            o.Security = SecurityOptions.Safe() with { AllowIndexSet = false });
         engine.SetVariable("dict", new Dictionary<string, object?> { ["key"] = "value" });
 
         var result = engine.Evaluate("""dict["key"]""");
@@ -93,7 +92,7 @@ public class SandboxModeTests(CompilationMode mode)
     [Test]
     public void Strict_AllowsOnlyVariableDeclarationAndRead()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Strict());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Strict());
 
         var result = engine.Evaluate("""
             var x = 5;
@@ -107,7 +106,7 @@ public class SandboxModeTests(CompilationMode mode)
     public void Strict_WithAllowAssignmentTrue_AllowsAssignment()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = SandboxOptions.Strict() with { AllowAssignment = true });
+            o.Security = SecurityOptions.Strict() with { AllowAssignment = true });
 
         var result = engine.Evaluate("""
             var x = 1;
@@ -122,7 +121,7 @@ public class SandboxModeTests(CompilationMode mode)
     public void Strict_WithAllowMethodCallsTrue_AllowsMethodCalls()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = SandboxOptions.Strict() with { AllowMethodCalls = true });
+            o.Security = SecurityOptions.Strict() with { AllowMethodCalls = true });
         engine.SetVariable("text", "hello");
 
         var result = engine.Evaluate("text.ToUpper()");
@@ -130,9 +129,9 @@ public class SandboxModeTests(CompilationMode mode)
     }
 
     [Test]
-    public void DenyAll_DefaultSandbox_BlocksMethodCalls()
+    public void DenyAll_DefaultSecurityOptions_BlocksMethodCalls()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = new SandboxOptions());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions());
         engine.SetVariable("text", "hello");
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.ToUpper()"));
@@ -140,9 +139,9 @@ public class SandboxModeTests(CompilationMode mode)
     }
 
     [Test]
-    public void DenyAll_DefaultSandbox_BlocksPropertyRead()
+    public void DenyAll_DefaultSecurityOptions_BlocksPropertyRead()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = new SandboxOptions());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions());
         engine.SetVariable("text", "hello");
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.Length"));
@@ -150,9 +149,9 @@ public class SandboxModeTests(CompilationMode mode)
     }
 
     [Test]
-    public void DenyAll_DefaultSandbox_AllowsPureExpressions()
+    public void DenyAll_DefaultSecurityOptions_AllowsPureExpressions()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = new SandboxOptions());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions());
 
         var result = engine.Evaluate("1 + 2 * 3");
         Assert.That(result, Is.EqualTo(7));
@@ -161,7 +160,7 @@ public class SandboxModeTests(CompilationMode mode)
     [Test]
     public void DenyAll_AllowsDelegateInvocation()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = new SandboxOptions());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions());
         engine.SetVariable("fn", new Func<int, int>(x => x + 1));
 
         var result = engine.Evaluate("fn(5)");
@@ -173,7 +172,7 @@ public class SandboxModeTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o =>
         {
-            o.Sandbox = new SandboxOptions();
+            o.Security = new SecurityOptions();
             o.Functions.Register("triple", args => Convert.ToInt64(args[0]) * 3);
         });
 
@@ -185,7 +184,7 @@ public class SandboxModeTests(CompilationMode mode)
     public void MemberAssign_AllowAssignmentFalse_AllowPropertySetTrue_Succeeds()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = SandboxOptions.Safe() with
+            o.Security = SecurityOptions.Safe() with
             {
                 AllowAssignment = false,
                 AllowPropertySet = true
@@ -201,31 +200,31 @@ public class SandboxModeTests(CompilationMode mode)
     }
 
     [Test]
-    public void Sandbox_AllowConstruction_Blocks_New()
+    public void SecurityPolicy_AllowConstruction_Blocks_New()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = SandboxOptions.Safe() with { AllowConstruction = false });
+            o.Security = SecurityOptions.Safe() with { AllowConstruction = false });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("new List<int>()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
     [Test]
-    public void Sandbox_AllowConstruction_Permits_When_Enabled()
+    public void SecurityPolicy_AllowConstruction_Permits_When_Enabled()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Sandbox = new SandboxOptions { AllowConstruction = true });
+            o.Security = new SecurityOptions { AllowConstruction = true });
 
         var result = engine.Evaluate("new List<int>()");
         Assert.That(result, Is.InstanceOf<List<int>>());
     }
 
     [Test]
-    public void Sandbox_TrustedTypes_OverridesDenyList_ForConstruction()
+    public void SecurityPolicy_TrustedTypes_OverridesDenyList_ForConstruction()
     {
         var engine = TestEngineFactory.Create(mode, o =>
         {
-            o.Sandbox = SandboxOptions.Safe() with
+            o.Security = SecurityOptions.Safe() with
             {
                 TrustedTypes = [typeof(System.Text.StringBuilder)],
                 AllowConstruction = true

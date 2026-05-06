@@ -5,7 +5,7 @@ description: How LanguageMode.Extended expands Alder's C# syntax with scripting 
 
 # Extended language mode
 
-`LanguageMode.Extended` accepts Standard mode plus Alder-specific syntax for rules, filters, scripts, and query fragments: pipelines, inclusive and exclusive integer ranges, collection literals, regex predicates, SQL-style comparisons, date arithmetic sugar, and concise aggregate helpers. These forms use Alder's C# binding model, CLR type system, sandbox enforcement, and execution backends.
+`LanguageMode.Extended` accepts Standard mode plus Alder-specific syntax for rules, filters, scripts, and query fragments: pipelines, inclusive and exclusive integer ranges, collection literals, regex predicates, SQL-style comparisons, date arithmetic sugar, and concise aggregate helpers. These forms use Alder's C# binding model, CLR type system, security policy enforcement, and execution backends.
 
 Extended mode is a host policy choice. It fits expressions authored by application users, administrators, analysts, rule authors, and configuration systems that benefit from compact syntax. Standard mode remains the default when the accepted syntax should stay within Alder's C# subset.
 
@@ -15,6 +15,7 @@ Extended mode is a host policy choice. It fits expressions authored by applicati
 
 `LanguageMode.Extended` accepts Standard mode syntax plus Alder-specific forms:
 
+<!-- test: ExtendedMode_AddsSyntaxAndBuiltins_ButStandardRejectsThem -->
 ```csharp
 var engine = new AlderEngine(options =>
 {
@@ -24,7 +25,7 @@ var engine = new AlderEngine(options =>
 var value = engine.Evaluate<double>("2 ** 10");
 ```
 
-The mode is captured when the engine is created. It affects parsing, binding, and runtime helper resolution for that engine and its child contexts. It leaves sandbox policy, execution limits, and C# semantics intact. Valid C# expressions keep their normal meaning; Extended mode adds extra forms around that contract.
+The mode is captured when the engine is created. It affects parsing, binding, and runtime helper resolution for that engine and its child contexts. It leaves security policy, execution limits, and C# semantics intact. Valid C# expressions keep their normal meaning; Extended mode adds extra forms around that contract.
 
 When a Standard engine receives an Extended-only feature, Alder reports `ALDR0020` for language-mode-gated forms: "Use LanguageMode.Extended to enable non-standard syntax extensions." Some syntax is rejected earlier as ordinary parse failure when Standard mode has no matching grammar path.
 
@@ -37,7 +38,7 @@ When a Standard engine receives an Extended-only feature, Alder reports `ALDR002
 | Local expression syntax | `let`, `let ... in ...`, simple member destructuring, `if` expressions, `unless`, `until` | These forms lower to Alder's normal binding and control-flow model. |
 | Built-ins | Bare math names, aggregate helpers, date/time unit members, `today()`, `now()` | Host variables shadow bare constants. Registered functions shadow call-form built-ins. Module names do not shadow call-form math helpers such as `sin(...)`. |
 
-Every Extended form runs through Alder's parser, binder, sandbox, execution constraints, and backend-specific support rules. Runtime evaluation, compiled synchronous evaluation, expression-tree export, and Dynamic LINQ have distinct surfaces. Provider and export paths stay on Standard syntax unless an integration explicitly documents a translation.
+Every Extended form runs through Alder's parser, binder, security policy, execution constraints, and backend-specific support rules. Runtime evaluation, compiled synchronous evaluation, expression-tree export, and Dynamic LINQ have distinct surfaces. Provider and export paths stay on Standard syntax unless an integration explicitly documents a translation.
 
 ## Why Extended mode exists
 
@@ -45,6 +46,7 @@ Runtime expressions often live closer to configuration than to source files. The
 
 Extended mode addresses that gap with syntax that keeps common rule and query fragments compact:
 
+<!-- test: ExtendedRuleSurface_EvaluatesCompactRuleFragments -->
 ```csharp
 var engine = new AlderEngine(options => options.LanguageMode = LanguageMode.Extended);
 engine.SetVariable("orders", orders);
@@ -70,6 +72,7 @@ Extended mode adds operators for expression shapes that are common in rules and 
 
 The power operator and compound power assignment call Alder's numeric runtime:
 
+<!-- test: ExtendedOperators_EvaluateNumericComparisonAndBooleanForms -->
 ```csharp
 engine.Evaluate("2 ** 8");
 engine.Evaluate("""
@@ -81,6 +84,7 @@ engine.Evaluate("""
 
 Strict equality compares both type and value:
 
+<!-- test: ExtendedOperators_EvaluateNumericComparisonAndBooleanForms -->
 ```csharp
 engine.Evaluate("1 === 1");   // true
 engine.Evaluate("1 === 1L");  // false
@@ -89,6 +93,7 @@ engine.Evaluate("1 !== 1L");  // true
 
 The three-way comparison operator returns `-1`, `0`, or `1` and orders `null` before non-null values:
 
+<!-- test: ExtendedOperators_EvaluateNumericComparisonAndBooleanForms -->
 ```csharp
 engine.Evaluate(""" "alpha" <=> "beta" """);
 engine.Evaluate("null <=> 5");
@@ -96,15 +101,17 @@ engine.Evaluate("null <=> 5");
 
 Chained comparisons evaluate the middle operands once and short-circuit:
 
+<!-- test: ExtendedOperators_EvaluateNumericComparisonAndBooleanForms -->
 ```csharp
 engine.Evaluate("0 <= score <= 100");
-engine.Evaluate("""status == "Open" == isActive""");
+engine.Evaluate("expectedStatus == status == actualStatus");
 ```
 
 ### Membership and pattern predicates
 
 `in` checks membership against an enumerable value. `not in` is parsed as the negated form:
 
+<!-- test: ExtendedPredicates_EvaluateMembershipLikeRegexAndBetween -->
 ```csharp
 engine.SetVariable("allowedStatuses", new[] { "Open", "Pending" });
 
@@ -114,6 +121,7 @@ engine.Evaluate("""region not in new[] { "Blocked", "Retired" }""");
 
 `like` uses SQL-style wildcard matching, where `%` matches any sequence and `_` matches one character. Regex metacharacters remain literal inside `like` patterns:
 
+<!-- test: ExtendedPredicates_EvaluateMembershipLikeRegexAndBetween -->
 ```csharp
 engine.Evaluate("""CustomerName like "Acme%" """);
 engine.Evaluate("""Code not like "TEMP_%" """);
@@ -121,6 +129,7 @@ engine.Evaluate("""Code not like "TEMP_%" """);
 
 `=~` and `!~` evaluate .NET regular expressions through Alder's built-in regex helper. The helper applies a one-second regex timeout in the current implementation:
 
+<!-- test: ExtendedPredicates_EvaluateMembershipLikeRegexAndBetween -->
 ```csharp
 engine.Evaluate("""Email =~ "^[^@]+@example\\.com$" """);
 engine.Evaluate("""Sku !~ "^TEST-" """);
@@ -128,6 +137,7 @@ engine.Evaluate("""Sku !~ "^TEST-" """);
 
 `between ... and ...` lowers to an inclusive pair of comparisons:
 
+<!-- test: ExtendedPredicates_EvaluateMembershipLikeRegexAndBetween -->
 ```csharp
 engine.Evaluate("Total between 100m and 500m");
 ```
@@ -136,6 +146,7 @@ engine.Evaluate("Total between 100m and 500m");
 
 Extended mode accepts `and`, `or`, and `not` as expression-level boolean operators:
 
+<!-- test: ExtendedOperators_EvaluateNumericComparisonAndBooleanForms -->
 ```csharp
 engine.Evaluate("""IsActive and Total >= 100m""");
 engine.Evaluate("""not IsDeleted""");
@@ -147,12 +158,14 @@ C# pattern combinators keep their Standard-mode behavior. The Extended word oper
 
 The pipeline operator invokes the right-hand callable with the left-hand value as its single argument:
 
+<!-- test: ExtendedPipelines_InvokeLambdasAndRegisteredFunctions -->
 ```csharp
 engine.Evaluate("5 |> (x => x * 2)");
 ```
 
 The right-hand side can be any Alder callable form: a lambda, a delegate value, a registered function, or another callable resolved through the runtime. Small transformations then read left to right:
 
+<!-- test: ExtendedPipelines_InvokeLambdasAndRegisteredFunctions -->
 ```csharp
 var engine = new AlderEngine(options =>
 {
@@ -170,6 +183,7 @@ Pipelines use the normal invocation path for the target callable. Method calls, 
 
 Standard mode supports C# `..` range expressions and CLR indexing paths that consume `System.Range`. Extended mode adds explicit integer iteration forms for rule and scripting expressions:
 
+<!-- test: ExtendedCollectionsRangesAndLocalSyntax_EvaluateDocumentedForms -->
 ```csharp
 engine.Evaluate("(1..=5).Count()");  // inclusive
 engine.Evaluate("(1..<5).Count()");  // exclusive end
@@ -179,6 +193,7 @@ When an Extended range is used as an enumerable, Alder generates an integer sequ
 
 Slice syntax works over supported indexed values:
 
+<!-- test: ExtendedCollectionsRangesAndLocalSyntax_EvaluateDocumentedForms -->
 ```csharp
 engine.SetVariable("values", new[] { 10, 20, 30, 40, 50 });
 
@@ -189,6 +204,7 @@ engine.Evaluate(""" "alphabet"[2:6] """);
 
 Comprehensions provide a compact projection/filter form over enumerable values:
 
+<!-- test: ExtendedCollectionsRangesAndLocalSyntax_EvaluateDocumentedForms -->
 ```csharp
 engine.Evaluate("[x * x for x in 1..=10 if x % 2 == 0]");
 ```
@@ -199,12 +215,14 @@ Comprehensions lower to LINQ-shaped calls and materialize arrays. They depend on
 
 Extended mode accepts collection literals without requiring a target type:
 
+<!-- test: ExtendedCollectionsRangesAndLocalSyntax_EvaluateDocumentedForms -->
 ```csharp
 engine.Evaluate("[1, 2, 3]");
 ```
 
 The binder infers an element type and the runtime materializes an array. Spread inserts the contents of an enumerable into a collection literal:
 
+<!-- test: ExtendedCollectionsRangesAndLocalSyntax_EvaluateDocumentedForms -->
 ```csharp
 engine.SetVariable("first", new[] { 1, 2 });
 engine.SetVariable("second", new[] { 3, 4 });
@@ -214,6 +232,7 @@ engine.Evaluate("[..first, ..second, 5]");
 
 Spread is supported in collection expressions. Object spread syntax such as `new { ..obj }` is rejected; structural projections use explicit members:
 
+<!-- test: ExtendedCollectionsRangesAndLocalSyntax_EvaluateDocumentedForms -->
 ```csharp
 engine.Evaluate("""new { Name = customer.Name, Total = order.Total }""");
 ```
@@ -224,6 +243,7 @@ This keeps projection shape visible at the expression boundary and avoids ambigu
 
 Extended mode adds `let` as an implicitly typed local declaration and as a `let ... in ...` expression form:
 
+<!-- test: ExtendedCollectionsRangesAndLocalSyntax_EvaluateDocumentedForms -->
 ```csharp
 engine.Evaluate("""
     let discounted = price * 0.9m in
@@ -233,6 +253,7 @@ engine.Evaluate("""
 
 `let-in` also supports simple member destructuring:
 
+<!-- test: ExtendedCollectionsRangesAndLocalSyntax_EvaluateDocumentedForms -->
 ```csharp
 engine.Evaluate("""
     let { Name, Total } = order in
@@ -242,12 +263,14 @@ engine.Evaluate("""
 
 `if` expressions give rule authors a compact branch form:
 
+<!-- test: ExtendedCollectionsRangesAndLocalSyntax_EvaluateDocumentedForms -->
 ```csharp
 engine.Evaluate("""if (score >= 90) "pass" else "review" """);
 ```
 
 For statement-oriented scripts, Extended mode accepts `unless` and `until`, which lower to inverted `if` and `while` shapes:
 
+<!-- test: ExtendedCollectionsRangesAndLocalSyntax_EvaluateDocumentedForms -->
 ```csharp
 engine.Evaluate("""
     var attempts = 0;
@@ -263,6 +286,7 @@ These forms use Alder's normal control-flow and statement-limit machinery.
 
 Extended mode resolves selected bare math constants and functions through its normal identifier and call binding rules:
 
+<!-- test: ExtendedBuiltIns_EvaluateMathAggregatesAndDateSugar -->
 ```csharp
 engine.Evaluate("sin(pi / 2)");
 engine.Evaluate("clamp(score, 0, 100)");
@@ -273,6 +297,7 @@ User variables can shadow bare constants, and registered functions can shadow ba
 
 Aggregate helpers operate over enumerable values and delegate to .NET semantics for supported numeric and comparable collections:
 
+<!-- test: ExtendedBuiltIns_EvaluateMathAggregatesAndDateSugar -->
 ```csharp
 engine.SetVariable("values", new[] { 10, 20, 30 });
 
@@ -285,6 +310,7 @@ engine.Evaluate("max(values)");
 
 Date/time sugar maps numeric unit members to `TimeSpan` values and exposes clock helpers:
 
+<!-- test: ExtendedBuiltIns_EvaluateMathAggregatesAndDateSugar -->
 ```csharp
 engine.Evaluate("30.days");
 engine.Evaluate("2.hours + 30.minutes");
@@ -330,13 +356,13 @@ Runtime evaluation can execute Alder-specific helpers in process. Provider expor
 
 Extended mode expands the accepted language surface. Treat that choice as part of the host governance model.
 
-Security policy remains the primary enforcement mechanism. `SandboxOptions` still controls method calls, construction, assignment, property reads, writes, static access, trusted types, denied types, and collection-size limits. Execution constraints still bound statement counts, loop iterations, timeouts, and cancellation.
+Security policy remains the primary enforcement mechanism. `SecurityOptions` still controls method calls, construction, assignment, property reads, writes, static access, trusted types, denied types, and collection-size limits. Execution constraints still bound statement counts, loop iterations, timeouts, and cancellation.
 
-Pipelines, comprehensions, ranges, aggregate helpers, regex predicates, and collection literals can increase how much work an expression asks the runtime to do. Hosts that accept user-authored expressions should pair Extended mode with a sandbox, execution limits, validation, and review tooling appropriate to the trust level of those users.
+Pipelines, comprehensions, ranges, aggregate helpers, regex predicates, and collection literals can increase how much work an expression asks the runtime to do. Hosts that accept user-authored expressions should pair Extended mode with a security policy, execution limits, validation, and review tooling appropriate to the trust level of those users.
 
 For public or multi-tenant expression authoring, a common policy is:
 
-- use `SandboxOptions.Safe()` or a stricter custom policy
+- use `SecurityOptions.Safe()` or a stricter custom policy
 - set statement, loop, timeout, and collection-size limits
 - validate stored expressions before activation
 - version the host's allowed expression surface
@@ -346,11 +372,12 @@ For public or multi-tenant expression authoring, a common policy is:
 
 Move from Standard to Extended when expression authors repeatedly reach for concise rule syntax, date arithmetic, collection shaping, or readable predicate forms. The migration is usually configuration-first:
 
+<!-- test: ExtendedMigrationPolicy_CanCombineSecurityAndExecutionLimits -->
 ```csharp
 var engine = new AlderEngine(options =>
 {
     options.LanguageMode = LanguageMode.Extended;
-    options.Sandbox = SandboxOptions.Safe();
+    options.Security = SecurityOptions.Safe();
     options.Constraints = new ExecutionConstraints
     {
         MaxStatements = 10_000,

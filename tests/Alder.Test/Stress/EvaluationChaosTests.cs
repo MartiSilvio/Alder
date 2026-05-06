@@ -3,8 +3,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Stress;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
 {
     [Test]
@@ -122,9 +121,9 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     }
 
     [Test]
-    public void SandboxBypass_Reflection_ShouldBeBlockedInSafeMode()
+    public void SecurityPolicyBypass_Reflection_ShouldBeBlockedInSafeMode()
     {
-        var safeEngine = TestEngineFactory.Create(Mode, o => o.Sandbox = SandboxOptions.Safe());
+        var safeEngine = TestEngineFactory.Create(Mode, o => o.Security = SecurityOptions.Safe());
         var expr = "\"hello\".GetType()";
 
         var ex = Assert.Throws<AlderException>(() => safeEngine.Evaluate(expr));

@@ -12,7 +12,7 @@
     <Title>Alder</Title>
     <PackageReleaseNotes>Initial 1.0.0 release.</PackageReleaseNotes>
     <Copyright>Copyright © Silvio Martignetti</Copyright>
-    <PackageTags>csharp;c-sharp;expressions;expression-evaluator;expression-parser;scripting;script-engine;rules-engine;dynamic-linq;linq;query;runtime;interpreter;compiler;sandbox;safe-evaluation;nativeaot;aot;source-generator;dotnet</PackageTags>
+    <PackageTags>csharp;c-sharp;expressions;expression-evaluator;expression-runtime;expression-parser;scripting;script-engine;rules-engine;dynamic-linq;linq;query;runtime;interpreter;compiler;security-policy;safe-evaluation;nativeaot;aot;source-generator;dotnet</PackageTags>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <NoWarn>$(NoWarn);CA1822</NoWarn>

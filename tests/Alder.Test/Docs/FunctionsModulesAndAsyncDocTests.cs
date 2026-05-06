@@ -2,8 +2,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Docs;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [Parallelizable(ParallelScope.Children)]
 public class FunctionsModulesAndAsyncDocTests(CompilationMode mode)
 {
@@ -35,6 +34,17 @@ public class FunctionsModulesAndAsyncDocTests(CompilationMode mode)
         Assert.That(engine.Evaluate<string>("""greet("Ada")"""), Is.EqualTo("Hello, Ada!"));
         Assert.That(engine.Evaluate<int>("Add(40, 2)"), Is.EqualTo(42));
         Assert.That(engine.Evaluate<int>("Add(40)"), Is.EqualTo(40));
+    }
+
+    [Test]
+    public void AttributedModules_RegisterFromType()
+    {
+        using var engine = TestEngineFactory.Create(mode, options =>
+        {
+            options.Modules.RegisterFromType<DocTextModule>();
+        });
+
+        Assert.That(engine.Evaluate<string>("""Text.TitleCase("quarterly report")"""), Is.EqualTo("Quarterly Report"));
     }
 
     [Test]
@@ -108,6 +118,36 @@ public class FunctionsModulesAndAsyncDocTests(CompilationMode mode)
     }
 
     [Test]
+    public async Task EvaluateAsync_ExecutesTextAndParsedExpressions()
+    {
+        using var engine = TestEngineFactory.Create(mode);
+
+        var total = await engine.EvaluateAsync<int>("""
+            var a = await Task.FromResult(20);
+            var b = await Task.FromResult(22);
+            return a + b;
+            """);
+
+        var expression = engine.Parse("await Task.FromResult(@0 + @1)");
+        var parsedResult = await engine.EvaluateAsync<int>(expression, 30, 12);
+
+        Assert.That(total, Is.EqualTo(42));
+        Assert.That(parsedResult, Is.EqualTo(42));
+    }
+
+    [Test]
+    public async Task Await_ProducesValuesAndNullForTaskResults()
+    {
+        using var engine = TestEngineFactory.Create(mode);
+
+        var value = await engine.EvaluateAsync("""await Task.FromResult("hello")""");
+        var completedTask = await engine.EvaluateAsync("await Task.Delay(1)");
+
+        Assert.That(value, Is.EqualTo("hello"));
+        Assert.That(completedTask, Is.Null);
+    }
+
+    [Test]
     public async Task Await_CanSuspendInsideControlFlow()
     {
         using var engine = TestEngineFactory.Create(mode, options =>
@@ -125,5 +165,26 @@ public class FunctionsModulesAndAsyncDocTests(CompilationMode mode)
             """);
 
         Assert.That(result, Is.EqualTo(6));
+    }
+
+    [Test]
+    public async Task AsyncExpressions_CanReuseParsedRulesWithTypedPerCallVariables()
+    {
+        using var engine = TestEngineFactory.Create(mode);
+        var expression = engine.Parse("""
+            var value = await source();
+            return value >= threshold;
+            """);
+
+        var accepted = await engine.EvaluateAsync<bool>(
+            expression,
+            new { source = (Func<Task<decimal>>)(() => Task.FromResult(125m)), threshold = 100m });
+
+        var jobReady = await engine.EvaluateAsync<bool>(
+            "await job.IsReadyAsync() && retries < maxRetries",
+            new { job = new DocAsyncJob(), retries = 1, maxRetries = 3 });
+
+        Assert.That(accepted, Is.True);
+        Assert.That(jobReady, Is.True);
     }
 }

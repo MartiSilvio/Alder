@@ -4,30 +4,6 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Core;
 
-/// <summary>
-/// Verifies that every CS error code in the DiagnosticCode enum is correctly wired
-/// through DiagnosticDescriptors to AlderException throw sites.
-///
-/// Each test triggers a specific error via the public AlderEngine API, then asserts:
-///   1. ErrorCode matches the expected DiagnosticCode enum value
-///   2. FormattedCode matches the "CS####" string format
-///   3. Message contains formatted arguments (no raw {0} placeholders)
-///
-/// All errors are AlderException with DiagnosticCode. Exception subtypes removed —
-/// error identity is the diagnostic code, not the exception type.
-///
-///   Alder-specific breakdown (no C# compiler equivalent):
-///     Sandbox/security:    12 (assignment/method/property/index blocked)
-///     Null access:         15 (runtime NullReferenceException in real C#)
-///     Execution limits:     5 (statement/timeout constraints)
-///     Reflection guards:    3 (reflection type leakage prevention)
-///     Internal/unreachable: 12 (unknown operator, unsupported pattern)
-///     Tuple/deconstruction: 7 (tuple size limits, deconstruction mismatch)
-///     Spread operator:      4 (Alder extension syntax)
-///     Other Alder-only:   11 (method invocation, compilation wrapper, etc.)
-///     Parser errors:        15 (parsing-specific messages)
-///     Lexer errors:         26 (deferred per 10-07 decision)
-/// </summary>
 [TestFixture]
 public class DiagnosticCodeTests
 {
@@ -72,7 +48,7 @@ public class DiagnosticCodeTests
     public void CS0021_BadIndexerAccess_MultiDimOnNonArray_AllCompilationModes()
     {
         const string expr = "{ var x = 42; return x[0,0]; }";
-        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled })
+        foreach (var mode in CompilationModeFixtures.AllModes)
         {
             var engine = TestEngineFactory.Create(mode);
             var ex = Assert.Throws<AlderException>(() => engine.Evaluate(expr));
@@ -205,7 +181,7 @@ public class DiagnosticCodeTests
     [Test]
     public void CS0139_BreakOutsideLoop_AllCompilationModes()
     {
-        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled })
+        foreach (var mode in CompilationModeFixtures.AllModes)
         {
             var engine = TestEngineFactory.Create(mode);
             var ex = Assert.Throws<AlderException>(() => engine.Evaluate("{ break; }"));
@@ -230,7 +206,7 @@ public class DiagnosticCodeTests
     {
         // §13.10.6 / Roslyn parity: when the operand's static type is known and not
         // convertible to System.Exception, the throw is rejected with CS0029 at bind time.
-        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled })
+        foreach (var mode in CompilationModeFixtures.AllModes)
         {
             var engine = TestEngineFactory.Create(mode);
             var ex = Assert.Throws<AlderException>(() => engine.Evaluate("throw 42"));
@@ -426,7 +402,7 @@ public class DiagnosticCodeTests
     {
         var engine = new AlderEngine(new AlderOptions
         {
-            Sandbox = SandboxOptions.Strict() with { AllowAssignment = false }
+            Security = SecurityOptions.Strict() with { AllowAssignment = false }
         });
         engine.SetVariable("x", 10);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("x = 5"));
@@ -447,12 +423,11 @@ public class DiagnosticCodeTests
     public void AllDiagnosticCodes_HaveDescriptors()
     {
         // Verify every DiagnosticCode enum value has a corresponding DiagnosticDescriptor
-        var allCodes = Enum.GetValues<DiagnosticCode>();
-        var descriptorFields = typeof(DiagnosticDescriptors)
+        var allCodes = Enum.GetValues(typeof(DiagnosticCode)).Cast<DiagnosticCode>();
+        var descriptorFields = new HashSet<DiagnosticCode>(typeof(DiagnosticDescriptors)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(f => f.FieldType == typeof(DiagnosticDescriptor))
-            .Select(f => ((DiagnosticDescriptor)f.GetValue(null)!).Code)
-            .ToHashSet();
+            .Select(f => ((DiagnosticDescriptor)f.GetValue(null)!).Code));
 
         foreach (var code in allCodes)
         {

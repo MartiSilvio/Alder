@@ -38,6 +38,44 @@ public class DynamicLinqDocTests
     }
 
     [Test]
+    public void GlobalAlderEvalConfiguration_EnablesStringBasedQueryExtensions()
+    {
+        try
+        {
+            AlderEval.Reset();
+            AlderEval.Configure(options => options.UseCompiler());
+
+            var expensive = DocSamples.Products
+                .WhereDynamic("Price >= @0", 100m)
+                .Select(product => product.Name)
+                .ToList();
+
+            Assert.That(expensive, Is.EqualTo(new[] { "Doohickey", "Whatchamacallit" }));
+        }
+        finally
+        {
+            AlderEval.Reset();
+        }
+    }
+
+    [Test]
+    public void ExpressionForms_SupportImplicitAndExplicitLambdaSelectors()
+    {
+        using var engine = new AlderEngine(options => options.UseCompiler());
+
+        var implicitNames = DocSamples.Products
+            .SelectDynamic<DocProduct, string>(engine, "Name")
+            .ToList();
+
+        var explicitNames = DocSamples.Products
+            .SelectDynamic<DocProduct, string>(engine, "product => product.Name")
+            .ToList();
+
+        Assert.That(implicitNames, Is.EqualTo(DocSamples.Products.Select(product => product.Name)));
+        Assert.That(explicitNames, Is.EqualTo(implicitNames));
+    }
+
+    [Test]
     public void RuntimeValues_SupportPositionalNamedAndMixedBinding()
     {
         using var engine = new AlderEngine(options => options.UseCompiler());
@@ -63,6 +101,28 @@ public class DynamicLinqDocTests
         Assert.That(positional, Is.EqualTo(new[] { "Doohickey" }));
         Assert.That(named, Is.EqualTo(new[] { "Gadget" }));
         Assert.That(mixed, Is.EqualTo(new[] { "Gadget", "Doohickey" }));
+    }
+
+    [Test]
+    public void FilteringExamples_UseImplicitAndExplicitRuntimeValues()
+    {
+        using var engine = new AlderEngine(options => options.UseCompiler());
+
+        var inStockElectronics = DocSamples.Products
+            .WhereDynamic(engine, """Category == "Electronics" && InStock""")
+            .Select(product => product.Name)
+            .ToList();
+
+        var searchResults = DocSamples.Products
+            .WhereDynamic(
+                engine,
+                "product => product.Name.StartsWith(prefix) && product.Price <= maxPrice",
+                new { prefix = "G", maxPrice = 100m })
+            .Select(product => product.Name)
+            .ToList();
+
+        Assert.That(inStockElectronics, Is.EqualTo(new[] { "Gadget" }));
+        Assert.That(searchResults, Is.EqualTo(new[] { "Gadget" }));
     }
 
     [Test]
@@ -134,6 +194,21 @@ public class DynamicLinqDocTests
     }
 
     [Test]
+    public void SelectManyResultSelectors_ProjectOuterAndInnerRows()
+    {
+        using var engine = new AlderEngine(options => options.UseCompiler());
+
+        var orderLabels = DocSamples.Customers
+            .SelectManyDynamic<DocCustomer, DocOrder, string>(
+                engine,
+                "customer => customer.Orders",
+                """(customer, order) => customer.Name + ":" + order.Product""")
+            .ToList();
+
+        Assert.That(orderLabels, Is.EqualTo(new[] { "Ada:Widget", "Ada:Gadget", "Grace:Doohickey" }));
+    }
+
+    [Test]
     public void AggregatesElementAndSequenceOperators_FollowLinqBehavior()
     {
         using var engine = new AlderEngine(options => options.UseCompiler());
@@ -149,6 +224,36 @@ public class DynamicLinqDocTests
             Is.EqualTo(new[] { "Electronics", "Specialty", "Tools" }));
         Assert.That(DocSamples.Products.DistinctByDynamic<DocProduct, string>(engine, "Category").Select(p => p.Category),
             Is.EqualTo(new[] { "Tools", "Electronics", "Specialty" }));
+    }
+
+    [Test]
+    public void ElementSetAndTypeOperators_FollowLinqBehavior()
+    {
+        using var engine = new AlderEngine(options => options.UseCompiler());
+
+        var firstSpecialty = DocSamples.Products.FirstDynamic(engine, """Category == "Specialty" """);
+        var maybeMissing = DocSamples.Products.FirstOrDefaultDynamic(engine, """Category == "Office" """);
+        var onlySpecialty = DocSamples.Products.SingleDynamic(engine, """Category == "Specialty" """);
+        var thirdName = DocSamples.Products.Select(product => product.Name).ElementAtDynamic(2);
+        var categories = DocSamples.Products.Select(product => product.Category).DistinctDynamic().ToList();
+        var visibleCategories = new[] { "Tools", "Electronics" };
+        var allowedCategories = new[] { "Electronics", "Specialty" };
+        IEnumerable values = new object?[] { 1, "two", null, 3, "four" };
+
+        var shared = visibleCategories.IntersectDynamic(allowedCategories).ToList();
+        var allowedOnly = allowedCategories.ExceptDynamic(visibleCategories).ToList();
+        var numbers = values.OfTypeDynamic<int>().ToList();
+        var allValues = values.CastDynamic<object?>().ToList();
+
+        Assert.That(firstSpecialty.Name, Is.EqualTo("Whatchamacallit"));
+        Assert.That(maybeMissing, Is.Null);
+        Assert.That(onlySpecialty.Name, Is.EqualTo("Whatchamacallit"));
+        Assert.That(thirdName, Is.EqualTo("Doohickey"));
+        Assert.That(categories, Is.EqualTo(new[] { "Tools", "Electronics", "Specialty" }));
+        Assert.That(shared, Is.EqualTo(new[] { "Electronics" }));
+        Assert.That(allowedOnly, Is.EqualTo(new[] { "Specialty" }));
+        Assert.That(numbers, Is.EqualTo(new[] { 1, 3 }));
+        Assert.That(allValues, Is.EqualTo(new object?[] { 1, "two", null, 3, "four" }));
     }
 
     [Test]

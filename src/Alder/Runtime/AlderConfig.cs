@@ -81,7 +81,7 @@ internal sealed class AlderConfig
 
     internal static readonly AlderConfig Empty = new(
         LanguageMode.Standard,
-        SandboxOptions.Trusted().ToSecurityPolicy(),
+        SecurityOptions.Trusted().ToSecurityPolicy(),
         true,
         new ExecutionConstraints(),
         null,

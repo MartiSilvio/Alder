@@ -3,8 +3,7 @@ using Alder.Tracing;
 
 namespace Alder.Test.Core;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class TracingTests(CompilationMode mode)
 {
     [Test]

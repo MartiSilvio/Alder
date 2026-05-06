@@ -9,8 +9,7 @@ namespace Alder.Test.Types;
 /// Engine-only string tests for error cases and null SetVariable patterns.
 /// Parity tests migrated to TestData/Types/String/*.csx and Parity/StringTests.cs.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class StringTests(CompilationMode mode)
 {
     #region Engine-only: Unicode/hex escape error tests

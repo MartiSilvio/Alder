@@ -3,8 +3,7 @@ using Alder.Runtime.Introspection;
 
 namespace Alder.Test.AOT;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [Category("AOT")]
 public class GeneratedContextIntegrationTests(CompilationMode mode)
 {

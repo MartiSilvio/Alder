@@ -6,8 +6,7 @@ namespace Alder.Test.Runtime;
 /// All tests engine-only: Alder-specific [...] collection expression syntax (Roslyn rejects CS9176
 /// without target type), structural projections via new { ... }.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class CollectionTests(CompilationMode mode)
 {
 

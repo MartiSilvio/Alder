@@ -5,11 +5,11 @@ description: Architectural explanation of Alder's parse-bind-execute pipeline, b
 
 # Architecture
 
-Alder is an embeddable C# runtime engine built around one compiler-style semantic pipeline and two execution mechanisms. Source text is parsed into syntax, bound against the active context, validated under the configured sandbox, optimized, and then evaluated by either the interpreter or the compiled backend. Backend selection changes the execution mechanism. It does not define a second language.
+Alder is an embeddable C# expression runtime built around one compiler-style semantic pipeline and two execution mechanisms. Source text is parsed into syntax, bound against the active context, validated under the configured security policy, optimized, and then evaluated by either the interpreter or the compiled backend. Backend selection changes the execution mechanism. It does not define a second language.
 
 For exact lifecycle rules, cache boundaries, and error propagation, use [Execution model](../reference/execution-model.md). For production operating patterns, use [Execution and reuse](../operations/execution-and-reuse.md).
 
-The bound tree is Alder's architectural boundary. Everything before that boundary determines what the expression means: types, conversions, overloads, member targets, assignment legality, control-flow shape, and the points where runtime dispatch is still required. Everything after that boundary executes those decisions while preserving Alder's sandbox and execution constraints.
+The bound tree is Alder's architectural boundary. Everything before that boundary determines what the expression means: types, conversions, overloads, member targets, assignment legality, control-flow shape, and the points where runtime dispatch is still required. Everything after that boundary executes those decisions while preserving Alder's security policy and execution constraints.
 
 ## Semantic pipeline
 
@@ -31,7 +31,7 @@ The interpreter evaluates the bound tree directly. It is the default synchronous
 
 The compiled backend lowers the same bound tree to a reusable delegate through `System.Linq.Expressions`. When an engine is configured with `UseCompiler()`, synchronous `Evaluate(...)` uses that delegate path and recompiles when the relevant type surface changes.
 
-Both mechanisms share Alder's parser, binder, validation pipeline, sandbox policy, execution limits, and language semantics. Divergence between them is a defect in an execution path, not a separate contract.
+Both mechanisms share Alder's parser, binder, validation pipeline, security policy, execution limits, and language semantics. Divergence between them is a defect in an execution path, not a separate contract.
 
 `EvaluateAsync(...)` uses the interpreter because `System.Linq.Expressions` does not provide the async execution model Alder requires. Alder's async path awaits expression-level asynchronous work directly inside the evaluated tree.
 
@@ -39,7 +39,7 @@ Both mechanisms share Alder's parser, binder, validation pipeline, sandbox polic
 
 Runtime dispatch is the counterpart to resolved binding. It handles operations whose final target depends on runtime values, including object-shaped variables, dynamic member access, late-selected overloads, and registered module or function calls.
 
-Generated typed dispatch participates in that runtime layer. When AOT metadata is registered, Alder tries typed dispatch for covered operations and falls back to reflection-based dispatch when the typed path declines a shape. The generated path improves deployment characteristics for NativeAOT, IL2CPP-style environments, and trimmed applications. It does not alter parsing, binding, overload resolution, sandbox policy, or execution limits.
+Generated typed dispatch participates in that runtime layer. When AOT metadata is registered, Alder tries typed dispatch for covered operations and falls back to reflection-based dispatch when the typed path declines a shape. The generated path improves deployment characteristics for NativeAOT, IL2CPP-style environments, and trimmed applications. It does not alter parsing, binding, overload resolution, security policy, or execution limits.
 
 ## Configuration surfaces
 
@@ -50,12 +50,12 @@ Host integration is expressed through `AlderOptions` before engine construction:
 - type registration controls type lookup and extension-method discovery
 - AOT registration contributes generated dispatch metadata
 - a service provider resolves module instances
-- sandbox and constraint options define authority and runtime limits
+- security policy and constraint options define authority and runtime limits
 - compiler configuration enables compiled synchronous execution
 
 The engine materializes those options into an immutable runtime configuration. Contexts created by the engine share that configuration while carrying their own variable state.
 
-Dynamic LINQ sits above the same semantic pipeline. Its predicates, selectors, keys, joins, projections, provider exports, and query plans are bound fragments adapted into LINQ operators, delegates, or expression trees. That makes query composition another integration surface over the same parser, binder, sandbox, diagnostics, and backend boundaries.
+Dynamic LINQ sits above the same semantic pipeline. Its predicates, selectors, keys, joins, projections, provider exports, and query plans are bound fragments adapted into LINQ operators, delegates, or expression trees. That makes query composition another integration surface over the same parser, binder, security policy, diagnostics, and backend boundaries.
 
 ## Reuse and invalidation
 
@@ -65,7 +65,7 @@ Compiled delegates follow the same rule. Normal synchronous evaluation recompile
 
 ## Security and constraints
 
-Sandbox policy and execution constraints are separate runtime controls. The sandbox validates whether operations such as calls, construction, reads, writes, and metadata access are allowed. Execution constraints bound work through statement counts, loop iteration counts, timeouts, cancellation, and collection-size checks.
+Security policy and execution constraints are separate runtime controls. The security policy validates whether operations such as calls, construction, reads, writes, and metadata access are allowed. Execution constraints bound work through statement counts, loop iteration counts, timeouts, cancellation, and collection-size checks.
 
 Those controls live in the shared pipeline and runtime support code, so they apply to interpreted execution, compiled synchronous execution, and generated dispatch paths.
 

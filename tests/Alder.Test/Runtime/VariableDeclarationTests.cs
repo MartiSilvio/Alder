@@ -8,8 +8,7 @@ namespace Alder.Test.Runtime;
 /// §10.2 — Implicit conversions, §10.6.1 — Nullable conversions.
 /// Engine-only tests: error assertions, SetVariable with non-serializable types.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class VariableDeclarationTests(CompilationMode mode)
 {
     #region Engine-only: error tests

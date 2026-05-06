@@ -9,8 +9,7 @@ namespace Alder.Test.Runtime;
 /// structural projections, SetVariable with non-serializable types).
 /// No tests migratable to .csx parity format.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class IndexPropertyAssignmentTests(CompilationMode mode)
 {
     #region Index Assignment - Array/List

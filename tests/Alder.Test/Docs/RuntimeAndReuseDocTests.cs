@@ -1,12 +1,13 @@
+#if NET8_0_OR_GREATER
 using Alder.Compiled;
 using Alder.Compiled.DynamicLinq;
+#endif
 using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Docs;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [Parallelizable(ParallelScope.Children)]
 public class RuntimeAndReuseDocTests(CompilationMode mode)
 {
@@ -25,6 +26,27 @@ public class RuntimeAndReuseDocTests(CompilationMode mode)
 
         Assert.That(result, Is.EqualTo(1000.0 * Math.Pow(1.05, 10)).Within(0.001));
     }
+
+#if NET8_0_OR_GREATER
+    [Test]
+    public void EngineConfiguration_CanCombinePolicyAndCompilerSettings()
+    {
+        using var engine = new AlderEngine(options =>
+        {
+            options.LanguageMode = LanguageMode.Standard;
+            options.Security = SecurityOptions.Safe();
+            options.Constraints = new ExecutionConstraints
+            {
+                MaxStatements = 10_000,
+                MaxLoopIterations = 1_000,
+                MaxTimeout = TimeSpan.FromSeconds(5)
+            };
+            options.UseCompiler();
+        });
+
+        Assert.That(engine.Evaluate<int>("1 + 2"), Is.EqualTo(3));
+    }
+#endif
 
     [Test]
     public void Dictionary()
@@ -78,6 +100,20 @@ public class RuntimeAndReuseDocTests(CompilationMode mode)
     }
 
     [Test]
+    public void TypedAnonymousInputs_PreservePerCallBindingSurface()
+    {
+        using var engine = TestEngineFactory.Create(mode);
+        var item = new DocOrderRow(75m, new DocCustomerInfo("Ada"));
+        var expression = engine.Parse("item.Total >= minimum");
+
+        var visible = engine.Evaluate<bool>(
+            expression,
+            new { item, minimum = 50m });
+
+        Assert.That(visible, Is.True);
+    }
+
+    [Test]
     public void PerCallVariables_DoNotPersist()
     {
         using var engine = TestEngineFactory.Create(mode);
@@ -85,6 +121,26 @@ public class RuntimeAndReuseDocTests(CompilationMode mode)
 
         Assert.That(engine.Evaluate<int>("x + y", new { y = 20 }), Is.EqualTo(30));
         Assert.Throws<AlderException>(() => engine.Evaluate("y"));
+    }
+
+    [Test]
+    public void TemporaryDictionaryAndPositionalValues_DoNotMutateSharedScope()
+    {
+        using var engine = TestEngineFactory.Create(mode);
+
+        var result = engine.Evaluate<long>(
+            "item * multiplier",
+            new Dictionary<string, object?>
+            {
+                ["item"] = 5L,
+                ["multiplier"] = 2L
+            });
+
+        var sum = engine.Evaluate<int>("@0 + @1 + @2", 1, 2, 3);
+
+        Assert.That(result, Is.EqualTo(10L));
+        Assert.That(sum, Is.EqualTo(6));
+        Assert.Throws<AlderException>(() => engine.Evaluate("item"));
     }
 
     [Test]
@@ -103,6 +159,40 @@ public class RuntimeAndReuseDocTests(CompilationMode mode)
         Assert.That(tenantB.Evaluate<double>("baseFee * (1 - discount)"), Is.EqualTo(37.5));
         Assert.That(parent.Evaluate<double>("baseFee"), Is.EqualTo(50.0));
         Assert.Throws<AlderException>(() => parent.Evaluate("discount"));
+    }
+
+    [Test]
+    public void ParsedExpressions_EvaluateManyPerCallValueSets()
+    {
+        using var engine = TestEngineFactory.Create(mode);
+        var expression = engine.Parse("price * (1 - discount)");
+
+        var first = engine.Evaluate<double>(
+            expression,
+            new { price = 100.0, discount = 0.10 });
+
+        var second = engine.Evaluate<double>(
+            expression,
+            new { price = 250.0, discount = 0.10 });
+
+        Assert.That(first, Is.EqualTo(90.0));
+        Assert.That(second, Is.EqualTo(225.0));
+    }
+
+    [Test]
+    public void ValueOnlyChanges_ReuseParsedExpressionBinding()
+    {
+        using var engine = TestEngineFactory.Create(mode);
+        var expression = engine.Parse("x + 1");
+
+        engine.SetVariable<int>("x", 1);
+        var first = engine.Evaluate<int>(expression);
+
+        engine.SetVariable<int>("x", 10);
+        var second = engine.Evaluate<int>(expression);
+
+        Assert.That(first, Is.EqualTo(2));
+        Assert.That(second, Is.EqualTo(11));
     }
 
     [Test]
@@ -138,6 +228,29 @@ public class RuntimeAndReuseDocTests(CompilationMode mode)
     }
 
     [Test]
+    public void ChildEngines_IsolateConcurrentLocalValues()
+    {
+        using var parent = TestEngineFactory.Create(mode);
+        parent.SetVariable<int>("taxRateBasisPoints", 825);
+        var orders = Enumerable.Range(1, 20).Select(i => new { Subtotal = i * 10m }).ToList();
+        var totals = new System.Collections.Concurrent.ConcurrentBag<decimal>();
+
+        Parallel.ForEach(orders, order =>
+        {
+            var child = parent.CreateChild();
+            child.SetVariable("order", order);
+
+            totals.Add(child.Evaluate<decimal>(
+                "order.Subtotal * (1 + taxRateBasisPoints / 10000m)"));
+        });
+
+        Assert.That(totals.OrderBy(x => x),
+            Is.EqualTo(orders.Select(order => order.Subtotal * 1.0825m).OrderBy(x => x)));
+        Assert.Throws<AlderException>(() => parent.Evaluate("order"));
+    }
+
+#if NET8_0_OR_GREATER
+    [Test]
     public void DynamicQueryPlan_ReusesPredicateForEnumerableQueryableExpressionAndDelegate()
     {
         using var engine = new AlderEngine(options => options.UseCompiler());
@@ -154,6 +267,7 @@ public class RuntimeAndReuseDocTests(CompilationMode mode)
         Assert.That(DocSamples.Products.Where(expression.Compile()).Select(p => p.Name), Is.EqualTo(enumerable));
         Assert.That(DocSamples.Products.Where(compiled).Select(p => p.Name), Is.EqualTo(enumerable));
     }
+#endif
 
     [Test]
     public void TypedResultConversion_MaterializesStructuralProjection()

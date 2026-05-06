@@ -3,8 +3,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.AOT;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [Category("AOT")]
 public class BuiltInContextTests(CompilationMode mode)
 {
@@ -20,9 +19,8 @@ public class BuiltInContextTests(CompilationMode mode)
     [Test]
     public void BuiltInContext_ContainsExpectedTypes()
     {
-        var types = AlderBuiltInContext.Default.GetTypeMetadata()
-            .Select(m => m.Type)
-            .ToHashSet();
+        var types = new HashSet<Type>(AlderBuiltInContext.Default.GetTypeMetadata()
+            .Select(m => m.Type));
 
         Assert.Multiple(() =>
         {

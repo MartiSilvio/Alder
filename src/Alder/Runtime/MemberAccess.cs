@@ -82,7 +82,7 @@ internal static class MemberAccess
                 if (resolvedType != null)
                 {
                     if (!context.Config.Security.IsTypeAllowed(resolvedType))
-                        throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, resolvedType.Name);
+                        throw new AlderException(DiagnosticDescriptors.SecurityPolicyTypeBlocked, resolvedType.Name);
                     return resolvedType;
                 }
 
@@ -99,7 +99,7 @@ internal static class MemberAccess
                     return staticValue;
                 break;
             }
-            // Modules are an explicit part of the configured surface, so their members are checked before ordinary sandboxed reflection.
+            // Modules are an explicit part of the configured surface, so their members are checked before ordinary security-controlled reflection.
             case ModuleInfo module when module.Members.TryGetValue(name, out var memberEntry):
             {
                 if (memberEntry.HasMethods)
@@ -447,7 +447,7 @@ internal static class MemberAccess
         out object? value)
     {
         if (!context.Config.Security.IsTypeAllowed(staticType))
-            throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, staticType.Name);
+            throw new AlderException(DiagnosticDescriptors.SecurityPolicyTypeBlocked, staticType.Name);
 
         if (TypedDispatchHelper.TryGetStaticMember(context.Config, staticType, name, out value))
             return true;

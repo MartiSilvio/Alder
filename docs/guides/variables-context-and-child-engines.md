@@ -32,6 +32,7 @@ These calls bind `rate` as `double`, `years` as `int`, and `principal` as `doubl
 
 Use explicit `SetVariable<T>` when you need to force a particular binding surface that inference would not choose:
 
+<!-- test: ObjectShapedDictionaryVariables_UseDeclaredObjectSurface -->
 ```csharp
 engine.SetVariable<IReadOnlyList<Order>>("orders", orderList);
 engine.SetVariable<object>("payload", value);
@@ -40,6 +41,7 @@ engine.SetVariable<string?>("name", null);
 
 Object-shaped binding happens when the selected overload's `T` is `object`, or when the argument is already typed as `object`:
 
+<!-- test: ObjectShapedDictionaryVariables_UseDeclaredObjectSurface -->
 ```csharp
 object value = 42;
 engine.SetVariable("x", value);      // object-shaped binding surface
@@ -61,6 +63,7 @@ These paths preserve useful static type information for binding:
 
 Anonymous-object properties are projected into named variables together with their property types:
 
+<!-- test: TypedAnonymousInputs_PreservePerCallBindingSurface -->
 ```csharp
 var eligible = engine.Evaluate<bool>(
     "age >= 18 && country != null",
@@ -135,6 +138,7 @@ After that call, `y` is gone. If the next evaluation must see the same value, re
 
 The same isolation rule applies to temporary dictionary values:
 
+<!-- test: TemporaryDictionaryAndPositionalValues_DoNotMutateSharedScope -->
 ```csharp
 var result = engine.Evaluate<long>(
     "item * multiplier",
@@ -149,6 +153,7 @@ var result = engine.Evaluate<long>(
 
 Alder also supports positional variables:
 
+<!-- test: TemporaryDictionaryAndPositionalValues_DoNotMutateSharedScope -->
 ```csharp
 var sum = engine.Evaluate<int>("@0 + @1 + @2", 1, 2, 3);
 ```
@@ -184,6 +189,7 @@ Compound parent-scope updates such as `x = x + 1` are not atomic, and evaluation
 
 The tested pattern is to keep shared inputs on the parent and put evaluation-specific values on children:
 
+<!-- test: CreateChild_IsUsableForParallelLocalState -->
 ```csharp
 var engine = new AlderEngine();
 engine.SetVariable("taxRate", 0.08);
@@ -202,6 +208,7 @@ A variable introduced only on a child does not appear on the parent later.
 
 The binder caches work against the visible context, its type surface, and the expression text. Stable declared types are reusable; declared-type changes force rebinding because overload resolution, conversion legality, and dispatch strategy can change.
 
+<!-- test: ParsedExpression_Rebinds_WhenVisibleTypeSurfaceChanges -->
 ```csharp
 var expression = engine.Parse("(long)x");
 
@@ -230,6 +237,7 @@ That is the practical reason to preserve the intended static type. Ordinary call
 
 Object-shaped inputs weaken binding when the static type matters:
 
+<!-- test: ObjectShapedDictionaryVariables_UseDeclaredObjectSurface -->
 ```csharp
 engine.SetVariable("x", 42);          // inferred as int
 engine.SetVariable("x", (object)42);  // object-shaped binding surface
@@ -256,6 +264,7 @@ Parsed-expression reuse preserves syntax. When the visible variable type changes
 
 ### Durable engine state
 
+<!-- test: FluentChaining -->
 ```csharp
 var engine = new AlderEngine();
 engine.SetVariable("interestRate", 0.05);
@@ -268,6 +277,7 @@ var payment = engine.Evaluate<double>(
 
 ### Temporary typed request values
 
+<!-- test: TypedAnonymousInputs_PreservePerCallBindingSurface -->
 ```csharp
 var engine = new AlderEngine();
 
@@ -278,6 +288,7 @@ var total = engine.Evaluate<decimal>(
 
 ### Multi-tenant or per-request isolation
 
+<!-- test: ChildEngines -->
 ```csharp
 var root = new AlderEngine();
 root.SetVariable<double>("baseFee", 50.0);

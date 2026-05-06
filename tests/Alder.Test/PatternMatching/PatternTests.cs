@@ -11,8 +11,7 @@ namespace Alder.Test.PatternMatching;
 /// relational patterns (section 11.2.5), logical combinators (section 11.2.6),
 /// property patterns (section 11.2.7), and switch-arm discard patterns.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class PatternTests(CompilationMode mode)
 {
 

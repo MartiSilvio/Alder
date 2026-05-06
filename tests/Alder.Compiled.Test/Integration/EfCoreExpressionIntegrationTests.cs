@@ -7,8 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Alder.Test.Integration;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public sealed class EfCoreExpressionIntegrationTests(CompilationMode mode)
 {
     private SqliteConnection _connection = null!;

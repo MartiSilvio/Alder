@@ -35,6 +35,7 @@ A generated context is a partial class derived from `AlderTypeContext`. The sour
 
 Registration is an inventory of concrete runtime types and supported operation shapes, not a namespace-level allowance. If an expression reaches `order.Customer.Name`, the generated surface must cover the runtime customer type as well as the order type. If an expression calls `order.CalculateTotal(taxRate)`, the generated surface must include the method shape Alder will invoke.
 
+<!-- test: GeneratedContext_ProvidesReflectionFreeMemberAndMethodDispatch -->
 ```csharp
 using Alder;
 using Alder.Aot;
@@ -57,6 +58,7 @@ public partial class RulesAotContext : AlderTypeContext
 
 The generated part supplies a `Default` instance and returns typed dispatch metadata from `GetTypeMetadata()`:
 
+<!-- test: GeneratedContext_ProvidesReflectionFreeMemberAndMethodDispatch -->
 ```csharp
 var engine = new AlderEngine(options =>
 {
@@ -77,6 +79,7 @@ Alder loads `AlderBuiltInContext.Default` automatically. The built-in context co
 
 Application contexts stack on top:
 
+<!-- test: GeneratedContext_ProvidesReflectionFreeMemberAndMethodDispatch -->
 ```csharp
 var engine = new AlderEngine(options =>
 {
@@ -88,6 +91,7 @@ Context merging is deterministic. Alder starts with the built-in context, then a
 
 `ClearBuiltInContext()` removes the built-in context and clears queued additional contexts:
 
+<!-- test: GeneratedContext_ProvidesReflectionFreeMemberAndMethodDispatch -->
 ```csharp
 var engine = new AlderEngine(options =>
 {
@@ -129,7 +133,7 @@ The same pattern appears across member access, construction, and method invocati
 
 Reflection fallback remains valuable in development and normal server deployments. It lets generated contexts be adopted incrementally. A trimmed NativeAOT binary has a stricter contract: expressions should reach only the types and operation shapes that Alder can satisfy through built-in metadata, user-generated metadata, rooted generic closures, or host-provided delegate factories.
 
-Typed dispatch changes the mechanics of runtime operations after semantic binding has already selected or deferred an operation. It does not change parsing, binding rules, overload resolution, sandbox policy, execution limits, or the meaning of an Alder expression. The contract is behavioral equivalence between generated and reflective paths wherever both are available.
+Typed dispatch changes the mechanics of runtime operations after semantic binding has already selected or deferred an operation. It does not change parsing, binding rules, overload resolution, security policy, execution limits, or the meaning of an Alder expression. The contract is behavioral equivalence between generated and reflective paths wherever both are available.
 
 Typed dispatch entries are exact. In case-insensitive mode, Alder can preserve the engine's external name-matching contract by resolving the canonical member name and retrying before leaving the typed path. That canonical-name retry depends on runtime metadata. A miss on the typed path is not an error in JIT deployments; it means execution continues through the general runtime path. In generated-only deployments, prefer exact member casing and do not rely on reflection-assisted canonicalization for case mismatches.
 
@@ -151,6 +155,7 @@ Some AOT-sensitive operations are not ordinary instance member calls. Alder mode
 
 `GenericStaticDispatch` covers explicit, rooted generic static method shapes. The source generator emits this for `Task.FromResult<T>` when the context registers closed `Task<T>` roots:
 
+<!-- test: GeneratedContext_ProvidesReflectionFreeMemberAndMethodDispatch -->
 ```csharp
 using Alder.Aot;
 
@@ -165,6 +170,7 @@ That gives `await Task.FromResult(42)` and `await Task.FromResult("done")` a gen
 
 Delegate factories cover closed delegate types that must be constructible without runtime generic closure. The source generator does not synthesize factories from delegate-typed parameters; factories come from `AlderTypeContext.GetDelegateFactories()`. Each entry maps a rooted closed delegate type to a factory that wraps an Alder lambda in that delegate type:
 
+<!-- test: GeneratedContext_ProvidesReflectionFreeMemberAndMethodDispatch -->
 ```csharp
 public sealed class RulesDelegateContext(
     Func<object, Func<int, bool>> createPredicate) : AlderTypeContext
@@ -187,6 +193,7 @@ Alder still uses reflection where the runtime allows it and where the API contra
 
 Assembly scanning is the broadest reflection surface. `Modules.RegisterFromAssembly(...)` walks all types and members in an assembly and is marked as trim-sensitive. Prefer explicit registration in AOT-oriented applications:
 
+<!-- test: TypeResolutionAndGeneratedDispatch_AreSeparateConcerns -->
 ```csharp
 var engine = new AlderEngine(options =>
 {
@@ -197,7 +204,7 @@ var engine = new AlderEngine(options =>
 
 Type resolution and module registration are separate concerns from generated dispatch. Adding an assembly or namespace makes type names resolvable. Reflection-free member access still comes from generated contexts after a type has been resolved.
 
-Security remains independent. Generated dispatch runs behind sandbox policy, and Alder validates whether a type or operation is allowed before evaluation reaches the invocation layer.
+Security remains independent. Generated dispatch runs behind security policy, and Alder validates whether a type or operation is allowed before evaluation reaches the invocation layer.
 
 ## Trimming considerations
 

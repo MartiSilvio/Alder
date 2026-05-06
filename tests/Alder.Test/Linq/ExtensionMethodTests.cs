@@ -2,7 +2,7 @@ namespace Alder.Test.Linq;
 
 // Engine-only: Tests RegisterExtensionMethods() API - Alder-specific extension method registration system.
 // Standard C# resolves extension methods via using directives and assembly references;
-// Alder requires explicit registration for sandbox control.
+// Alder requires explicit registration for security policy control.
 
 [TestFixture]
 public class ExtensionMethodTests

@@ -6,8 +6,7 @@ namespace Alder.Test.Extensions;
 /// <summary>
 /// Tests for polyglot syntax sugar features that work alongside C# syntax.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class PolyglotSyntaxTests(CompilationMode mode)
 {
     [TestCase("{ var super = 1; return super; }", TestName = "Super_IsReservedKeyword")]

@@ -67,6 +67,18 @@ public sealed class DocGlobalHelpers
     public int Add(int left, int right = 0) => left + right;
 }
 
+[Alder.Attributes.AlderModule("Text")]
+public sealed class DocTextModule
+{
+    public string TitleCase(string value) =>
+        string.Join(" ", value.Split(' ').Select(word => char.ToUpper(word[0]) + word[1..]));
+}
+
+public sealed class DocAsyncJob
+{
+    public Task<bool> IsReadyAsync() => Task.FromResult(true);
+}
+
 internal static class DocSamples
 {
     internal static readonly List<DocProduct> Products =

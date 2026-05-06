@@ -7,9 +7,9 @@ description: The C# syntax Alder supports in Standard mode for runtime expressio
 
 Standard mode is Alder's default language mode. It evaluates C# expressions and statement blocks with C# semantics for binding, conversions, overload resolution, member access, control flow, lambdas, query expressions, pattern matching, and CLR type interaction.
 
-The supported syntax is scoped to code that runs inside an embeddable C# runtime engine: expressions, statement blocks, local state, calls into exposed CLR objects, and control flow over host-provided data. It is suitable for stored rules, formulas, policy checks, configurable calculations, runtime filters, and application scripting points that benefit from C# semantics.
+The supported syntax is scoped to code that runs inside an embeddable C# expression runtime: expressions, statement blocks, local state, calls into exposed CLR objects, and control flow over host-provided data. It is suitable for stored rules, formulas, policy checks, configurable calculations, runtime filters, and application scripting points that benefit from C# semantics.
 
-At runtime, Alder binds Standard-mode code against the current host context: variables, registered functions, modules, type registrations, and extension-method containers. Sandbox policy validates the bound operations, and execution constraints govern runtime work. Strongly typed inputs produce earlier diagnostics and more precise overload selection; object-shaped inputs preserve runtime flexibility. The same bound semantics feed interpreted execution, async execution, optional compiled execution, and AOT metadata-backed dispatch, while backend-specific pages document narrower execution, export, and deployment surfaces.
+At runtime, Alder binds Standard-mode code against the current host context: variables, registered functions, modules, type registrations, and extension-method containers. Security policy validates the bound operations, and execution constraints govern runtime work. Strongly typed inputs produce earlier diagnostics and more precise overload selection; object-shaped inputs preserve runtime flexibility. The same bound semantics feed interpreted execution, async execution, optional compiled execution, and AOT metadata-backed dispatch, while backend-specific pages document narrower execution, export, and deployment surfaces.
 
 Standard mode accepts expression and statement-block input. Full-program declarations such as types, namespaces, members, attributes, access modifiers, and preprocessor directives are outside the accepted input.
 
@@ -29,7 +29,7 @@ Extended mode builds on this baseline. It adds Alder-specific convenience syntax
 | Expressions | Arithmetic, comparison, logical operators, casts, conversions, member access, index access, calls, object creation, lambdas, query expressions, tuples, interpolation, `typeof`, `nameof`, `default`, `await`, and throw expressions inside Alder input. |
 | Statement blocks | Local variables, constants, assignment, `if`, `switch`, loops, `break`, `continue`, `goto case`, `goto default`, `return`, `throw`, `try/catch/finally`, exception filters, `using`, `lock`, and iterators. |
 | Type system | CLR primitive types, reference types, nullable types, tuples, constructed generic types, interfaces, delegates, enums, `dynamic` as object-shaped runtime binding, overload resolution, extension methods, user-defined conversions, and user-defined operators. |
-| Host integration | Variables, registered functions, modules, type registration, extension-method containers, sandbox policy, execution constraints, and optional compiled execution all apply to Standard-mode code. |
+| Host integration | Variables, registered functions, modules, type registration, extension-method containers, security policy, execution constraints, and optional compiled execution all apply to Standard-mode code. |
 | Excluded constructs | Type/member declarations, namespaces, attributes, preprocessor directives, unsafe program structure, and constructs that require a C# compilation unit. |
 
 ## Scope and boundaries
@@ -61,7 +61,7 @@ Alder's Standard mode also supports C# forms that are part of modern C# practice
 
 | Status | Meaning |
 | --- | --- |
-| Supported | Implemented for Standard-mode runtime input, subject to any backend, sandbox, AOT, or export boundary documented on the relevant operations page. |
+| Supported | Implemented for Standard-mode runtime input, subject to any backend, security policy, AOT, or export boundary documented on the relevant operations page. |
 | Partial | Implemented with documented constraints in Alder's input model. |
 | Out of scope | Not part of Alder's input surface by design. |
 

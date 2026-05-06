@@ -209,21 +209,21 @@ public enum DiagnosticCode
     /// <summary>Feature requires LanguageMode.Extended</summary>
     ALDR0020 = 1_000_020,
 
-    /// <summary>Method calls blocked by sandbox</summary>
+    /// <summary>Method calls blocked by security policy</summary>
     ALDR0100 = 1_000_100,
-    /// <summary>Variable assignment blocked by sandbox</summary>
+    /// <summary>Variable assignment blocked by security policy</summary>
     ALDR0101 = 1_000_101,
-    /// <summary>Index assignment blocked by sandbox</summary>
+    /// <summary>Index assignment blocked by security policy</summary>
     ALDR0102 = 1_000_102,
-    /// <summary>Property read blocked by sandbox</summary>
+    /// <summary>Property read blocked by security policy</summary>
     ALDR0103 = 1_000_103,
-    /// <summary>Static member access blocked by sandbox</summary>
+    /// <summary>Static member access blocked by security policy</summary>
     ALDR0104 = 1_000_104,
-    /// <summary>Property assignment blocked by sandbox</summary>
+    /// <summary>Property assignment blocked by security policy</summary>
     ALDR0105 = 1_000_105,
-    /// <summary>Object construction blocked by sandbox</summary>
+    /// <summary>Object construction blocked by security policy</summary>
     ALDR0106 = 1_000_106,
-    /// <summary>Type blocked by sandbox</summary>
+    /// <summary>Type blocked by security policy</summary>
     ALDR0107 = 1_000_107,
     /// <summary>Reflection type access blocked</summary>
     ALDR0108 = 1_000_108,

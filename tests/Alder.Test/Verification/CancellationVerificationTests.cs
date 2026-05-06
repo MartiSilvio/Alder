@@ -7,8 +7,7 @@ namespace Alder.Test.Verification;
 /// Tests verify that CancellationToken is responsive across all APIs and execution paths,
 /// including loops, compiled paths, and async evaluation.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [Parallelizable(ParallelScope.Children)]
 public class CancellationVerificationTests(CompilationMode mode)
 {

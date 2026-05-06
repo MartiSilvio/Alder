@@ -58,6 +58,18 @@ public class AsyncEvaluationTests
     }
 
     [Test]
+    public async Task Await_CanBeLeftOperandOfLogicalExpression()
+    {
+        var result = await _engine.EvaluateAsync<bool>(
+            """
+            return await Task.FromResult(true) && retries < maxRetries;
+            """,
+            new { retries = 1, maxRetries = 3 });
+
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
     public async Task Await_InIfStatement()
     {
         var result = await _engine.EvaluateAsync("""
@@ -158,7 +170,7 @@ public class AsyncEvaluationTests
     [Test]
     public async Task Await_ValueTask_FromResult()
     {
-        var vt = ValueTask.FromResult(77);
+        var vt = new ValueTask<int>(77);
         var result = await _engine.EvaluateAsync(
             "await vt",
             new Dictionary<string, object?> { ["vt"] = vt });

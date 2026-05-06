@@ -7,8 +7,7 @@ namespace Alder.Test.Runtime;
 /// All tests engine-only: SetVariable with long, Alder [] collection expression syntax,
 /// TestPerson variables (non-serializable types).
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class ControlFlowTests(CompilationMode mode)
 {
     #region Engine-only: SetVariable and Alder-specific syntax

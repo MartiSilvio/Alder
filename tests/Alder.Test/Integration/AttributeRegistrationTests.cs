@@ -3,8 +3,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Integration;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class AttributeRegistrationTests(CompilationMode mode)
 {
     [Test]
@@ -158,7 +157,8 @@ public class SimpleServiceProvider : IServiceProvider
 
     public void Register<T>(T service) where T : class => _services[typeof(T)] = service;
 
-    public object? GetService(Type serviceType) => _services.GetValueOrDefault(serviceType);
+    public object? GetService(Type serviceType) =>
+        _services.TryGetValue(serviceType, out var service) ? service : null;
 }
 
 #endregion

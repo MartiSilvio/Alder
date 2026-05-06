@@ -39,7 +39,7 @@ internal static class AlderConfigFactory
 
         return new AlderConfig(
             options.LanguageMode,
-            options.Sandbox.ToSecurityPolicy(),
+            options.Security.ToSecurityPolicy(),
             options.IsCaseSensitive,
             options.Constraints,
             options.Compiler,

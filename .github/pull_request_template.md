@@ -18,4 +18,4 @@ dotnet test
 - [ ] Shared runtime behavior is covered for interpreted and compiled execution.
 - [ ] AOT or generated dispatch impact is covered or explained.
 - [ ] Documentation samples have matching `<!-- test: TestName -->` markers when applicable.
-- [ ] Security sandbox, diagnostics, and provider/export boundaries are considered when affected.
+- [ ] Security policy, diagnostics, and provider/export boundaries are considered when affected.

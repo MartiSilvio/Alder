@@ -6,8 +6,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Parity;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [Parallelizable(ParallelScope.Children)]
 public class ParityTests(CompilationMode mode)
 {
@@ -17,7 +16,7 @@ public class ParityTests(CompilationMode mode)
     {
         o.Constraints = new ExecutionConstraints { MaxStatements = 1_000_000 };
         o.LanguageMode = LanguageMode.Extended;
-        o.Sandbox = SandboxOptions.Trusted() with
+        o.Security = SecurityOptions.Trusted() with
         {
             TrustedTypes =
             [
@@ -30,7 +29,7 @@ public class ParityTests(CompilationMode mode)
     [TestCaseSource(nameof(DiscoverExpressions), ["TestData/ValidExpressions"])]
     public async Task ValidExpressionsShouldPass(string csxPath)
     {
-        var (alderExpr, roslynExpr) = await LoadExpressionPair(csxPath);
+        var (alderExpr, roslynExpr) = LoadExpressionPair(csxPath);
         var exprInfo = alderExpr == roslynExpr
             ? alderExpr
             : $"Alder: {alderExpr}\nRoslyn: {roslynExpr}";
@@ -61,7 +60,7 @@ public class ParityTests(CompilationMode mode)
     [TestCaseSource(nameof(DiscoverExpressions), ["TestData/ValidAsyncExpressions"])]
     public async Task AsyncExpressionsShouldPass(string csxPath)
     {
-        var (alderExpr, roslynExpr) = await LoadExpressionPair(csxPath);
+        var (alderExpr, roslynExpr) = LoadExpressionPair(csxPath);
         var exprInfo = alderExpr == roslynExpr
             ? alderExpr
             : $"Alder: {alderExpr}\nRoslyn: {roslynExpr}";
@@ -178,11 +177,11 @@ public class ParityTests(CompilationMode mode)
         ValidateErrorCodeParity(csEx, roslynEx);
     }
 
-    private static async Task<(string AlderExpr, string RoslynExpr)> LoadExpressionPair(string csxPath)
+    private static (string AlderExpr, string RoslynExpr) LoadExpressionPair(string csxPath)
     {
         if (csxPath.EndsWith(".roslyn.csx", StringComparison.OrdinalIgnoreCase))
         {
-            var expr = (await File.ReadAllTextAsync(csxPath)).Trim();
+            var expr = File.ReadAllText(csxPath).Trim();
             return (expr, expr);
         }
 
@@ -190,7 +189,7 @@ public class ParityTests(CompilationMode mode)
         var roslynSiblingPath = csxPath.Replace(".csx", ".roslyn.csx");
 
         var roslynExpr = File.Exists(roslynSiblingPath)
-            ? (await File.ReadAllTextAsync(roslynSiblingPath)).Trim()
+            ? File.ReadAllText(roslynSiblingPath).Trim()
             : alderExpr;
 
         return (alderExpr, roslynExpr);
@@ -315,7 +314,7 @@ public class ParityTests(CompilationMode mode)
 
         if (value is IReadOnlyDictionary<string, object?> readOnlyDict)
         {
-            properties = new Dictionary<string, object?>(readOnlyDict);
+            properties = readOnlyDict.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
             return true;
         }
 
@@ -326,7 +325,11 @@ public class ParityTests(CompilationMode mode)
         if (readableProperties.Length == 0)
             return false;
 
-        properties = readableProperties.ToDictionary(property => property.Name, property => property.GetValue(value));
+        var propertyValues = new Dictionary<string, object?>();
+        foreach (var property in readableProperties)
+            propertyValues[property.Name] = property.GetValue(value);
+
+        properties = propertyValues;
         return true;
     }
 
@@ -341,7 +344,7 @@ public class ParityTests(CompilationMode mode)
             if (file.EndsWith(".ignore.csx", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var relativeName = Path.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
+            var relativeName = TestHelpers.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
             yield return new TestCaseData(file).SetName(relativeName.Replace(".csx", "").Replace('/', '_'));
         }
     }

@@ -198,21 +198,21 @@ internal sealed partial class ExpressionParser : ParserBase
                 return new ThrowExpr(ParseSubExpression(Precedence.Assignment)) { Span = SpanFrom(mark) };
         }
 
-        if (Match(TokenType.Await))
-            return new AwaitExpr(ParseSubExpression(Precedence.Unary)) { Span = SpanFrom(mark) };
+        Expr left;
 
-        if (Check(TokenType.If))
+        if (Match(TokenType.Await))
+        {
+            left = new AwaitExpr(ParseSubExpression(Precedence.Unary)) { Span = SpanFrom(mark) };
+        }
+        else if (Check(TokenType.If))
         {
             if (!extended)
                 throw new AlderException(DiagnosticDescriptors.ExtendedModeRequired, "if-expression");
             if (IsIfExpressionStart())
                 return ParseIfExpression();
+            left = ParsePostfix(_primary.ParsePrimary(), mark);
         }
-
-
-        Expr left;
-
-        if (minPrecedence <= Precedence.Range && Check(TokenType.DotDot))
+        else if (minPrecedence <= Precedence.Range && Check(TokenType.DotDot))
         {
             Advance();
             Expr? end = IsRangeEndFollowing() ? ParseSubExpression(Precedence.Unary) : null;

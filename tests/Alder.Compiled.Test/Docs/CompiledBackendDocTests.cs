@@ -124,4 +124,16 @@ public class CompiledBackendDocTests
         Assert.That(tree, Is.Null);
         Assert.That(diagnostics, Is.Not.Empty);
     }
+
+    [Test]
+    public void CustomDelegateCompiler_CanReplaceFinalDelegateCompiler()
+    {
+        using var engine = new AlderEngine(options =>
+            options.UseCompiler(new FastExpressionCompilerAdapter()));
+
+        var fn = engine.Compile<Func<int, int>>("x * 2", "x");
+
+        Assert.That(engine.Evaluate<int>("21 * 2"), Is.EqualTo(42));
+        Assert.That(fn(21), Is.EqualTo(42));
+    }
 }

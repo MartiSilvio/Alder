@@ -12,8 +12,7 @@ namespace Alder.Test.Operators;
 /// Throw expressions allow exception throwing in expression contexts like null-coalescing (??)
 /// and conditional (?:) operators.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class ThrowExpressionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.16 - Null-coalescing with throw

@@ -44,9 +44,9 @@ public sealed class AlderOptions
 
     /// <summary>
     /// Controls which runtime operations evaluation may perform.
-    /// The default is <see cref="SandboxOptions.Trusted"/>.
+    /// The default is <see cref="SecurityOptions.Trusted"/>.
     /// </summary>
-    public SandboxOptions Sandbox { get; set; } = SandboxOptions.Trusted();
+    public SecurityOptions Security { get; set; } = SecurityOptions.Trusted();
 
     /// <summary>
     /// Sets runtime guardrails such as statement, loop, and timeout limits.
@@ -372,7 +372,7 @@ public sealed class AlderOptions
 /// Start from <see cref="Trusted"/>, <see cref="Safe"/>, or <see cref="Strict"/>,
 /// then refine the individual flags when needed.
 /// </summary>
-public sealed record SandboxOptions
+public sealed record SecurityOptions
 {
     /// <summary>
     /// Allows method calls.
@@ -445,9 +445,9 @@ public sealed record SandboxOptions
     public TimeSpan RegexTimeout { get; init; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
-    /// Creates a fully permissive sandbox for trusted code.
+    /// Creates a fully permissive security policy for trusted code.
     /// </summary>
-    public static SandboxOptions Trusted() => new()
+    public static SecurityOptions Trusted() => new()
     {
         AllowMethodCalls = true,
         AllowPropertyRead = true,
@@ -460,10 +460,10 @@ public sealed record SandboxOptions
     };
 
     /// <summary>
-    /// Creates a sandbox that allows reads, assignment, and index writes,
+    /// Creates a security policy that allows reads, assignment, and index writes,
     /// but disallows method calls and object construction.
     /// </summary>
-    public static SandboxOptions Safe() => new()
+    public static SecurityOptions Safe() => new()
     {
         AllowPropertyRead = true,
         AllowStaticPropertyRead = true,
@@ -474,9 +474,9 @@ public sealed record SandboxOptions
     };
 
     /// <summary>
-    /// Creates a minimal read-oriented sandbox.
+    /// Creates a minimal read-oriented security policy.
     /// </summary>
-    public static SandboxOptions Strict() => new()
+    public static SecurityOptions Strict() => new()
     {
         AllowPropertyRead = true,
         AllowStaticPropertyRead = true,

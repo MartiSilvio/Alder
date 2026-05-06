@@ -65,6 +65,7 @@ The `Alder.Compiled` API surface exposes three distinct public forms.
 
 `engine.Compile<T>(...)` returns `AlderCompiledExpression<T>`, a reusable wrapper around the generated delegate:
 
+<!-- test: CompiledExpressionWrapper_SeesValueChanges_AndRejectsTypeSurfaceChanges -->
 ```csharp
 var engine = new AlderEngine(options => options.UseCompiler());
 engine.SetVariable("offset", 10);
@@ -81,6 +82,7 @@ The wrapper closes over the engine's context by reference. Later value updates r
 
 `Compile<TDelegate>(code, parameterNames...)` compiles a code body into a native delegate whose parameter types come from the delegate signature. The parameter names are supplied separately:
 
+<!-- test: CompileTypedDelegate_UsesDelegateSignatureAsParameterContract -->
 ```csharp
 var fn = engine.Compile<Func<int, int>>("x * 2", "x");
 ```
@@ -119,6 +121,7 @@ Provider translation is a separate boundary. Alder can export a valid tree and a
 
 For example, a custom adapter can target FastExpressionCompiler by forwarding delegate compilation to its `CompileFast(...)` API. See <https://github.com/dadhi/FastExpressionCompiler>.
 
+<!-- test: CustomDelegateCompiler_CanReplaceFinalDelegateCompiler -->
 ```csharp
 public sealed class FastExpressionCompilerAdapter : IExpressionCompiler
 {

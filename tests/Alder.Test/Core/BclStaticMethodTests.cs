@@ -2,8 +2,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Core;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class BclStaticMethodTests(CompilationMode mode)
 {
     private AlderEngine _engine = null!;

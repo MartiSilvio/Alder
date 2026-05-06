@@ -14,14 +14,14 @@ Include:
 - minimal reproduction
 - expected and actual behavior
 - whether the expression source is trusted, user-authored, or tenant-authored
-- `SandboxOptions`, `ExecutionConstraints`, registered functions, modules, types, namespaces, and extension methods used by the host
+- `SecurityOptions`, `ExecutionConstraints`, registered functions, modules, types, namespaces, and extension methods used by the host
 - whether the interpreted backend, compiled backend, Dynamic LINQ, or AOT generated dispatch path is involved
 
 ## Scope
 
 Security reports are especially relevant when they involve:
 
-- sandbox bypasses
+- security policy bypasses
 - access to denied types, namespaces, reflection metadata, file I/O, networking, process execution, or other blocked host capabilities
 - execution-limit bypasses or denial-of-service behavior
 - differences between interpreted, compiled, Dynamic LINQ, or generated-dispatch behavior that change authority
@@ -31,7 +31,7 @@ Configuration that deliberately registers broad host APIs or trusted types may s
 
 ## Security Model
 
-Alder evaluates expressions in-process. Its sandbox is a host-controlled policy and execution guardrail, not operating-system isolation, process isolation, or a separate sandboxed runtime.
+Alder evaluates expressions in-process. The security policy controls host authority and execution guardrails inside that process. Operating-system isolation, process isolation, and separate runtime isolation remain host responsibilities.
 
 For the technical model, see [docs/operations/security-model.md](docs/operations/security-model.md).
 

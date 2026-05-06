@@ -1,8 +1,4 @@
-# Alder
-
-<p align="center">
-  <img src="assets/brand/alder-icon.png" alt="Alder" width="96" height="96">
-</p>
+# Alder: C# Expression Runtime
 
 <p align="center">
   <a href="https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml"><img src="https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml/badge.svg?branch=master" alt=".NET CI"></a>
@@ -14,22 +10,22 @@
 </p>
 
 <p align="center">
-  <b>Alder is a C# runtime engine for .NET.</b><br>
-  <sub>Stored rules, runtime queries, tenant-authored expressions, AI tool-call backends.</sub>
+  <b>Parse, bind, validate, and execute C# expressions and statement blocks against CLR types.</b><br>
+  <sub>Interpreter-first execution, optional compiled delegates, Dynamic LINQ, security policy, expression-tree export, and NativeAOT generated dispatch.</sub>
 </p>
 
 <p align="center">
   C# semantics&nbsp; · &nbsp;Native AOT&nbsp; · &nbsp;Async&nbsp; · &nbsp;Dynamic LINQ&nbsp; · &nbsp;Zero dependencies
 </p>
 
-Alder evaluates C# expressions and statement blocks at runtime against your host's CLR types. Lambdas, query syntax, pattern matching, async, and iterators bind with ECMA-334 semantics. The interpreter runs the bound tree directly. It is the default path, and the path used under Native AOT. An opt-in compiled backend lowers the same tree to a `System.Linq.Expressions` delegate for hot synchronous workloads. Both backends share the same parser, binder, sandbox, and execution limits. Both produce identical results.
+Alder evaluates C# expressions and statement blocks at runtime against your host's CLR types. Lambdas, query syntax, pattern matching, async, and iterators bind with ECMA-334 semantics. The interpreter runs the bound tree directly. It is the default path, and the path used under Native AOT. An opt-in compiled backend lowers the same tree to a `System.Linq.Expressions` delegate for hot synchronous workloads. Both backends share the same parser, binder, security policy, and execution limits. Both produce identical results.
 
 ## At a glance
 
 - **C# expressions and statements at runtime.** Lambdas, queries, pattern matching, async, iterators, user-defined operators and conversions, evaluated with ECMA-334 7th edition semantics. [Support matrix](docs/reference/language/standard-mode-language-support.md).
 - **Native AOT through generated dispatch.** A source generator emits reflection-free dispatch from `[AlderRegistered]` declarations. The interpreter runs under AOT without trim warnings.
 - **Async inside expressions.** `EvaluateAsync` awaits inside the bound tree. `IAsyncEnumerable<T>`, `await foreach`, and iterators are first-class through the interpreter.
-- **One grammar, three surfaces.** Expression evaluation, Dynamic LINQ (`WhereDynamic`, `OrderByDynamic`), and `Expression<TDelegate>` export for EF Core all parse through the same binder, validate against the same sandbox, and answer to the same execution limits.
+- **One grammar, three surfaces.** Expression evaluation, Dynamic LINQ (`WhereDynamic`, `OrderByDynamic`), and `Expression<TDelegate>` export for EF Core all parse through the same binder, validate against the same security policy, and answer to the same execution limits.
 
 Targets `net8.0` and `netstandard2.0`. Zero third-party runtime dependencies.
 
@@ -64,7 +60,7 @@ using Alder.Compiled;
 using var engine = new AlderEngine(options =>
 {
     options.UseCompiler();
-    options.Sandbox = SandboxOptions.Safe();
+    options.Security = SecurityOptions.Safe();
     options.Aot.UseGeneratedContext(RulesAotContext.Default);
 });
 
@@ -102,15 +98,15 @@ Standard mode evaluates C# at the expression and statement-block level against E
 
 [Extended mode](docs/concepts/extended-language-mode.md) layers scripting sugar on the same parser: pipelines, regex predicates, SQL-style comparisons, ranges, date arithmetic, aggregate helpers. A valid C# expression produces the same result in either mode.
 
-## The runtime engine
+## The expression runtime
 
-The binder is Alder's architectural boundary. Everything before the binder determines what an expression *means*: types, conversions, overload resolution, member targets, assignment legality, control-flow shape, and the points where runtime dispatch is still required. Everything after executes those decisions while preserving sandbox policy and execution limits.
+The binder is Alder's architectural boundary. Everything before the binder determines what an expression *means*: types, conversions, overload resolution, member targets, assignment legality, control-flow shape, and the points where runtime dispatch is still required. Everything after executes those decisions while preserving security policy and execution limits.
 
 The **interpreter** evaluates the bound tree directly. It is the default synchronous path, the engine for `EvaluateAsync(...)`, and the path used under NativeAOT and trimming-sensitive deployments.
 
 The **compiled backend** lowers the same bound tree to a reusable delegate through `System.Linq.Expressions`. With `UseCompiler()` configured, synchronous `Evaluate(...)` uses that delegate path and recompiles when the relevant type surface changes.
 
-Both backends share the same parser, binder, validation pipeline, sandbox policy, execution limits, and language semantics. They produce identical results. Divergence is a defect.
+Both backends share the same parser, binder, validation pipeline, security policy, execution limits, and language semantics. They produce identical results. Divergence is a defect.
 
 Architecture: [Architecture](docs/concepts/architecture.md), [Binding system](docs/concepts/binding-system.md), [Execution model](docs/reference/execution-model.md).
 
@@ -173,12 +169,12 @@ EF Core can translate filtering, ordering, projection, grouping, flattening, joi
 
 Details in [Compiled backend](docs/concepts/compiled-backend.md).
 
-## Sandbox
+## Security policy
 
-`SandboxOptions` controls authority. `Trusted()`, `Safe()`, and `Strict()` presets cover most policies; allow and deny lists cover concrete CLR types and namespaces. Reflection metadata is blocked at evaluation boundaries so expressions can compare types and read names without escaping into reflective discovery or invocation.
+`SecurityOptions` controls authority. `Trusted()`, `Safe()`, and `Strict()` presets cover most policies; allow and deny lists cover concrete CLR types and namespaces. Reflection metadata is blocked at evaluation boundaries so expressions can compare types and read names without escaping into reflective discovery or invocation.
 
 ```csharp
-options.Sandbox = SandboxOptions.Safe() with
+options.Security = SecurityOptions.Safe() with
 {
     AllowConstruction = true,
     TrustedTypes = [typeof(StringBuilder)],
@@ -202,7 +198,7 @@ options.Constraints = new ExecutionConstraints
 };
 ```
 
-Exceeded limits surface as `AlderExecutionLimitException` carrying the limit type, configured value, observed value, executed statement count, and elapsed time. `SandboxOptions.MaxCollectionSize` bounds collection-producing results separately.
+Exceeded limits surface as `AlderExecutionLimitException` carrying the limit type, configured value, observed value, executed statement count, and elapsed time. `SecurityOptions.MaxCollectionSize` bounds collection-producing results separately.
 
 ## NativeAOT
 

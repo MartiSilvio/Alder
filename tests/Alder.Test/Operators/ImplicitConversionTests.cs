@@ -2,8 +2,7 @@ using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Operators;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class ImplicitConversionTests(CompilationMode mode)
 {
     [Test]
@@ -46,9 +45,8 @@ public class ImplicitConversionTests(CompilationMode mode)
     [Test]
     public void ExtensionMethod_SignedPreferredOverUnsigned()
     {
-        var engine = new AlderEngine(o =>
+        var engine = TestEngineFactory.Create(mode, o =>
         {
-            if (mode == CompilationMode.Compiled) o.UseCompiler();
             o.Types.AddExtensionMethods(typeof(ImplicitConversionExtensionProbe));
         });
 

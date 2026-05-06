@@ -1,6 +1,6 @@
 # Alder documentation
 
-Alder is an embeddable C# runtime engine: parser, binder, interpreter, optional compiled backend, Dynamic LINQ, expression-tree export, AOT-friendly generated dispatch, sandbox policy, and execution constraints, all in one library. These docs describe the engineering surface: what Alder does, how it behaves, and where its boundaries lie.
+Alder is an embeddable C# expression runtime: parser, binder, interpreter, optional compiled backend, Dynamic LINQ, expression-tree export, AOT-friendly generated dispatch, security policy, and execution constraints, all in one library. These docs describe the engineering surface: what Alder does, how it behaves, and where its boundaries lie.
 
 Concepts establish the mental model. Guides walk through concrete integration tasks. Reference documents exact contracts. Operations covers production behavior, security, and reuse.
 
@@ -30,7 +30,7 @@ Concepts establish the mental model. Guides walk through concrete integration ta
 ## Operations
 
 - [Execution and reuse](./operations/execution-and-reuse.md): engine lifetime, parsed-expression reuse, compiled artifacts, query plans.
-- [Security model](./operations/security-model.md): sandbox policy, trust and deny rules, execution limits, reflection boundary.
+- [Security model](./operations/security-model.md): security policy, trust and deny rules, execution limits, reflection boundary.
 - [AOT and generated dispatch](./operations/aot-and-generated-dispatch.md): typed dispatch, generated contexts, reflection fallback.
 - [Diagnostics and debugging](./operations/diagnostics-and-debugging.md): parse, bind, validation, compilation, export, and runtime diagnostics.
 

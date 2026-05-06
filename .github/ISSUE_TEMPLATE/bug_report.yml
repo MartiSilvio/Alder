@@ -42,7 +42,7 @@ body:
         - Compiled backend
         - Dynamic LINQ / IQueryable
         - AOT / generated dispatch
-        - Security sandbox
+        - Security policy
         - Documentation
         - Build / packaging
         - Other
@@ -63,7 +63,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Include Alder version or commit, .NET version, OS, language mode, sandbox options, compiler setting, and AOT/generated context details if relevant.
+      description: Include Alder version or commit, .NET version, OS, language mode, security options, compiler setting, and AOT/generated context details if relevant.
     validations:
       required: false
   - type: checkboxes

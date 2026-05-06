@@ -7,7 +7,7 @@ description: Compose runtime-defined LINQ queries over IEnumerable, IQueryable, 
 
 Dynamic LINQ is for product features where query behavior is data: saved filters, configurable grids, report columns, search screens, policy rules, sort definitions, aggregate selectors, and provider-backed queries. Alder binds each runtime fragment against the CLR source type and composes it into ordinary LINQ over `IEnumerable<T>`, `IQueryable<T>`, or `IAsyncEnumerable<T>`.
 
-Those fragments use Alder's normal expression pipeline: parsing, binding, diagnostics, sandbox validation, type resolution, and conversions. The LINQ layer adapts the bound result into predicates, selectors, ordering keys, grouping keys, join components, projections, aggregate selectors, expression trees, delegates, and reusable query plans.
+Those fragments use Alder's normal expression pipeline: parsing, binding, diagnostics, security policy validation, type resolution, and conversions. The LINQ layer adapts the bound result into predicates, selectors, ordering keys, grouping keys, join components, projections, aggregate selectors, expression trees, delegates, and reusable query plans.
 
 The host owns the source, the surrounding LINQ pipeline, the engine policy, and the execution boundary. Alder owns parsing, binding, validation, expression export, and delegate generation for the dynamic fragments.
 
@@ -38,6 +38,7 @@ Compose paging with `SkipDynamic(...)` and `TakeDynamic(...)`, then shape totals
 
 String-based Dynamic LINQ extension operators require `UseCompiler()` on a JIT-capable runtime. The API is available from Alder through the `Alder.Compiled` namespace. In-process sequence operators compile predicates and selectors to delegates. `IQueryable<T>` operators export expression trees and call the matching `Queryable` operators; provider translation remains downstream.
 
+<!-- test: FilteringOrderingPagingAndProjection_ComposeInOneRuntimeQuery -->
 ```csharp
 using Alder;
 using Alder.Compiled;
@@ -47,13 +48,14 @@ using var engine = new AlderEngine(options => options.UseCompiler());
 
 The extension methods can use the global `AlderEval` engine:
 
+<!-- test: GlobalAlderEvalConfiguration_EnablesStringBasedQueryExtensions -->
 ```csharp
 AlderEval.Configure(options => options.UseCompiler());
 
 var expensive = products.WhereDynamic("Price >= @0", 100m).ToList();
 ```
 
-Pass an explicit `AlderEngine` when query policy belongs to a specific boundary: tenant scope, sandbox settings, registered extension methods, visible types, or validation rules.
+Pass an explicit `AlderEngine` when query policy belongs to a specific boundary: tenant scope, security settings, registered extension methods, visible types, or validation rules.
 
 The prepared-plan and direct export APIs are separate from string-based operator execution. `ParsePredicate(...)`, `ParseSelector(...)`, `ParseLambda(...)`, and `ParseAsExpression<TDelegate>(...)` can prepare expression trees without calling `UseCompiler()`. Compiling a plan or expression tree to a delegate still requires dynamic code support.
 
@@ -61,10 +63,11 @@ String-based Dynamic LINQ operator execution depends on `UseCompiler()`. NativeA
 
 ### Model binding
 
-Dynamic LINQ binds against CLR types. The source type is the expression-facing surface for member lookup, overload resolution, conversions, nullable behavior, object construction, indexers, extension methods, and sandbox validation.
+Dynamic LINQ binds against CLR types. The source type is the expression-facing surface for member lookup, overload resolution, conversions, nullable behavior, object construction, indexers, extension methods, and security policy validation.
 
-Alder applies its normal preparation pipeline before LINQ composition: parsing, binding, diagnostics, sandbox validation, type resolution, and conversions. The LINQ layer then adapts the bound result into query operators. Execution constraints apply where Alder executes in-process work; provider execution remains under the provider's runtime.
+Alder applies its normal preparation pipeline before LINQ composition: parsing, binding, diagnostics, security policy validation, type resolution, and conversions. The LINQ layer then adapts the bound result into query operators. Execution constraints apply where Alder executes in-process work; provider execution remains under the provider's runtime.
 
+<!-- test: FilteringOrderingPagingAndProjection_ComposeInOneRuntimeQuery -->
 ```csharp
 public sealed record Product(
     string Name,
@@ -92,6 +95,7 @@ var products = new List<Product>
 
 Body-only fragments use the current element as `it` and also allow implicit member access:
 
+<!-- test: ExpressionForms_SupportImplicitAndExplicitLambdaSelectors -->
 ```csharp
 var names = products
     .SelectDynamic<Product, string>(engine, "Name")
@@ -100,6 +104,7 @@ var names = products
 
 Full lambda syntax is useful when stored expressions carry their own parameter names:
 
+<!-- test: ExpressionForms_SupportImplicitAndExplicitLambdaSelectors -->
 ```csharp
 var names = products
     .SelectDynamic<Product, string>(engine, "product => product.Name")
@@ -112,6 +117,7 @@ Both forms bind to the same `Product` type surface. Choose body-only syntax for 
 
 Pass runtime values separately from expression text. Positional values use `@0`, `@1`, and later placeholders:
 
+<!-- test: RuntimeValues_SupportPositionalNamedAndMixedBinding -->
 ```csharp
 var visible = products
     .WhereDynamic(
@@ -124,6 +130,7 @@ var visible = products
 
 Named values make stored rules easier to read:
 
+<!-- test: RuntimeValues_SupportPositionalNamedAndMixedBinding -->
 ```csharp
 var visible = products
     .WhereDynamic(
@@ -135,6 +142,7 @@ var visible = products
 
 You can mix both forms when the host naturally has both positional values and named context:
 
+<!-- test: RuntimeValues_SupportPositionalNamedAndMixedBinding -->
 ```csharp
 var filtered = products
     .WhereDynamic(
@@ -151,6 +159,7 @@ Runtime values participate in binding with their actual runtime types. They are 
 
 Filtering is the most common Dynamic LINQ entry point. `WhereDynamic(...)` turns a runtime predicate into a normal LINQ predicate or provider expression.
 
+<!-- test: FilteringExamples_UseImplicitAndExplicitRuntimeValues -->
 ```csharp
 var inStockElectronics = products
     .WhereDynamic(engine, """Category == "Electronics" && InStock""")
@@ -159,6 +168,7 @@ var inStockElectronics = products
 
 Predicates support the same expression-level language surface Alder exposes for bound fragments: member access, comparisons, logical operators, method calls allowed by policy, nullable operations, conversions, indexers, and registered extension methods.
 
+<!-- test: FilteringExamples_UseImplicitAndExplicitRuntimeValues -->
 ```csharp
 var searchResults = products
     .WhereDynamic(
@@ -174,6 +184,7 @@ On `IEnumerable<T>`, Alder compiles the predicate to a delegate and calls `Enume
 
 Ordering operators bind runtime key selectors. They are available for `IEnumerable<T>` and `IQueryable<T>`.
 
+<!-- test: FilteringOrderingPagingAndProjection_ComposeInOneRuntimeQuery -->
 ```csharp
 var ordered = products
     .OrderByDynamic<Product, string>(engine, "Category")
@@ -183,6 +194,7 @@ var ordered = products
 
 A typical result-set pipeline filters first, imposes a stable order, and then pages:
 
+<!-- test: FilteringOrderingPagingAndProjection_ComposeInOneRuntimeQuery -->
 ```csharp
 var page = products
     .WhereDynamic(engine, "InStock")
@@ -203,6 +215,7 @@ Projection is the center of Dynamic LINQ for grids, reports, exports, and config
 
 Use typed scalar selectors when the result type is known:
 
+<!-- test: ProjectionSupportsScalarDtoStructuralAndRuntimeShapedRows -->
 ```csharp
 var prices = products
     .SelectDynamic<Product, decimal>(engine, "Price")
@@ -215,6 +228,7 @@ The generic result type is part of the contract. If the selector cannot produce 
 
 Use DTO projection when the host owns the result contract and the selected members should materialize into that contract:
 
+<!-- test: ProjectionSupportsScalarDtoStructuralAndRuntimeShapedRows -->
 ```csharp
 var summaries = products
     .SelectDynamic<Product, ProductSummaryDto>(
@@ -229,6 +243,7 @@ DTO projection fits application-owned result models, export rows, API response s
 
 Use structural projection when the selected columns are configured at runtime:
 
+<!-- test: ProjectionSupportsScalarDtoStructuralAndRuntimeShapedRows -->
 ```csharp
 var rows = products
     .SelectDynamic<Product, IReadOnlyDictionary<string, object?>>(
@@ -241,6 +256,7 @@ var firstName = rows[0]["ProductName"];
 
 The non-generic projection route keeps the shape runtime-defined:
 
+<!-- test: ProjectionSupportsScalarDtoStructuralAndRuntimeShapedRows -->
 ```csharp
 var configuredRows = products
     .SelectDynamic(engine, "new { Name, Category, Price }")
@@ -262,6 +278,7 @@ Grouping and flattening cover query shapes where each source row expands, partit
 
 `SelectManyDynamic(...)` flattens nested collections selected at runtime:
 
+<!-- test: GroupingFlatteningJoinsAndGroupJoins_UseDynamicKeysAndSelectors -->
 ```csharp
 public sealed record Customer(string Name, List<Order> Orders);
 public sealed record Order(string Product, int Quantity, decimal UnitPrice);
@@ -274,6 +291,7 @@ var orderedProducts = customers
 
 Use a result selector when the output needs both the outer and inner values:
 
+<!-- test: SelectManyResultSelectors_ProjectOuterAndInnerRows -->
 ```csharp
 var orderLabels = customers
     .SelectManyDynamic<Customer, Order, string>(
@@ -289,6 +307,7 @@ var orderLabels = customers
 
 `GroupByDynamic(...)` selects grouping keys at runtime and returns ordinary `IGrouping<TKey, T>` results:
 
+<!-- test: GroupingFlatteningJoinsAndGroupJoins_UseDynamicKeysAndSelectors -->
 ```csharp
 var byCategory = products
     .GroupByDynamic<Product, string>(engine, "Category")
@@ -307,6 +326,7 @@ Grouping is available for `IEnumerable<T>` and `IQueryable<T>`. The dynamic port
 
 Dynamic joins bind multiple typed fragments as one operation: the outer key, the inner key, and the result selector. Alder checks the key selectors together so the join has one key type.
 
+<!-- test: GroupingFlatteningJoinsAndGroupJoins_UseDynamicKeysAndSelectors -->
 ```csharp
 public sealed record WarehouseStock(string Category, int Count);
 
@@ -329,6 +349,7 @@ var joined = products
 
 Use `GroupJoinDynamic(...)` when each outer row needs the grouped inner sequence:
 
+<!-- test: GroupingFlatteningJoinsAndGroupJoins_UseDynamicKeysAndSelectors -->
 ```csharp
 var grouped = products
     .GroupJoinDynamic<Product, WarehouseStock, string, string>(
@@ -350,6 +371,7 @@ Terminal operators turn a sequence into a scalar, a boolean, or a selected eleme
 
 Alder supports dynamic `Count`, `LongCount`, `Sum`, `Average`, `Min`, and `Max`:
 
+<!-- test: AggregatesElementAndSequenceOperators_FollowLinqBehavior -->
 ```csharp
 var stockedCount = products.CountDynamic(engine, "InStock");
 
@@ -366,6 +388,7 @@ Typed aggregate overloads make the expected result type explicit. Non-generic ag
 
 `AnyDynamic(...)` and `AllDynamic(...)` bind runtime predicates:
 
+<!-- test: AggregatesElementAndSequenceOperators_FollowLinqBehavior -->
 ```csharp
 var hasSpecialty = products.AnyDynamic(engine, """Category == "Specialty" """);
 var allPriced = products.AllDynamic(engine, "Price > 0m");
@@ -375,6 +398,7 @@ var allPriced = products.AllDynamic(engine, "Price > 0m");
 
 Element operators follow LINQ's exception and default-value behavior:
 
+<!-- test: ElementSetAndTypeOperators_FollowLinqBehavior -->
 ```csharp
 var firstSpecialty = products.FirstDynamic(engine, """Category == "Specialty" """);
 var maybeMissing = products.FirstOrDefaultDynamic(engine, """Category == "Office" """);
@@ -390,6 +414,7 @@ Some Dynamic LINQ operators do not take expression strings. They exist to keep r
 
 ### Set and distinct operations
 
+<!-- test: ElementSetAndTypeOperators_FollowLinqBehavior -->
 ```csharp
 var categories = products
     .Select(product => product.Category)
@@ -403,6 +428,7 @@ var distinctProductsByCategory = products
 
 Set operations compose two sequences:
 
+<!-- test: ElementSetAndTypeOperators_FollowLinqBehavior -->
 ```csharp
 var visibleCategories = new[] { "Tools", "Electronics" };
 var allowedCategories = new[] { "Electronics", "Specialty" };
@@ -418,6 +444,7 @@ var shared = visibleCategories
 
 `CastDynamic<TResult>()` and `OfTypeDynamic<TResult>()` work over non-generic or weakly typed sequences:
 
+<!-- test: ElementSetAndTypeOperators_FollowLinqBehavior -->
 ```csharp
 IEnumerable values = new object?[] { 1, "two", null, 3, "four" };
 
@@ -430,6 +457,7 @@ var numbers = values.OfTypeDynamic<int>().ToList();
 
 Use `DynamicQueryPlan` when a stored filter, selector, or lambda will be applied repeatedly. A plan preserves the bound fragment, inferred result type, expression-tree view, and compiled delegate view.
 
+<!-- test: ReusablePlansExposeExpressionAndCompiledDelegateViews -->
 ```csharp
 var filter = engine.ParsePredicate<Product>("Price > 50m");
 var price = engine.ParseSelector<Product, decimal>("Price");
@@ -444,6 +472,7 @@ var total = products.SumDynamic(price);
 
 The same plan can feed a provider-backed query:
 
+<!-- test: ReusablePlansExposeExpressionAndCompiledDelegateViews -->
 ```csharp
 var query = db.Products
     .WhereDynamic(filter)
@@ -454,6 +483,7 @@ Plans avoid repeated Alder parsing and binding. They do not replace provider que
 
 Plans also expose both integration views directly:
 
+<!-- test: ReusablePlansExposeExpressionAndCompiledDelegateViews -->
 ```csharp
 using System.Linq.Expressions;
 
@@ -470,6 +500,7 @@ Use the expression view when another component needs a LINQ tree. Use the delega
 
 `IQueryable<T>` operators export expression trees and call the matching `Queryable` operator. The provider receives ordinary LINQ nodes, not Alder source text.
 
+<!-- test: ProviderExport_ProducesExpressionTrees_ButProviderTranslationIsSeparate -->
 ```csharp
 var query = db.Products
     .WhereDynamic(engine, "product => product.Price >= @0", 50m)
@@ -486,6 +517,7 @@ Provider integration has two gates:
 
 EF Core can translate many verified shapes, including filtering, ordering, projection, grouping, flattening, joins, group joins, paging, null-coalescing predicates, string methods, and `EF.Property<T>(...)`.
 
+<!-- test: ProviderExport_ProducesExpressionTrees_ButProviderTranslationIsSeparate -->
 ```csharp
 var query = db.Products
     .WhereDynamic(
@@ -501,6 +533,7 @@ Provider-limited shapes include cases such as `OfTypeDynamic`, `SequenceEqualDyn
 
 You can export an expression directly when the host needs the tree outside the Dynamic LINQ operator surface:
 
+<!-- test: ProviderExport_ProducesExpressionTrees_ButProviderTranslationIsSeparate -->
 ```csharp
 Expression<Func<Product, bool>> directExpression =
     engine.ParseAsExpression<Func<Product, bool>>(
@@ -511,6 +544,7 @@ Expression<Func<Product, bool>> directExpression =
 
 Dynamic LINQ supports schema-shaped row data where the CLR row type is stable but selected columns vary. Bind against `DataRow` and use explicit indexer access.
 
+<!-- test: DataRowIndexerQueries_WorkForSchemaShapedData -->
 ```csharp
 using System.Data;
 
@@ -525,12 +559,13 @@ var rows = table.AsEnumerable()
 
 `DataRow` indexer expressions work over `IEnumerable<DataRow>` and `IQueryable<DataRow>`. The indexer route keeps column access explicit.
 
-`DataRowExtensions.Field<T>(...)` is blocked by the default sandbox because `System.Data` is denied by default. To use it, trust the required `System.Data` namespace, register the `System.Data` assembly for type resolution, and register `DataRowExtensions` as an extension-method container.
+`DataRowExtensions.Field<T>(...)` is blocked by the default security policy because `System.Data` is denied by default. To use it, trust the required `System.Data` namespace, register the `System.Data` assembly for type resolution, and register `DataRowExtensions` as an extension-method container.
 
 ## Async streams
 
 `IAsyncEnumerable<T>` Dynamic LINQ operators execute in process. Filtering, projection, flattening, `Skip`, `Take`, `SkipWhile`, and `TakeWhile` stream as the source is consumed. `Distinct`, `Reverse`, quantifiers, counts, aggregates, and `First`/`Last`/`Single` variants materialize the stream before applying LINQ behavior. Provider translation and database pushdown belong to `IQueryable<T>`.
 
+<!-- test: AsyncStreams_SupportFilteringProjectionPagingAndAggregates -->
 ```csharp
 await foreach (var name in source
     .WhereDynamic(engine, "product => product.InStock && product.Price >= @0", 50m)
@@ -543,6 +578,7 @@ await foreach (var name in source
 
 Async streams support filtering, projection, flattening, paging, `Distinct`, `Reverse`, quantifiers, `First`/`Last`/`Single` variants, counts, and supported aggregates. They do not cover every synchronous or provider operator.
 
+<!-- test: AsyncStreams_SupportFilteringProjectionPagingAndAggregates -->
 ```csharp
 var count = await source.CountDynamic(engine, "product => product.InStock");
 var total = await source.SumDynamic(engine, "product => product.Price");
@@ -561,7 +597,7 @@ Joins, group joins, ordering, grouping, `Concat`, `Union`, `Intersect`, `Except`
 - Wrong typed projection result: make `TResult` match the selector result, project to a DTO with matching members, or use a structural row.
 - Provider rejection on `IQueryable<T>`: separate Alder export success from provider translation success; revise the query shape or materialize intentionally before applying an in-process operator.
 - Async operator missing: async streams support filtering, projection, flattening, `Skip`, `Take`, `SkipWhile`, `TakeWhile`, `Reverse`, quantifiers, `First`/`Last`/`Single` variants, aggregates, and `Distinct`; ordering, grouping, joins, binary set operations, type filters, `Contains`, `ElementAt`, and `SequenceEqual` stay on synchronous or provider-backed surfaces.
-- `DataRowExtensions.Field<T>(...)` blocked by the sandbox: trust only the required `System.Data` surface and register the extension-method container explicitly.
+- `DataRowExtensions.Field<T>(...)` blocked by the security policy: trust only the required `System.Data` surface and register the extension-method container explicitly.
 
 ## Related pages
 

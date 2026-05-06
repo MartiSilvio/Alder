@@ -10,8 +10,7 @@ namespace Alder.Test.Types;
 /// Engine-only numeric tests for behaviors that cannot be expressed as .csx parity tests.
 /// Parity tests migrated to TestData/Types/Numeric/*.csx and Parity/NumericTests.cs.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class NumericTests(CompilationMode mode)
 {
 

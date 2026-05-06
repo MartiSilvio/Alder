@@ -13,10 +13,11 @@ Use this guide as the deployment checklist. For the underlying runtime model, se
 
 Use the interpreter for NativeAOT and trimming-sensitive deployments. Do not configure `UseCompiler()` in the AOT engine:
 
+<!-- test: NativeAotChecklist_RegisterGeneratedContext -->
 ```csharp
 var engine = new AlderEngine(options =>
 {
-    options.Sandbox = SandboxOptions.Safe();
+    options.Security = SecurityOptions.Safe();
     options.Aot.UseGeneratedContext(RulesAotContext.Default);
 });
 ```
@@ -27,6 +28,7 @@ var engine = new AlderEngine(options =>
 
 A generated context is a partial class derived from `AlderTypeContext`. Add `[AlderRegistered(typeof(...))]` for each concrete CLR type expressions need to read, write, construct, or call:
 
+<!-- test: GeneratedContext_ProvidesReflectionFreeMemberAndMethodDispatch -->
 ```csharp
 using Alder.Aot;
 
@@ -110,6 +112,7 @@ Some AOT-sensitive operations are not ordinary member access.
 
 Register closed `Task<T>` roots when expressions call `Task.FromResult<T>` for application-specific result types:
 
+<!-- test: GeneratedContext_ProvidesReflectionFreeMemberAndMethodDispatch -->
 ```csharp
 using Alder.Aot;
 
@@ -176,7 +179,7 @@ Before shipping a NativeAOT build:
 - Called methods and static members are covered by generated dispatch.
 - `Task<T>`, delegate, and generic static shapes are rooted explicitly when needed.
 - Assembly scanning is removed from production AOT configuration or intentionally justified.
-- Sandbox policy is configured independently from type visibility.
+- Security policy is configured independently from type visibility.
 - Stored expressions are validated under the same engine policy used in production.
 - The published NativeAOT artifact runs the representative expression corpus.
 

@@ -4,8 +4,7 @@ namespace Alder.Test.Compliance;
 
 public enum LongEnum : long { A = 1, B = 2, C = 3 }
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class OperatorConformanceTests(CompilationMode mode)
 {
     private AlderEngine CreateEngine(LanguageMode lang = LanguageMode.Standard, HashSet<Type>? allowedTypes = null)
@@ -13,7 +12,7 @@ public class OperatorConformanceTests(CompilationMode mode)
         {
             o.LanguageMode = lang;
             if (allowedTypes != null)
-                o.Sandbox = SandboxOptions.Trusted() with { TrustedTypes = allowedTypes };
+                o.Security = SecurityOptions.Trusted() with { TrustedTypes = allowedTypes };
         });
 
     #region §12.18 Conditional operator — type rules

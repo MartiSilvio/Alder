@@ -4,20 +4,19 @@ using Alder.Test._Infrastructure;
 namespace Alder.Test.Verification;
 
 /// <summary>
-/// Verification: Section 4 — Security Sandbox Escapes.
+/// Verification: Section 4 — Security Policy Escapes.
 /// Tests attempt to bypass the security policy via various attack vectors.
-/// Every test should fail with a security error. If it succeeds, that's a sandbox escape.
+/// Every test should fail with a security error. If it succeeds, that's a security policy escape.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 [Parallelizable(ParallelScope.Children)]
-public class SecuritySandboxVerificationTests(CompilationMode mode)
+public class SecurityPolicyVerificationTests(CompilationMode mode)
 {
     private AlderEngine CreateRestrictiveEngine()
     {
         return TestEngineFactory.Create(mode, o =>
         {
-            o.Sandbox = SandboxOptions.Safe() with
+            o.Security = SecurityOptions.Safe() with
             {
                 DeniedNamespaces = new HashSet<string>
                 {
@@ -52,7 +51,7 @@ public class SecuritySandboxVerificationTests(CompilationMode mode)
     [Test]
     public void Attack_ObjectReflection_GetTypeAssemblyGetTypes_Blocked()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
         engine.SetVariable<object>("o", "hello");
         // Start from allowed type (string), use reflection to enumerate all types in assembly.
         // GuardReflectionLeak should block returning Assembly, Type[], MethodInfo etc.
@@ -83,7 +82,7 @@ public class SecuritySandboxVerificationTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o =>
         {
-            o.Sandbox = SandboxOptions.Safe() with
+            o.Security = SecurityOptions.Safe() with
             {
                 DeniedNamespaces = new HashSet<string> { "System.IO" }
             };
@@ -113,7 +112,7 @@ public class SecuritySandboxVerificationTests(CompilationMode mode)
     [Test]
     public void Attack_DynamicCall_ObjectTypedVariable_BypassesMethodBlock()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
         // object-typed variable — binder can't resolve method, falls to BoundDynamicCallExpr
         engine.SetVariable("obj", (object)"hello");
 
@@ -134,7 +133,7 @@ public class SecuritySandboxVerificationTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o =>
         {
-            o.Sandbox = SandboxOptions.Trusted() with
+            o.Security = SecurityOptions.Trusted() with
             {
                 DeniedNamespaces = new HashSet<string> { "System.IO" }
             };
@@ -170,7 +169,7 @@ public class SecuritySandboxVerificationTests(CompilationMode mode)
     [Test]
     public void Attack_LambdaClosure_CannotAccessInternalState()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
         // Verify that lambda closures don't expose engine-internal objects
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 

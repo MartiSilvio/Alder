@@ -79,10 +79,13 @@ static PackageInfo VerifyPackageContents(string packagePath)
     Require(RequiredElementValue(metadata, ns, "authors") == "Silvio Martignetti", "Package authors metadata is incorrect.");
     Require(RequiredElementValue(metadata, ns, "title") == "Alder", "Package title metadata is incorrect.");
     var description = RequiredElementValue(metadata, ns, "description");
-    RequireDescriptionContains(description, "C# runtime engine");
-    RequireDescriptionContains(description, "compiler-style parsing");
-    RequireDescriptionContains(description, "semantic binding");
+    RequireDescriptionContains(description, "C# expression runtime for .NET applications");
+    RequireDescriptionContains(description, "Parse, bind, validate, and execute");
+    RequireDescriptionContains(description, "interpreter-first execution");
+    RequireDescriptionContains(description, "optional compiled delegates");
     RequireDescriptionContains(description, "Dynamic LINQ");
+    RequireDescriptionContains(description, "security policy");
+    RequireDescriptionContains(description, "expression-tree export");
     RequireDescriptionContains(description, "NativeAOT generated dispatch");
     Require(RequiredElementValue(metadata, ns, "readme") == "README.md", "Package readme metadata must point to README.md.");
     Require(RequiredElementValue(metadata, ns, "icon") == "alder-icon.png", "Package icon metadata must point to alder-icon.png.");
@@ -98,13 +101,14 @@ static PackageInfo VerifyPackageContents(string packagePath)
         "c-sharp",
         "expressions",
         "expression-evaluator",
+        "expression-runtime",
         "expression-parser",
         "scripting",
         "script-engine",
         "rules-engine",
         "dynamic-linq",
         "linq",
-        "sandbox",
+        "security-policy",
         "safe-evaluation",
         "nativeaot",
         "source-generator",

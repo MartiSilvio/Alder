@@ -7,8 +7,7 @@ namespace Alder.Test.Compliance;
 /// numeric coercion, IComparable comparisons, cross-type equality,
 /// string concatenation, bool enforcement, and assignment targets.
 /// </summary>
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class SemanticLeniencyTests(CompilationMode mode)
 {
     private Action<AlderOptions> Options => o => o.LanguageMode = LanguageMode.Standard;

@@ -1,14 +1,24 @@
 using Alder.Diagnostics;
-using Alder.Test.Compilation;
 using Alder.Test._Infrastructure;
-using Alder.Test.Compilation.DynamicLinq;
 
 namespace Alder.Test.Core;
 
-[TestFixture(CompilationMode.Interpreted)]
-[TestFixture(CompilationMode.Compiled)]
+[TestFixtureSource(typeof(Alder.Test._Infrastructure.CompilationModeFixtures), nameof(Alder.Test._Infrastructure.CompilationModeFixtures.All))]
 public class ProjectionMaterializationTests(CompilationMode mode)
 {
+    private sealed record ProductSummaryRecord(string name, decimal price);
+
+    private sealed class ProductSummaryDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+    }
+
+    private sealed class ProductEnvelopeDto
+    {
+        public ProductSummaryDto Product { get; set; } = null!;
+    }
+
     private sealed class OptionalParameterPreferenceDto
     {
         public string Name { get; }
