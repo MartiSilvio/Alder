@@ -1,0 +1,1 @@
+System.IO.FileAttributes.ReadOnly | System.IO.FileAttributes.Hidden

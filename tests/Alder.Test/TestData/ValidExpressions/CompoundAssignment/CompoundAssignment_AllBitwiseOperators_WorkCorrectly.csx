@@ -1,0 +1,11 @@
+var andResult = 15;
+andResult &= 9;
+var orResult = 5;
+orResult |= 3;
+var xorResult = 12;
+xorResult ^= 5;
+var leftShift = 1;
+leftShift <<= 4;
+var rightShift = 32;
+rightShift >>= 2;
+return andResult + orResult + xorResult + leftShift + rightShift;

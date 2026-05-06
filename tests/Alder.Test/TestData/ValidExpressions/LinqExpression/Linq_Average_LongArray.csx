@@ -1,0 +1,1 @@
+new[] { 1L, 2L, 3L, 4L, 5L }.Average()

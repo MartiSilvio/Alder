@@ -1,0 +1,3 @@
+int x = 0x0F;
+x |= 0xF0;
+return x;

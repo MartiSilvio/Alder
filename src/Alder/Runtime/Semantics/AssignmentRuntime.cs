@@ -1,0 +1,369 @@
+using Alder.Diagnostics;
+using Alder.Parsing;
+
+namespace Alder.Runtime.Semantics;
+
+internal static class AssignmentRuntime
+{
+    public static object? ValidateVariableAssignment(string name, object? value, AlderContext context)
+    {
+        if (context.TryGetVariableType(name, out var variableType) && variableType != null && value != null)
+            return TypeHelpers.ValidateAssignment(variableType, value, name, isConstantExpression: false);
+
+        return value;
+    }
+
+    public static object? DefineVariable(
+        string name,
+        object? value,
+        Type? declaredType,
+        AlderContext context,
+        bool isReadOnly = false,
+        bool isConstantExpression = false)
+    {
+        if (declaredType != null)
+            value = TypeHelpers.ValidateAndCoerceType(declaredType, value, name, isConstantExpression);
+
+        var variableType = declaredType ?? value?.GetType() ?? typeof(object);
+        context.DefineNew(name, value, variableType, isReadOnly);
+        return value;
+    }
+
+    public static object GetNumericOne(object? value) => value switch
+    {
+        int => BoxedConstants.Int32One,
+        long => BoxedConstants.Int64One,
+        double => BoxedConstants.DoubleOne,
+        float => BoxedConstants.FloatOne,
+        decimal => BoxedConstants.DecimalOne,
+        short => BoxedConstants.ShortOne,
+        byte => BoxedConstants.ByteOne,
+        sbyte => BoxedConstants.SByteOne,
+        ushort => BoxedConstants.UInt16One,
+        uint => BoxedConstants.UInt32One,
+        ulong => BoxedConstants.UInt64One,
+        _ => BoxedConstants.Int32One
+    };
+
+    public static object? ApplyCompoundAssign(
+        string name,
+        TokenType compoundOperator,
+        object? rightValue,
+        AlderContext context,
+        bool isChecked)
+    {
+        var currentValue = context.Get(name);
+        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, context, isChecked);
+        result = ValidateCompoundAssignment(name, result, rightValue, context);
+        context.Set(name, result);
+        return result;
+    }
+
+    public static object? ApplyIncrementDecrement(
+        string name,
+        bool isIncrement,
+        bool isPrefix,
+        AlderContext context,
+        bool isChecked)
+    {
+        var currentValue = context.Get(name);
+        var one = GetNumericOne(currentValue);
+        var newValue = isIncrement
+            ? Operators.Add(currentValue, one, context.Config, isChecked)
+            : Operators.Subtract(currentValue, one, isChecked);
+        newValue = NarrowIncrementResult(name, newValue, context);
+        context.Set(name, newValue);
+        return isPrefix ? newValue : currentValue;
+    }
+
+    public static object? ApplyMemberAssign(
+        object? target,
+        string memberName,
+        object? value,
+        AlderContext context)
+    {
+        target = ExecutionRuntime.EnsureMemberTargetNotNull(target, memberName);
+        MemberAccess.SetMember(target, memberName, value, context);
+        return value;
+    }
+
+    public static object? ApplyIndexAssign(
+        object? target,
+        object? index,
+        object? value,
+        AlderContext context)
+    {
+        target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
+        MemberAccess.SetIndex(target, index, value, context);
+        return value;
+    }
+
+    public static object? ApplyMemberCompoundAssign(
+        object? target,
+        string memberName,
+        TokenType compoundOperator,
+        object? rightValue,
+        AlderContext context,
+        bool isChecked)
+    {
+        target = ExecutionRuntime.EnsureMemberTargetNotNull(target, memberName);
+        var currentValue = MemberAccess.GetMember(target, memberName, false, context);
+        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, context, isChecked);
+        MemberAccess.SetMember(target, memberName, result, context);
+        return result;
+    }
+
+    public static object? ApplyIndexCompoundAssign(
+        object? target,
+        object? index,
+        TokenType compoundOperator,
+        object? rightValue,
+        AlderContext context,
+        bool isChecked)
+    {
+        target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
+        var currentValue = MemberAccess.GetIndex(target, index, context);
+        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, context, isChecked);
+        MemberAccess.SetIndex(target, index, result, context);
+        return result;
+    }
+
+    public static object? ApplyMemberNullCoalesceAssign(
+        object? target,
+        string memberName,
+        object? value,
+        AlderContext context)
+    {
+        target = ExecutionRuntime.EnsureMemberTargetNotNull(target, memberName);
+        var currentValue = MemberAccess.GetMember(target, memberName, false, context);
+        if (currentValue != null)
+            return currentValue;
+        MemberAccess.SetMember(target, memberName, value, context);
+        return value;
+    }
+
+    public static object? ApplyIndexNullCoalesceAssign(
+        object? target,
+        object? index,
+        object? value,
+        AlderContext context)
+    {
+        target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
+        var currentValue = MemberAccess.GetIndex(target, index, context);
+        if (currentValue != null)
+            return currentValue;
+        MemberAccess.SetIndex(target, index, value, context);
+        return value;
+    }
+
+    public static object? ApplyMemberIncrement(
+        object? target,
+        string memberName,
+        bool isIncrement,
+        bool isPrefix,
+        AlderContext context,
+        bool isChecked)
+    {
+        target = ExecutionRuntime.EnsureMemberTargetNotNull(target, memberName);
+        var currentValue = MemberAccess.GetMember(target, memberName, false, context);
+        var one = GetNumericOne(currentValue);
+        var newValue = isIncrement
+            ? Operators.Add(currentValue, one, context.Config, isChecked)
+            : Operators.Subtract(currentValue, one, isChecked);
+        newValue = NarrowToOriginalType(currentValue, newValue);
+        MemberAccess.SetMember(target, memberName, newValue, context);
+        return isPrefix ? newValue : currentValue;
+    }
+
+    public static object? ApplyIndexIncrement(
+        object? target,
+        object? index,
+        bool isIncrement,
+        bool isPrefix,
+        AlderContext context,
+        bool isChecked)
+    {
+        target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
+        var currentValue = MemberAccess.GetIndex(target, index, context);
+        var one = GetNumericOne(currentValue);
+        var newValue = isIncrement
+            ? Operators.Add(currentValue, one, context.Config, isChecked)
+            : Operators.Subtract(currentValue, one, isChecked);
+        newValue = NarrowToOriginalType(currentValue, newValue);
+        MemberAccess.SetIndex(target, index, newValue, context);
+        return isPrefix ? newValue : currentValue;
+    }
+
+    public static object? ApplyCompoundAssignLocal(
+        string name,
+        object? currentValue,
+        TokenType compoundOperator,
+        object? rightValue,
+        Type variableType,
+        AlderContext context,
+        bool isChecked)
+    {
+        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, context, isChecked);
+        return ValidateCompoundAssignmentLocal(result, rightValue, variableType);
+    }
+
+    public static object? ApplyIncrementDecrementLocal(
+        string name,
+        object? currentValue,
+        bool isIncrement,
+        Type variableType,
+        AlderContext context,
+        bool isChecked)
+    {
+        var one = GetNumericOne(currentValue);
+        var newValue = isIncrement
+            ? Operators.Add(currentValue, one, context.Config, isChecked)
+            : Operators.Subtract(currentValue, one, isChecked);
+        return NarrowToType(newValue!, variableType);
+    }
+
+    public static object? ValidateVariableAssignmentLocal(string name, object? value, Type variableType)
+    {
+        if (value != null)
+            return TypeHelpers.ValidateAssignment(variableType, value, name, isConstantExpression: false);
+
+        return value;
+    }
+
+    private static object? ValidateCompoundAssignmentLocal(object? result, object? rightValue, Type variableType)
+        => ValidateCompoundAssignmentCore(result, rightValue, variableType);
+
+    private static object? NarrowIncrementResult(string name, object? newValue, AlderContext context)
+    {
+        if (newValue == null || !context.TryGetVariableType(name, out var varType) || varType == null)
+            return newValue;
+
+        return NarrowToType(newValue, varType);
+    }
+
+    private static object? NarrowToOriginalType(object? originalValue, object? newValue)
+    {
+        if (originalValue == null || newValue == null)
+            return newValue;
+
+        var originalType = originalValue.GetType();
+        if (newValue.GetType() == originalType)
+            return newValue;
+
+        return NarrowToType(newValue, originalType);
+    }
+
+    private static object? NarrowToType(object newValue, Type targetType)
+    {
+        if (newValue.GetType() == targetType)
+            return newValue;
+
+        var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        if (!TypeHelpers.IsArithmetic(underlying))
+            return newValue;
+
+        try
+        {
+            return Convert.ChangeType(newValue, underlying);
+        }
+        catch (Exception ex) when (ex is InvalidCastException or OverflowException)
+        {
+            throw new AlderException(DiagnosticDescriptors.NoImplicitConversion, newValue.GetType().Name, targetType.Name);
+        }
+    }
+
+    private static TokenType ResolveCompoundBaseOperator(TokenType compoundOperator)
+    {
+        if (OperatorRegistry.CompoundToBaseOperator.TryGetValue(compoundOperator, out var baseOperator))
+            return baseOperator;
+
+        throw new AlderException(DiagnosticDescriptors.UnknownCompoundAssignmentOperator, TokenLexemes.GetCanonical(compoundOperator));
+    }
+
+    private static object? ApplyBinaryOperator(
+        TokenType operatorType,
+        object? left,
+        object? right,
+        AlderContext context,
+        bool isChecked)
+    {
+        return operatorType switch
+        {
+            TokenType.Plus => Operators.Add(left, right, context.Config, isChecked),
+            TokenType.Minus => Operators.Subtract(left, right, isChecked),
+            TokenType.Star => Operators.Multiply(left, right, isChecked),
+            TokenType.Slash => Operators.Divide(left, right),
+            TokenType.Percent => Operators.Modulo(left, right),
+            TokenType.EqualEqual => Operators.Equals(left, right),
+            TokenType.BangEqual => Operators.NotEquals(left, right),
+            TokenType.EqualEqualEqual => Operators.StrictEquals(left, right),
+            TokenType.BangEqualEqual => Operators.StrictNotEquals(left, right),
+            TokenType.Less => Operators.LessThan(left, right, context.Config.StringComparison),
+            TokenType.LessEqual => Operators.LessThanOrEqual(left, right, context.Config.StringComparison),
+            TokenType.Greater => Operators.GreaterThan(left, right, context.Config.StringComparison),
+            TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, context.Config.StringComparison),
+            TokenType.Amp => Operators.BitwiseAnd(left, right),
+            TokenType.Pipe => Operators.BitwiseOr(left, right),
+            TokenType.Caret => Operators.BitwiseXor(left, right),
+            TokenType.LessLess => Operators.LeftShift(left, right),
+            TokenType.GreaterGreater => Operators.RightShift(left, right),
+            TokenType.GreaterGreaterGreater => Operators.UnsignedRightShift(left, right),
+            TokenType.StarStar => Operators.Power(left, right),
+            _ => throw new AlderException(DiagnosticDescriptors.UnknownCompoundAssignmentOperator, operatorType)
+        };
+    }
+
+    public static object? ValidateCompoundAssignment(string name, object? result, object? rightValue, AlderContext context)
+    {
+        if (!context.TryGetVariableType(name, out var varType) || varType == null)
+            return result;
+
+        return ValidateCompoundAssignmentCore(result, rightValue, varType);
+    }
+
+    private static object? ValidateCompoundAssignmentCore(object? result, object? rightValue, Type variableType)
+    {
+        if (result == null)
+            return result;
+
+        var resultType = result.GetType();
+        if (resultType == variableType)
+            return result;
+
+        var underlyingVarType = Nullable.GetUnderlyingType(variableType) ?? variableType;
+        var rightType = rightValue?.GetType();
+        var rhsConvertible = rightType == null || rightType == variableType ||
+                             TypeHelpers.CanImplicitlyConvert(rightType, underlyingVarType) ||
+                             IsConstantExpressionConvertible(rightValue, rightType, underlyingVarType);
+        var resultConvertible = TypeHelpers.CanImplicitlyConvert(resultType, underlyingVarType);
+
+        if (!resultConvertible && !rhsConvertible)
+            throw new AlderException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, variableType.Name);
+
+        try
+        {
+            return TypeHelpers.RuntimeCast(result, resultType, underlyingVarType);
+        }
+        catch (Exception ex) when (ex is InvalidCastException or OverflowException)
+        {
+            throw new AlderException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, variableType.Name);
+        }
+    }
+
+    private static bool IsConstantExpressionConvertible(object? value, Type? sourceType, Type targetType)
+    {
+        if (value == null || sourceType != typeof(int))
+            return false;
+
+        var intVal = (int)value;
+
+        if (targetType == typeof(sbyte)) return intVal is >= sbyte.MinValue and <= sbyte.MaxValue;
+        if (targetType == typeof(byte)) return intVal is >= byte.MinValue and <= byte.MaxValue;
+        if (targetType == typeof(short)) return intVal is >= short.MinValue and <= short.MaxValue;
+        if (targetType == typeof(ushort)) return intVal is >= ushort.MinValue and <= ushort.MaxValue;
+        if (targetType == typeof(uint) || targetType == typeof(ulong)) return intVal >= 0;
+        if (targetType == typeof(char)) return intVal is >= char.MinValue and <= char.MaxValue;
+
+        return false;
+    }
+}

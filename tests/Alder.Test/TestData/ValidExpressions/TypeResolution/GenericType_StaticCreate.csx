@@ -1,0 +1,1 @@
+Comparer<int>.Create((a, b) => b.CompareTo(a)).Compare(3, 5)

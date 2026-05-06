@@ -1,0 +1,61 @@
+using Alder.Binding;
+using Alder.Binding.BoundNodes;
+using Alder.Runtime;
+
+namespace Alder.Interpretation.Evaluators;
+
+[EvaluatesNode(BoundNodeKind.CollectionCreation)]
+internal static class CollectionCreationEvaluator
+{
+    public static object? Evaluate(BoundCollectionCreationExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var values = new List<object?>(node.Elements.Length);
+        foreach (var element in node.Elements)
+        {
+            if (element is BoundSpreadExpr spread)
+            {
+                var spreadValue = ctx.Evaluate(spread.Expression, ct);
+                CollectionFactory.SpreadIntoList(values, spreadValue);
+            }
+            else
+            {
+                values.Add(ctx.Evaluate(element, ct));
+            }
+        }
+
+        return node.CollectionKind switch
+        {
+            CollectionKind.Array => RuntimeArrayFactory.CreateFromValues(node.ElementType, values),
+            CollectionKind.InferredArray => RuntimeArrayFactory.InferAndCreateArray(values),
+            CollectionKind.TargetTypedCollection => CollectionFactory.Create(
+                node.TargetCollectionType!, node.ElementType, values, ctx.Context.Config),
+            _ => throw new InvalidOperationException()
+        };
+    }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundCollectionCreationExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var values = new List<object?>(node.Elements.Length);
+        foreach (var element in node.Elements)
+        {
+            if (element is BoundSpreadExpr spread)
+            {
+                var spreadValue = await ctx.EvaluateAsync(spread.Expression, ct);
+                CollectionFactory.SpreadIntoList(values, spreadValue);
+            }
+            else
+            {
+                values.Add(await ctx.EvaluateAsync(element, ct));
+            }
+        }
+
+        return node.CollectionKind switch
+        {
+            CollectionKind.Array => RuntimeArrayFactory.CreateFromValues(node.ElementType, values),
+            CollectionKind.InferredArray => RuntimeArrayFactory.InferAndCreateArray(values),
+            CollectionKind.TargetTypedCollection => CollectionFactory.Create(
+                node.TargetCollectionType!, node.ElementType, values, ctx.Context.Config),
+            _ => throw new InvalidOperationException()
+        };
+    }
+}

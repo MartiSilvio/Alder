@@ -1,0 +1,2 @@
+int.TryParse("42", out var result);
+return result;

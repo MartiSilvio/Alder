@@ -1,0 +1,3 @@
+int x = 1;
+x <<= 4;
+return x;

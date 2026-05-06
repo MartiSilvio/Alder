@@ -1,0 +1,1 @@
+var skipped = 0; var processed = 0; foreach (var item in new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }) { if (item <= 5) { skipped = skipped + 1; continue; } processed = processed + 1; } return skipped * 100 + processed;

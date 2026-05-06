@@ -1,0 +1,1 @@
+nameof(System.Console.WriteLine)

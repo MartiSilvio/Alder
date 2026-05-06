@@ -1,0 +1,4 @@
+return """
+    alpha
+    beta
+    """;

@@ -1,0 +1,1 @@
+var funcs = new List<Func<int>>(); foreach (var i in new[] { 1, 2 }) { foreach (var j in new[] { 10, 20 }) { var ci = i; var cj = j; funcs.Add(() => ci * cj); } } return funcs[0]() + funcs[1]() + funcs[2]() + funcs[3]();

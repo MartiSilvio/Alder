@@ -1,8 +1,6 @@
-# CsEval Benchmarks
+# Alder Benchmarks
 
-Performance benchmarks for CsEval using [BenchmarkDotNet](https://benchmarkdotnet.org/).
-
-For full documentation, see [docs/benchmarks.md](../docs/benchmarks.md).
+Performance benchmarks for Alder using [BenchmarkDotNet](https://benchmarkdotnet.org/).
 
 ## Quick Start
 
@@ -10,15 +8,13 @@ For full documentation, see [docs/benchmarks.md](../docs/benchmarks.md).
 dotnet run -c Release
 ```
 
-**Important**: Always run in Release mode for accurate results.
+Always run in `Release` mode for meaningful measurements.
 
 ## Available Suites
 
-- `StandardBenchmarks` - Classic language benchmarks (Fibonacci, Collatz, etc.)
-- `CsEvalBenchmarks` - Parse/evaluate timing
-- `LinqBenchmarks` - LINQ operations at different sizes
-- `PropertyAccessBenchmarks` - Compiled getter performance
-- `BlockExpressionBenchmarks` - Control flow (loops, conditionals)
+- **ComparableExecutionBenchmarks** — Warm execution of pre-prepared expressions across Alder interpreted, Alder compiled, Roslyn script compiled runner, NCalc, and native delegate baseline.
+- **ColdStartComparableBenchmarks** — End-to-end cold path (engine creation + evaluation per invocation) across Alder interpreted, Alder compiled, Roslyn scripting, and NCalc.
+- **AdvancedLanguageBenchmarks** — Realistic control flow and LINQ-heavy expressions. Alder interpreted vs Alder compiled vs Roslyn script compiled runner.
 
 ## Examples
 
@@ -26,12 +22,19 @@ dotnet run -c Release
 # All benchmarks
 dotnet run -c Release -- --filter *
 
-# Specific suite
-dotnet run -c Release -- --filter *StandardBenchmarks*
+# Warm comparable suite
+dotnet run -c Release -- --filter *ComparableExecutionBenchmarks*
 
-# Specific benchmark
-dotnet run -c Release -- --filter *Fibonacci*
+# Cold-start only
+dotnet run -c Release -- --filter *ColdStartComparableBenchmarks*
 
-# Export results
-dotnet run -c Release -- --filter * --exporters json
+# Export markdown + json
+dotnet run -c Release -- --filter * --exporters markdown,json
 ```
+
+## Guardrails
+
+- Scenario parity is validated during benchmark setup.
+- Benchmarks use fixed deterministic input data.
+- Cross-engine comparisons are limited to capability-overlap scenarios.
+- Advanced suites are Alder-vs-Roslyn only where NCalc lacks feature parity.

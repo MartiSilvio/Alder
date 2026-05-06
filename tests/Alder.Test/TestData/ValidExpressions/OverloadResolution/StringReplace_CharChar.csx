@@ -1,0 +1,1 @@
+"hello".Replace('l', 'r')

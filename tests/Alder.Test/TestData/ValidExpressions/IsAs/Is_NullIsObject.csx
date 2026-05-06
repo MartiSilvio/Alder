@@ -1,0 +1,2 @@
+object x = null;
+return x is object;

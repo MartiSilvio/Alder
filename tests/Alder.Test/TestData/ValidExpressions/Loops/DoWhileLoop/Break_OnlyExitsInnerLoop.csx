@@ -1,0 +1,1 @@
+var outerCount = 0; var totalInner = 0; var i = 0; do { var j = 0; do { if (j == 2) { break; } totalInner = totalInner + 1; j = j + 1; } while (j < 10); outerCount = outerCount + 1; i = i + 1; } while (i < 3); return outerCount * 100 + totalInner;

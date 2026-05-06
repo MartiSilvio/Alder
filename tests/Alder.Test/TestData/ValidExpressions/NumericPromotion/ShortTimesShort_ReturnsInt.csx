@@ -1,0 +1,1 @@
+(short)3 * (short)4

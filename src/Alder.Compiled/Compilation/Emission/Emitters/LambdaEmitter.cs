@@ -1,0 +1,34 @@
+using Alder.Binding;
+using Alder.Binding.BoundNodes;
+using Alder.Compilation;
+using Alder.Parsing;
+using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
+
+namespace Alder.Compiled.Compilation.Emission.Emitters;
+
+[EmitsNode(BoundNodeKind.Lambda)]
+internal static class LambdaEmitter
+{
+    public static LinqExpression Emit(BoundLambdaExpr node, EmissionContext ctx)
+    {
+        var parameters = LinqExpression.NewArrayInit(
+            typeof(string),
+            node.Parameters.Select(static name => LinqExpression.Constant(name)));
+
+        if (node.ReturnTypeName != null)
+        {
+            return LinqExpression.Call(
+                CreateIteratorLambdaValueMethod,
+                parameters,
+                LinqExpression.Constant(node.Body, typeof(Expr)),
+                ctx.ContextParam,
+                LinqExpression.Constant(node.ReturnTypeName));
+        }
+
+        return LinqExpression.Call(
+            CreateLambdaValueMethod,
+            parameters,
+            LinqExpression.Constant(node.Body, typeof(Expr)),
+            ctx.ContextParam);
+    }
+}

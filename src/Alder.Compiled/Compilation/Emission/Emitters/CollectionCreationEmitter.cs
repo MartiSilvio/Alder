@@ -1,0 +1,61 @@
+using Alder.Binding;
+using Alder.Binding.BoundNodes;
+using Alder.Compilation;
+using Alder.Runtime;
+using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
+
+namespace Alder.Compiled.Compilation.Emission.Emitters;
+
+[EmitsNode(BoundNodeKind.CollectionCreation)]
+internal static class CollectionCreationEmitter
+{
+    public static LinqExpression Emit(BoundCollectionCreationExpr node, EmissionContext ctx)
+    {
+        var hasSpread = node.Elements.Any(static e => e is BoundSpreadExpr);
+        if (node.CollectionKind == CollectionKind.Array && !hasSpread)
+        {
+            var elements = node.Elements.Select(
+                element => EmitHelpers.EnsureTypedExpression(ctx.Emit(element), node.ElementType));
+            return LinqExpression.NewArrayInit(node.ElementType, elements);
+        }
+
+        var listVar = LinqExpression.Variable(typeof(List<object?>), "items");
+        var statements = new List<LinqExpression>
+        {
+            LinqExpression.Assign(listVar, LinqExpression.New(ListCtor))
+        };
+
+        foreach (var element in node.Elements)
+        {
+            if (element is BoundSpreadExpr spread)
+            {
+                statements.Add(LinqExpression.Call(
+                    SpreadIntoListMethod, listVar, ctx.EmitBoxed(spread.Expression)));
+            }
+            else
+            {
+                statements.Add(LinqExpression.Call(listVar, ListAddMethod, ctx.EmitBoxed(element)));
+            }
+        }
+
+        switch (node.CollectionKind)
+        {
+            case CollectionKind.Array:
+                statements.Add(LinqExpression.Call(CreateFromValuesMethod, LinqExpression.Constant(node.ElementType), listVar));
+                break;
+            case CollectionKind.InferredArray:
+                statements.Add(LinqExpression.Call(InferAndCreateArrayMethod, listVar));
+                break;
+            case CollectionKind.TargetTypedCollection:
+                statements.Add(LinqExpression.Call(
+                    CollectionFactoryCreateMethod,
+                    LinqExpression.Constant(node.TargetCollectionType!),
+                    LinqExpression.Constant(node.ElementType),
+                    listVar,
+                    LinqExpression.Convert(ctx.ConfigParam, typeof(AlderConfig))));
+                break;
+        }
+
+        return LinqExpression.Block(typeof(object), [listVar], statements);
+    }
+}

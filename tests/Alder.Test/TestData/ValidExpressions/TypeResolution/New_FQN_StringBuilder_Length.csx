@@ -1,0 +1,1 @@
+new System.Text.StringBuilder("hello").Length

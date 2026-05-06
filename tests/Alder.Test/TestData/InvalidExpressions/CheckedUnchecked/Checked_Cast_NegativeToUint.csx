@@ -1,0 +1,1 @@
+checked((uint)-1)

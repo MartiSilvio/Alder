@@ -1,0 +1,1 @@
+double.PositiveInfinity == double.PositiveInfinity

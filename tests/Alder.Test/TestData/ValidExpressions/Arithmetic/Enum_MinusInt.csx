@@ -1,0 +1,1 @@
+DayOfWeek.Friday - 2

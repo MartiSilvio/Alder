@@ -1,0 +1,5 @@
+// Parenthesized assignment with compound operator
+var x = 10;
+(x) = x + 5;
+(x) = x * 2;
+return x;

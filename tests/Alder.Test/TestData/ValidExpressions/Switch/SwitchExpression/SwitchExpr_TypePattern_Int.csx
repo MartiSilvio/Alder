@@ -1,0 +1,1 @@
+{ object x = 5; return x switch { int i => i * 2, string s => s.Length, _ => -1 }; }

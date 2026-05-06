@@ -1,0 +1,5 @@
+return """
+    first
+
+    third
+    """;
