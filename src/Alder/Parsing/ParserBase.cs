@@ -65,9 +65,13 @@ internal sealed class ParserState
 /// </summary>
 internal abstract class ParserBase
 {
+    // Fixed cap keeps CS8078 deterministic across platforms (Linux's larger thread stack
+    // accepts deeper parses than Windows). The stack probe above 20 covers tight-stack hosts.
+    private protected const int MaxParserRecursionDepth = 1024;
     private protected const int MaxUncheckedRecursionDepth = 20;
 
     private protected readonly ParserState State;
+    private int _typeNameRecursionDepth;
 
     internal LanguageMode LanguageMode => State.LanguageMode;
 
@@ -288,8 +292,28 @@ internal abstract class ParserBase
 
     internal string? TryParseTypeName(out IReadOnlyList<string?>? tupleElementNames)
     {
+        _typeNameRecursionDepth++;
+        var snapshot = State.Current;
+        try
+        {
+            if (_typeNameRecursionDepth > MaxParserRecursionDepth)
+                throw SyntaxError(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
+            if (_typeNameRecursionDepth > MaxUncheckedRecursionDepth)
+                System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack();
+            var result = TryParseTypeNameCore(out tupleElementNames);
+            if (result == null)
+                State.Current = snapshot;
+            return result;
+        }
+        finally
+        {
+            _typeNameRecursionDepth--;
+        }
+    }
+
+    private string? TryParseTypeNameCore(out IReadOnlyList<string?>? tupleElementNames)
+    {
         tupleElementNames = null;
-        System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack();
 
         string name;
         if (IsTypeKeyword(Peek().Type))
@@ -309,7 +333,9 @@ internal abstract class ParserBase
         }
         else if (Check(TokenType.LeftParen))
         {
-            // Tuple type: (int, string), (int x, string[] y)
+            // Tuple type: (int, string), (int x, string[] y).
+            // The outer Try-snapshot rolls the cursor back if this branch fails to find a comma
+            // before the closing paren — so we can speculatively descend without lookahead.
             Advance(); // consume (
 
             var firstElementType = TryParseTypeName();

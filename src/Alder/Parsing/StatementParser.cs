@@ -11,6 +11,7 @@ internal sealed class StatementParser : ParserBase
     private ExpressionParser _expression = null!;
     private PatternParser _pattern = null!;
     private readonly List<Expr> _pendingDecls = [];
+    private int _recursionDepth;
 
     internal StatementParser(ParserState state) : base(state)
     {
@@ -108,6 +109,23 @@ internal sealed class StatementParser : ParserBase
     }
 
     internal Expr? ParseStatement()
+    {
+        _recursionDepth++;
+        try
+        {
+            if (_recursionDepth > MaxParserRecursionDepth)
+                throw SyntaxError(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
+            if (_recursionDepth > MaxUncheckedRecursionDepth)
+                System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack();
+            return ParseStatementCore();
+        }
+        finally
+        {
+            _recursionDepth--;
+        }
+    }
+
+    private Expr? ParseStatementCore()
     {
         if (Match(TokenType.Semicolon))
             return null;

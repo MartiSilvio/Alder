@@ -163,10 +163,13 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseSubExpression(Precedence minPrecedence)
     {
-        if (++_recursionDepth > MaxUncheckedRecursionDepth)
-            System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack();
+        _recursionDepth++;
         try
         {
+            if (_recursionDepth > MaxParserRecursionDepth)
+                throw SyntaxError(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
+            if (_recursionDepth > MaxUncheckedRecursionDepth)
+                System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack();
             return ParseSubExpressionCore(minPrecedence);
         }
         finally

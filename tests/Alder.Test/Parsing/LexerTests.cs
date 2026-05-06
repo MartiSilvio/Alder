@@ -255,6 +255,26 @@ public class LexerTests
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8997));
     }
 
+    [Test]
+    public void Tokenize_RawMultilineString_CRLF_ReturnsStringToken()
+    {
+        var lexer = new Lexer("\"\"\"\r\n    alpha\r\n    beta\r\n    \"\"\"");
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.String));
+        Assert.That(tokens[0].Literal, Is.EqualTo("alpha\r\nbeta"));
+    }
+
+    [Test]
+    public void Tokenize_RawInterpolatedMultilineString_CRLF_ReturnsInterpolatedStringToken()
+    {
+        var lexer = new Lexer("$\"\"\"\r\n    line1\r\n    hello, {name}\r\n    line3\r\n    \"\"\"");
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.InterpolatedString));
+        Assert.That(tokens[0].Literal, Is.EqualTo("line1\r\nhello, {name}\r\nline3"));
+    }
+
     [TestCase(@"$""Hello\tWorld""", "Hello\tWorld", TestName = "InterpolatedTabEscape")]
     [TestCase(@"$""Line1\nLine2""", "Line1\nLine2", TestName = "InterpolatedNewlineEscape")]
     [TestCase(@"$""Bell\a""", "Bell\a", TestName = "InterpolatedAlertEscape")]

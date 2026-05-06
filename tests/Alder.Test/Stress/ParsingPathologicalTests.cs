@@ -8,13 +8,18 @@ namespace Alder.Test.Stress;
 public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mode)
 {
     [Test]
-    public void DeeplyNestedParentheses_ShouldNotCrashProcess()
+    public void DeeplyNestedParentheses_AboveExplicitLimit_ThrowsManagedDiagnostic()
     {
-        // 2000 nested parens exceed the parser's recursion depth limit.
-        // The parser throws InsufficientExecutionStackException, which the engine
-        // converts to a managed AlderException — no native crash.
-        var depth = 2000;
-        var expression = GenerateDeeplyNestedExpression(depth, "1 + 1");
+        var expression = GenerateDeeplyNestedExpression(1100, "1 + 1");
+
+        var ex = Assert.Throws<AlderException>(() => Engine.Parse(expression));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8078));
+    }
+
+    [Test]
+    public void DeeplyNestedBlocks_AboveExplicitLimit_ThrowsManagedDiagnostic()
+    {
+        var expression = GenerateDeeplyNestedBlocks(1100);
 
         var ex = Assert.Throws<AlderException>(() => Engine.Parse(expression));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8078));
@@ -92,5 +97,16 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
                 Assert.Fail($"Parser threw an unexpected exception for fuzz input at index {i}.");
             }
         }
+    }
+
+    private static string GenerateDeeplyNestedBlocks(int depth)
+    {
+        var sb = new StringBuilder();
+        for (var i = 0; i < depth; i++)
+            sb.Append('{');
+        sb.Append("1;");
+        for (var i = 0; i < depth; i++)
+            sb.Append('}');
+        return sb.ToString();
     }
 }

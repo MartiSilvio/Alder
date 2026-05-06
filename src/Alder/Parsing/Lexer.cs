@@ -547,12 +547,10 @@ internal sealed class Lexer
             openQuotes++;
         }
 
-        var isMultiLine = Peek() == '\n';
+        var isMultiLine = IsLineBreakStart();
         if (isMultiLine)
         {
-            _line++;
-            _column = 0;
-            Advance();
+            ConsumeLineBreak();
         }
 
         var sb = new StringBuilder();
@@ -579,13 +577,13 @@ internal sealed class Lexer
             }
             else
             {
-                if (Peek() == '\n')
+                if (IsLineBreakStart())
                 {
                     if (!isMultiLine)
                         throw LexError(DiagnosticDescriptors.UnterminatedRawStringLiteral,
                             $"Unterminated raw string literal at {_line}:{_column}");
-                    _line++;
-                    _column = 0;
+                    sb.Append(ConsumeLineBreak());
+                    continue;
                 }
                 sb.Append(Peek());
                 Advance();
@@ -596,7 +594,7 @@ internal sealed class Lexer
             throw LexError(DiagnosticDescriptors.UnterminatedRawStringLiteral, $"Unterminated raw string literal at {_line}:{_column}");
 
         if (isMultiLine)
-            AddToken(TokenType.String, StripRawStringIndentation(sb.ToString(), openQuotes));
+            AddToken(TokenType.String, StripRawStringIndentation(sb.ToString()));
         else
             AddToken(TokenType.String, sb.ToString());
     }
@@ -611,12 +609,10 @@ internal sealed class Lexer
             openQuotes++;
         }
 
-        var isMultiLine = Peek() == '\n';
+        var isMultiLine = IsLineBreakStart();
         if (isMultiLine)
         {
-            _line++;
-            _column = 0;
-            Advance();
+            ConsumeLineBreak();
         }
 
         var sb = new StringBuilder();
@@ -688,13 +684,13 @@ internal sealed class Lexer
             }
             else
             {
-                if (Peek() == '\n')
+                if (IsLineBreakStart())
                 {
                     if (!isMultiLine)
                         throw LexError(DiagnosticDescriptors.UnterminatedRawStringLiteral,
                             $"Unterminated raw interpolated string at {_line}:{_column}");
-                    _line++;
-                    _column = 0;
+                    sb.Append(ConsumeLineBreak());
+                    continue;
                 }
                 sb.Append(Peek());
                 Advance();
@@ -704,73 +700,114 @@ internal sealed class Lexer
         if (!closed)
             throw LexError(DiagnosticDescriptors.UnterminatedRawStringLiteral, $"Unterminated raw interpolated string at {_line}:{_column}");
 
-        var content = isMultiLine ? StripRawStringIndentation(sb.ToString(), openQuotes) : sb.ToString();
+        var content = isMultiLine ? StripRawStringIndentation(sb.ToString()) : sb.ToString();
         AddToken(TokenType.InterpolatedString, content);
     }
 
-    private static string StripRawStringIndentation(string content, int quoteCount)
+    private static string StripRawStringIndentation(string content)
     {
-        // C# 11 multi-line raw string rules:
-        // - The content between opening newline and closing """ has common indentation stripped
-        // - The indentation is determined by the whitespace before the closing """
-        // - The trailing newline before closing """ is removed
-
-        // Content includes everything after the opening newline up to (but not including) closing quotes.
-        // The last line of content is the line before the closing quotes. Its trailing newline was included.
-        // Remove that trailing newline.
-        if (content.EndsWith("\r\n"))
-            content = content[..^2];
-        else if (content.EndsWith("\n"))
-            content = content[..^1];
-
         if (content.Length == 0)
             return string.Empty;
 
-        // Find the indentation of the last line (which was the line before closing quotes).
-        // In our case, the closing quotes consumed the last line's content, so we need to
-        // look at the whitespace prefix of the last line in the remaining content.
-        var lastNewline = content.LastIndexOf('\n');
-        var lastLine = lastNewline >= 0 ? content[(lastNewline + 1)..] : content;
+        var closingLineStart = FindLastLineStart(content);
+        var closingIndent = content[closingLineStart..];
 
-        var indent = 0;
-        while (indent < lastLine.Length && lastLine[indent] is ' ' or '\t')
-            indent++;
-
-        // If the last line is only whitespace, it defines the indentation to strip and is removed
-        if (indent == lastLine.Length && lastNewline >= 0)
-        {
-            content = content[..lastNewline];
-            if (indent == 0)
-                return content;
-        }
-        else
-        {
-            indent = 0;
-        }
-
-        if (indent == 0)
+        if (!IsWhitespaceOnly(closingIndent))
             return content;
 
-        // Strip common indentation from each line
-        var indentPrefix = lastLine[..indent];
-        var lines = content.Split('\n');
-        var sb = new StringBuilder();
-        for (var i = 0; i < lines.Length; i++)
-        {
-            var line = lines[i];
-            if (line.EndsWith("\r"))
-                line = line[..^1];
+        var bodyEnd = closingLineStart;
+        if (bodyEnd > 0 && content[bodyEnd - 1] == '\n')
+            bodyEnd--;
+        if (bodyEnd > 0 && content[bodyEnd - 1] == '\r')
+            bodyEnd--;
 
-            if (line.StartsWith(indentPrefix))
-                sb.Append(line[indent..]);
+        var body = content[..bodyEnd];
+        if (closingIndent.Length == 0)
+            return body;
+
+        var sb = new StringBuilder();
+        var index = 0;
+        while (index < body.Length)
+        {
+            var lineEnd = FindLineBreak(body, index);
+            var line = lineEnd >= 0 ? body[index..lineEnd] : body[index..];
+            if (line.StartsWith(closingIndent, StringComparison.Ordinal))
+                sb.Append(line[closingIndent.Length..]);
             else
                 sb.Append(line);
 
-            if (i < lines.Length - 1)
-                sb.Append('\n');
+            if (lineEnd < 0)
+                break;
+
+            var next = AppendLineBreak(body, lineEnd, sb);
+            index = next;
         }
 
         return sb.ToString();
+    }
+
+    private bool IsLineBreakStart() =>
+        Peek() == '\n' || Peek() == '\r';
+
+    private string ConsumeLineBreak()
+    {
+        if (Peek() == '\r')
+        {
+            Advance();
+            if (Peek() == '\n')
+            {
+                Advance();
+                _line++;
+                _column = 1;
+                return "\r\n";
+            }
+
+            _line++;
+            _column = 1;
+            return "\r";
+        }
+
+        Advance();
+        _line++;
+        _column = 1;
+        return "\n";
+    }
+
+    private static int FindLastLineStart(string value)
+    {
+        for (var i = value.Length - 1; i >= 0; i--)
+        {
+            if (value[i] is '\r' or '\n')
+                return i + 1;
+        }
+
+        return 0;
+    }
+
+    private static bool IsWhitespaceOnly(string value) =>
+        value.All(static c => c is ' ' or '\t');
+
+    private static int FindLineBreak(string value, int start)
+    {
+        for (var i = start; i < value.Length; i++)
+        {
+            if (value[i] is '\r' or '\n')
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static int AppendLineBreak(string value, int index, StringBuilder sb)
+    {
+        if (value[index] == '\r' && index + 1 < value.Length && value[index + 1] == '\n')
+        {
+            sb.Append("\r\n");
+            return index + 2;
+        }
+
+        sb.Append(value[index]);
+        return index + 1;
     }
 
     private void ScanVerbatimString()
