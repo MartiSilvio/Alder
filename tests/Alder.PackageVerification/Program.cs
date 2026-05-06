@@ -56,7 +56,7 @@ static PackageInfo VerifyPackageContents(string packagePath)
         "lib/netstandard2.0/Alder.dll",
         "lib/net8.0/Alder.Compiled.dll",
         "analyzers/dotnet/cs/Alder.Generators.dll",
-        "README.md",
+        "NUGET.md",
         "alder-icon.png",
     ];
 
@@ -87,9 +87,9 @@ static PackageInfo VerifyPackageContents(string packagePath)
     RequireDescriptionContains(description, "security policy");
     RequireDescriptionContains(description, "expression-tree export");
     RequireDescriptionContains(description, "NativeAOT generated dispatch");
-    Require(RequiredElementValue(metadata, ns, "readme") == "README.md", "Package readme metadata must point to README.md.");
+    Require(RequiredElementValue(metadata, ns, "readme") == "NUGET.md", "Package readme metadata must point to NUGET.md.");
     Require(RequiredElementValue(metadata, ns, "icon") == "alder-icon.png", "Package icon metadata must point to alder-icon.png.");
-    Require(RequiredElementValue(metadata, ns, "releaseNotes") == "Initial 1.0.0 release.", "Package release notes metadata is incorrect.");
+    Require(RequiredElementValue(metadata, ns, "releaseNotes") == "Packaging polish: Source Link integration, dedicated NuGet readme, cleaned up package tags.", "Package release notes metadata is incorrect.");
     Require(RequiredElementValue(metadata, ns, "copyright") == "Copyright © Silvio Martignetti", "Package copyright metadata is incorrect.");
 
     var tags = RequiredElementValue(metadata, ns, "tags")
@@ -98,7 +98,6 @@ static PackageInfo VerifyPackageContents(string packagePath)
     string[] requiredTags =
     [
         "csharp",
-        "c-sharp",
         "expressions",
         "expression-evaluator",
         "expression-runtime",
@@ -108,9 +107,12 @@ static PackageInfo VerifyPackageContents(string packagePath)
         "rules-engine",
         "dynamic-linq",
         "linq",
+        "query",
+        "interpreter",
+        "compiler",
         "security-policy",
-        "safe-evaluation",
         "nativeaot",
+        "aot",
         "source-generator",
         "dotnet",
     ];
