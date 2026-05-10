@@ -36,6 +36,20 @@ Unknown static type remains explicit. Alder does not collapse it into `object` f
 
 Dynamic binding is the execution path for operations that need runtime values before the final target can be selected.
 
+```mermaid
+flowchart LR
+    Syntax["Parsed operation"] --> Evidence["Target type, argument types, conversions, registrations"]
+    Evidence --> Decision{"Selection deterministic?"}
+    Decision -->|Yes| Resolved["Resolved call, member, index, or conversion"]
+    Decision -->|No| Dynamic["Dynamic bound node"]
+    Decision -->|Proven invalid| Diagnostic["Binding diagnostic"]
+    Resolved --> Tree["Bound tree"]
+    Dynamic --> Tree
+    Tree --> Execute["Execution"]
+    Dynamic -.-> Runtime["Runtime dispatch uses actual values during execution"]
+    Runtime --> Execute
+```
+
 If the target type, argument types, and available conversions make an operation deterministic, Alder binds it as resolved. If they do not, Alder preserves a dynamic form and lets runtime dispatch decide against the actual values involved. That usually occurs with `object`-typed values, open runtime-shaped targets, or member access where runtime shape governs the target.
 
 This split is fundamental to the engine's binding contract. Alder does not guess when static information is inconclusive; it records the operation as dynamic.

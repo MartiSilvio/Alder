@@ -7,7 +7,7 @@ description: The C# syntax Alder supports in Standard mode for runtime expressio
 
 Standard mode is Alder's default language mode. It evaluates C# expressions and statement blocks with C# semantics for binding, conversions, overload resolution, member access, control flow, lambdas, query expressions, pattern matching, and CLR type interaction.
 
-The supported syntax is scoped to code that runs inside an embeddable C# expression runtime: expressions, statement blocks, local state, calls into exposed CLR objects, and control flow over host-provided data. It is suitable for stored rules, formulas, policy checks, configurable calculations, runtime filters, and application scripting points that benefit from C# semantics.
+The supported syntax is scoped to code that runs inside an embeddable C# expression engine: expressions, statement blocks, local state, calls into exposed CLR objects, and control flow over host-provided data. It is suitable for stored rules, formulas, policy checks, configurable calculations, runtime filters, and application scripting points that benefit from C# semantics.
 
 At runtime, Alder binds Standard-mode code against the current host context: variables, registered functions, modules, type registrations, and extension-method containers. Security policy validates the bound operations, and execution constraints govern runtime work. Strongly typed inputs produce earlier diagnostics and more precise overload selection; object-shaped inputs preserve runtime flexibility. The same bound semantics feed interpreted execution, async execution, optional compiled execution, and AOT metadata-backed dispatch, while backend-specific pages document narrower execution, export, and deployment surfaces.
 

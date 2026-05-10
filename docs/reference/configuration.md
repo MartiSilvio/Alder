@@ -23,7 +23,7 @@ Configuration is materialized once, at engine construction time. Mutating the or
 
 - `IsCaseSensitive`: controls name matching for registered functions, modules, and relevant runtime member lookup.
 - `LanguageMode`: selects the accepted language surface, such as `Standard` or `Extended`.
-- `Security`: defines the security policy used during validation and execution.
+- `Security`: defines the security policy used during validation and execution. The default is trusted execution for adoption simplicity; hosts evaluating user-authored or tenant-authored expressions should set this explicitly.
 - `Constraints`: sets runtime limits such as statement count, loop iterations, and timeout.
 - `ExpressionCompiler`: selects the delegate compiler used by compiled execution.
 - `ServiceProvider`: supplies module instances through dependency injection.

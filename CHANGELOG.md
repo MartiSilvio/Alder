@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.0.2 - 2026-05-09
+
+### Breaking changes
+
+- Removed the predefined `SecurityOptions.Safe()` and `SecurityOptions.Strict()` policies, along with the matching `SecurityPolicy.Safe` and `SecurityPolicy.Strict` cached policies. Alder now exposes only `SecurityOptions.Trusted()` as a named preset; custom policies should use explicit `new SecurityOptions { ... }` initializers so hosts own their security posture.
+
+Migration example:
+
+```csharp
+// Before
+options.Security = SecurityOptions.Safe();
+
+// After
+options.Security = new SecurityOptions
+{
+    AllowPropertyRead = true,
+    AllowStaticPropertyRead = true,
+    AllowStaticFieldRead = true,
+    AllowAssignment = true,
+    AllowPropertySet = true,
+    AllowIndexSet = true
+};
+```
+
 ## 1.0.1 - 2026-05-06
 
 Packaging polish: Source Link integration, dedicated NuGet readme, and cleaned package tags.

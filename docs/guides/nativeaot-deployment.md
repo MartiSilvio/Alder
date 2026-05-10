@@ -17,7 +17,7 @@ Use the interpreter for NativeAOT and trimming-sensitive deployments. Do not con
 ```csharp
 var engine = new AlderEngine(options =>
 {
-    options.Security = SecurityOptions.Safe();
+    options.Security = SecurityOptions.Trusted();
     options.Aot.UseGeneratedContext(RulesAotContext.Default);
 });
 ```

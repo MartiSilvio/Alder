@@ -369,8 +369,8 @@ public sealed class AlderOptions
 
 /// <summary>
 /// Controls which runtime operations evaluation may perform.
-/// Start from <see cref="Trusted"/>, <see cref="Safe"/>, or <see cref="Strict"/>,
-/// then refine the individual flags when needed.
+/// Use <see cref="Trusted"/> for fully trusted evaluation, or construct an
+/// instance with the exact operation flags the host wants to allow.
 /// </summary>
 public sealed record SecurityOptions
 {
@@ -457,30 +457,6 @@ public sealed record SecurityOptions
         AllowPropertySet = true,
         AllowIndexSet = true,
         AllowConstruction = true
-    };
-
-    /// <summary>
-    /// Creates a security policy that allows reads, assignment, and index writes,
-    /// but disallows method calls and object construction.
-    /// </summary>
-    public static SecurityOptions Safe() => new()
-    {
-        AllowPropertyRead = true,
-        AllowStaticPropertyRead = true,
-        AllowStaticFieldRead = true,
-        AllowAssignment = true,
-        AllowPropertySet = true,
-        AllowIndexSet = true
-    };
-
-    /// <summary>
-    /// Creates a minimal read-oriented security policy.
-    /// </summary>
-    public static SecurityOptions Strict() => new()
-    {
-        AllowPropertyRead = true,
-        AllowStaticPropertyRead = true,
-        AllowStaticFieldRead = true
     };
 
     internal SecurityPolicy ToSecurityPolicy() => new SecurityPolicy.Builder

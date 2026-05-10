@@ -121,9 +121,9 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     }
 
     [Test]
-    public void SecurityPolicyBypass_Reflection_ShouldBeBlockedInSafeMode()
+    public void SecurityPolicyBypass_Reflection_ShouldBeBlockedWhenMethodCallsDisabled()
     {
-        var safeEngine = TestEngineFactory.Create(Mode, o => o.Security = SecurityOptions.Safe());
+        var safeEngine = TestEngineFactory.Create(Mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
         var expr = "\"hello\".GetType()";
 
         var ex = Assert.Throws<AlderException>(() => safeEngine.Evaluate(expr));

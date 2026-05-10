@@ -1,0 +1,38 @@
+# Alder
+
+Alder is an embeddable C# expression engine for .NET applications. It evaluates expressions and statement blocks against host CLR types through a compiler-style semantic pipeline: parsing, binding, validation, interpretation, optional delegate compilation, Dynamic LINQ adaptation, expression-tree export, execution limits, and generated dispatch for NativeAOT.
+
+## Primary Documents
+
+- [README](README.md): project overview, installation, first examples, execution surfaces, Dynamic LINQ, security policy, execution limits, benchmarks, and integration model.
+- [NuGet README](NUGET.md): package-facing summary and examples.
+- [Documentation index](docs/README.md): navigation for concepts, guides, reference, and operations.
+- [FAQ](docs/faq.md): direct answers for evaluation, Dynamic LINQ, NativeAOT, security, and integration boundaries.
+
+## Concepts
+
+- [Architecture](docs/concepts/architecture.md): parse-bind-execute pipeline, backend split, and integration surfaces.
+- [Binding system](docs/concepts/binding-system.md): semantic binding, resolved operations, and dynamic runtime dispatch.
+- [Compiled backend](docs/concepts/compiled-backend.md): synchronous delegate compilation and expression-tree export.
+- [Async execution](docs/concepts/async-execution.md): interpreter-backed async evaluation, await semantics, and cancellation.
+- [Dynamic LINQ](docs/concepts/dynamic-linq.md): runtime query composition across in-memory collections, query providers, and async streams.
+- [Extended language mode](docs/concepts/extended-language-mode.md): Alder-specific syntax layered over Standard-mode C# semantics.
+
+## Guides
+
+- [Register types and extension methods](docs/guides/type-registration.md): type resolution, namespaces, assemblies, extension methods, trimming, and AOT consequences.
+- [Expose functions and modules](docs/guides/functions-and-modules.md): host APIs as global functions or named modules.
+- [Choose variables and child engines](docs/guides/variables-context-and-child-engines.md): variable scopes, per-call values, and isolated child contexts.
+- [Use Dynamic LINQ](docs/guides/use-dynamic-linq.md): predicates, selectors, joins, projections, plans, and provider export.
+- [Deploy with NativeAOT](docs/guides/nativeaot-deployment.md): generated contexts, type rooting, and AOT deployment checklist.
+
+## Reference and Operations
+
+- [Configuration](docs/reference/configuration.md): `AlderOptions`, `AlderConfig`, registration entry points, and precedence rules.
+- [Execution model](docs/reference/execution-model.md): lifecycle, cache boundaries, control flow, error propagation, and backend selection.
+- [Standard mode language support](docs/reference/language/standard-mode-language-support.md): supported C# syntax and documented boundaries.
+- [Security model](docs/operations/security-model.md): host-controlled policy, trust and deny rules, execution limits, and reflection boundary.
+- [AOT and generated dispatch](docs/operations/aot-and-generated-dispatch.md): typed dispatch, generated contexts, reflection fallback, and AOT constraints.
+- [Execution and reuse](docs/operations/execution-and-reuse.md): engine lifetime, parsed-expression reuse, compiled artifacts, and query plans.
+- [Diagnostics and debugging](docs/operations/diagnostics-and-debugging.md): diagnostics, spans, validation, tracing, and production logging.
+

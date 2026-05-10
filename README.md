@@ -1,4 +1,4 @@
-# Alder: C# Expression Runtime
+# Alder: C# Expression Engine for .NET
 
 <p align="center">
   <a href="https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml"><img src="https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml/badge.svg?branch=master" alt=".NET CI"></a>
@@ -10,15 +10,15 @@
 </p>
 
 <p align="center">
-  <b>Parse, bind, validate, and execute C# expressions and statement blocks against CLR types.</b><br>
-  <sub>Interpreter-first execution, optional compiled delegates, Dynamic LINQ, security policy, expression-tree export, and NativeAOT generated dispatch.</sub>
+  <b>An embeddable C# expression evaluator with compiler-style binding for CLR types.</b><br>
+  <sub>Interpreter-first execution, optional compiled delegates, Dynamic LINQ, host-controlled security policy, expression-tree export, and NativeAOT generated dispatch.</sub>
 </p>
 
 <p align="center">
   C# semantics&nbsp; · &nbsp;Native AOT&nbsp; · &nbsp;Async&nbsp; · &nbsp;Dynamic LINQ&nbsp; · &nbsp;Zero dependencies
 </p>
 
-Alder evaluates C# expressions and statement blocks at runtime against your host's CLR types. Lambdas, query syntax, pattern matching, async, and iterators bind with ECMA-334 semantics. The interpreter runs the bound tree directly. It is the default path, and the path used under Native AOT. An opt-in compiled backend lowers the same tree to a `System.Linq.Expressions` delegate for hot synchronous workloads. Both backends share the same parser, binder, security policy, and execution limits. Both produce identical results.
+Alder is an embeddable C# expression engine for .NET applications. It evaluates expressions and statement blocks against your host's CLR types through a compiler-style semantic pipeline: parsing, binding, validation, interpretation, optional delegate compilation, Dynamic LINQ adaptation, expression-tree export, execution limits, and generated dispatch for NativeAOT. Lambdas, query syntax, pattern matching, async, and iterators bind with ECMA-334 semantics. Both execution backends share the same parser, binder, security policy, and execution limits, and both produce identical results.
 
 ## At a glance
 
@@ -68,7 +68,7 @@ using Alder.Compiled;
 using var engine = new AlderEngine(options =>
 {
     options.UseCompiler();
-    options.Security = SecurityOptions.Safe();
+    options.Security = SecurityOptions.Trusted();
     options.Aot.UseGeneratedContext(RulesAotContext.Default);
 });
 ```
@@ -118,7 +118,7 @@ Standard mode evaluates C# at the expression and statement-block level against E
 
 [Extended mode](docs/concepts/extended-language-mode.md) layers scripting sugar on the same parser: pipelines, regex predicates, SQL-style comparisons, ranges, date arithmetic, aggregate helpers. A valid C# expression produces the same result in either mode.
 
-## The expression runtime
+## The expression engine
 
 The binder is Alder's architectural boundary. Everything before the binder determines what an expression *means*: types, conversions, overload resolution, member targets, assignment legality, control-flow shape, and the points where runtime dispatch is still required. Everything after executes those decisions while preserving security policy and execution limits.
 
@@ -191,11 +191,14 @@ Details in [Compiled backend](docs/concepts/compiled-backend.md).
 
 ## Security policy
 
-`SecurityOptions` controls authority. `Trusted()`, `Safe()`, and `Strict()` presets cover most policies; allow and deny lists cover concrete CLR types and namespaces. Reflection metadata is blocked at evaluation boundaries so expressions can compare types and read names without escaping into reflective discovery or invocation.
+`SecurityOptions` controls authority. Alder defaults to trusted execution for ease of adoption. `Trusted()` enables every gated operation for trusted expressions. Hosts that evaluate user-authored or tenant-authored expressions should choose an explicit policy with `new SecurityOptions { ... }`, where each allowed operation is named directly. Allow and deny lists cover concrete CLR types and namespaces. Reflection metadata is blocked at evaluation boundaries so expressions can compare types and read names without escaping into reflective discovery or invocation.
 
 ```csharp
-options.Security = SecurityOptions.Safe() with
+options.Security = new SecurityOptions
 {
+    AllowPropertyRead = true,
+    AllowStaticPropertyRead = true,
+    AllowStaticFieldRead = true,
     AllowConstruction = true,
     TrustedTypes = [typeof(StringBuilder)],
 };

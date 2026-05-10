@@ -1,4 +1,4 @@
-# Alder: C# Expression Runtime
+# Alder: C# Expression Engine for .NET
 
 [![.NET CI](https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml/badge.svg?branch=master)](https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml)
 ![.NET 8+](https://img.shields.io/badge/.NET-8%2B-512BD4?logo=dotnet&logoColor=white)
@@ -7,9 +7,9 @@
 ![No third-party dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/MartiSilvio/Alder/blob/master/LICENSE)
 
-**Parse, bind, validate, and execute C# expressions and statement blocks against CLR types.**
+**An embeddable C# expression evaluator with compiler-style binding for CLR types.**
 
-Alder evaluates C# expressions and statement blocks at runtime against your host's CLR types. Lambdas, query syntax, pattern matching, async, and iterators bind with ECMA-334 semantics. The interpreter runs the bound tree directly. It is the default path, and the path used under Native AOT. An opt-in compiled backend lowers the same tree to a `System.Linq.Expressions` delegate for hot synchronous workloads. Both backends share the same parser, binder, security policy, and execution limits. Both produce identical results.
+Alder is an embeddable C# expression engine for .NET applications. It evaluates expressions and statement blocks against your host's CLR types through a compiler-style semantic pipeline: parsing, binding, validation, interpretation, optional delegate compilation, Dynamic LINQ adaptation, expression-tree export, execution limits, and generated dispatch for NativeAOT. Lambdas, query syntax, pattern matching, async, and iterators bind with ECMA-334 semantics. Both execution backends share the same parser, binder, security policy, and execution limits, and both produce identical results.
 
 ## Highlights
 
@@ -65,7 +65,7 @@ using Alder.Compiled;
 using var engine = new AlderEngine(options =>
 {
     options.UseCompiler();
-    options.Security = SecurityOptions.Safe();
+    options.Security = SecurityOptions.Trusted();
     options.Aot.UseGeneratedContext(RulesAotContext.Default);
 });
 

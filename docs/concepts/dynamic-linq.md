@@ -13,6 +13,20 @@ Use [Use Dynamic LINQ](../guides/use-dynamic-linq.md) for workflow examples and 
 
 Dynamic LINQ is Alder's runtime query-composition layer. It fits applications where the host owns the source and surrounding LINQ pipeline while predicates, selectors, keys, joins, projections, or aggregate selectors come from stored filters, configurable views, report definitions, policy-controlled search screens, or user-authored query fragments.
 
+```mermaid
+flowchart LR
+    Fragment["Runtime query fragment"] --> Shape["Body-only expression or lambda"]
+    Shape --> Context["Query binding context"]
+    Context --> Pipeline["Parse, bind, compilation pipeline"]
+    Pipeline --> Plan["DynamicQueryPlan"]
+    Plan --> Enumerable["IEnumerable: compiled delegate"]
+    Plan --> Queryable["IQueryable: exported expression tree"]
+    Plan --> Async["IAsyncEnumerable: async-stream adapter"]
+    Enumerable --> Operators["Enumerable operators"]
+    Queryable --> Provider["Queryable provider"]
+    Async --> Enumeration["Async enumeration"]
+```
+
 Each fragment passes through Alder's expression pipeline: parsing, binding, diagnostics, security policy validation, type resolution, and conversion rules. After binding, the LINQ layer adapts the result into delegates for `IEnumerable<T>` and async streams, expression trees for `IQueryable<T>`, or reusable `DynamicQueryPlan` instances. Dynamic LINQ is the query adapter over Alder's core semantics.
 
 The surrounding execution remains LINQ: `Enumerable`, `Queryable`, or an in-process async-stream pipeline.

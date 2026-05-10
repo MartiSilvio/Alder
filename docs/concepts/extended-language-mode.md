@@ -362,7 +362,7 @@ Pipelines, comprehensions, ranges, aggregate helpers, regex predicates, and coll
 
 For public or multi-tenant expression authoring, a common policy is:
 
-- use `SecurityOptions.Safe()` or a stricter custom policy
+- construct `new SecurityOptions { ... }` with only the operations that product context allows
 - set statement, loop, timeout, and collection-size limits
 - validate stored expressions before activation
 - version the host's allowed expression surface
@@ -377,7 +377,13 @@ Move from Standard to Extended when expression authors repeatedly reach for conc
 var engine = new AlderEngine(options =>
 {
     options.LanguageMode = LanguageMode.Extended;
-    options.Security = SecurityOptions.Safe();
+    options.Security = new SecurityOptions
+    {
+        AllowPropertyRead = true,
+        AllowStaticPropertyRead = true,
+        AllowStaticFieldRead = true,
+        AllowAssignment = true
+    };
     options.Constraints = new ExecutionConstraints
     {
         MaxStatements = 10_000,

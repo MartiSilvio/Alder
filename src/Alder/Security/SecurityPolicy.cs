@@ -101,8 +101,6 @@ public sealed class SecurityPolicy
     }
 
     public static SecurityPolicy Trusted => _trusted.Value;
-    public static SecurityPolicy Safe => _safe.Value;
-    public static SecurityPolicy Strict => _strict.Value;
 
     private static readonly Lazy<SecurityPolicy> _trusted = new(() => new Builder
     {
@@ -114,23 +112,6 @@ public sealed class SecurityPolicy
         AllowPropertySet = true,
         AllowIndexSet = true,
         AllowConstruction = true,
-    }.Build());
-
-    private static readonly Lazy<SecurityPolicy> _safe = new(() => new Builder
-    {
-        AllowPropertyRead = true,
-        AllowStaticPropertyRead = true,
-        AllowStaticFieldRead = true,
-        AllowAssignment = true,
-        AllowPropertySet = true,
-        AllowIndexSet = true,
-    }.Build());
-
-    private static readonly Lazy<SecurityPolicy> _strict = new(() => new Builder
-    {
-        AllowPropertyRead = true,
-        AllowStaticPropertyRead = true,
-        AllowStaticFieldRead = true,
     }.Build());
 
     private static readonly HashSet<Type> HardDenied = new()

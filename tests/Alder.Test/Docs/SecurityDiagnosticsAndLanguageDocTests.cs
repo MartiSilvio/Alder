@@ -11,11 +11,19 @@ namespace Alder.Test.Docs;
 public class SecurityDiagnosticsAndLanguageDocTests(CompilationMode mode)
 {
     [Test]
-    public void SecuritySafe_BlocksOrdinaryMethodCalls_ButRegisteredFunctionsRemainCallable()
+    public void ExplicitSecurityPolicy_BlocksOrdinaryMethodCalls_ButRegisteredFunctionsRemainCallable()
     {
         using var engine = TestEngineFactory.Create(mode, options =>
         {
-            options.Security = SecurityOptions.Safe();
+            options.Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true,
+                AllowPropertySet = true,
+                AllowIndexSet = true
+            };
             options.Functions.Register("doubleValue", args => (int)args[0]! * 2);
         });
 
@@ -25,14 +33,18 @@ public class SecurityDiagnosticsAndLanguageDocTests(CompilationMode mode)
     }
 
     [Test]
-    public void SecurityPolicyPresetOverrides_ConfigureOperationPolicy()
+    public void SecurityPolicyExplicitOptions_ConfigureOperationPolicy()
     {
         using var engine = TestEngineFactory.Create(mode, options =>
         {
-            options.Security = SecurityOptions.Safe() with
+            options.Security = new SecurityOptions
             {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true,
+                AllowIndexSet = true,
                 AllowConstruction = true,
-                AllowPropertySet = false,
                 TrustedTypes = [typeof(System.Text.StringBuilder)]
             };
         });
@@ -41,7 +53,7 @@ public class SecurityDiagnosticsAndLanguageDocTests(CompilationMode mode)
     }
 
     [Test]
-    public void EmptySecurityOptions_IsMoreRestrictiveThanStrictPreset()
+    public void EmptySecurityOptions_DisablesPropertyAndStaticReads()
     {
         using var empty = TestEngineFactory.Create(mode, options =>
         {
@@ -51,7 +63,12 @@ public class SecurityDiagnosticsAndLanguageDocTests(CompilationMode mode)
 
         using var strict = TestEngineFactory.Create(mode, options =>
         {
-            options.Security = SecurityOptions.Strict();
+            options.Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true
+            };
         });
         strict.SetVariable<string>("text", "hello");
 
@@ -422,7 +439,7 @@ public class SecurityDiagnosticsAndLanguageDocTests(CompilationMode mode)
         using var engine = TestEngineFactory.Create(mode, options =>
         {
             options.LanguageMode = LanguageMode.Extended;
-            options.Security = SecurityOptions.Safe();
+            options.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true };
             options.Constraints = new ExecutionConstraints
             {
                 MaxStatements = 10_000,

@@ -7,9 +7,9 @@ namespace Alder.Test.Security;
 public class StaticMethodSecurityPolicyTests(CompilationMode mode)
 {
     [Test]
-    public void Safe_BlocksStaticMethodCalls()
+    public void ExplicitPolicy_BlocksStaticMethodCalls()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""int.Parse("42") """));
@@ -18,9 +18,9 @@ public class StaticMethodSecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Strict_BlocksStaticMethodCalls()
+    public void ReadOnlyPolicy_BlocksStaticMethodCalls()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Strict());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true });
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""int.Parse("42") """));
@@ -42,9 +42,9 @@ public class StaticMethodSecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_LambdasUnaffected()
+    public void ExplicitPolicy_LambdasUnaffected()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
 
         var result = engine.Evaluate("{ var fn = (x) => x * 2; return fn(5); }");
 
@@ -52,19 +52,19 @@ public class StaticMethodSecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_StaticPropertyAccessAllowed()
+    public void ExplicitPolicy_StaticPropertyAccessAllowed()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
 
         Assert.That(engine.Evaluate<int>("int.MaxValue"), Is.EqualTo(int.MaxValue));
     }
 
     [Test]
-    public void Safe_StaticFieldAccessAllowed()
+    public void ExplicitPolicy_StaticFieldAccessAllowed()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
 
-        // string.Empty is a static field read, allowed in Safe mode
+        // string.Empty is a static field read, allowed when static field reads are enabled
         Assert.That(engine.Evaluate<string>("string.Empty"), Is.EqualTo(string.Empty));
     }
 

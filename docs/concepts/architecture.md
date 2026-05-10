@@ -5,7 +5,7 @@ description: Architectural explanation of Alder's parse-bind-execute pipeline, b
 
 # Architecture
 
-Alder is an embeddable C# expression runtime built around one compiler-style semantic pipeline and two execution mechanisms. Source text is parsed into syntax, bound against the active context, validated under the configured security policy, optimized, and then evaluated by either the interpreter or the compiled backend. Backend selection changes the execution mechanism. It does not define a second language.
+Alder is an embeddable C# expression engine built around one compiler-style semantic pipeline and two execution mechanisms. Source text is parsed into syntax, bound against the active context, validated under the configured security policy, optimized, and then evaluated by either the interpreter or the compiled backend. Backend selection changes the execution mechanism. It does not define a second language.
 
 For exact lifecycle rules, cache boundaries, and error propagation, use [Execution model](../reference/execution-model.md). For production operating patterns, use [Execution and reuse](../operations/execution-and-reuse.md).
 
@@ -15,11 +15,29 @@ The bound tree is Alder's architectural boundary. Everything before that boundar
 
 Alder evaluation proceeds through these stages:
 
+```mermaid
+flowchart LR
+    Source["Source text"] --> Parsed["AlderExpression"]
+    Parsed --> Bound["Bound tree or cached bound tree"]
+    Bound --> Backend{"Compiler configured?"}
+    Backend -->|No| InterpretPipe["Interpretation pipeline: security, folding, dead branches"]
+    InterpretPipe --> Evaluator["BoundEvaluator"]
+    Backend -->|Yes| CompilePipe["Compilation pipeline: security, folding, dead branches, conversions"]
+    CompilePipe --> Delegate["Compile or reuse delegate"]
+    Delegate --> Invoke["Invoke delegate"]
+    Evaluator --> Result["Result"]
+    Invoke --> Result
+    Evaluator -.-> Dispatch["Runtime dispatch for open operations"]
+    Invoke -.-> Dispatch
+    Dispatch --> Result
+```
+
 1. Parse source text into Alder syntax.
 2. Bind syntax into a semantic tree against the current context.
-3. Run validation and backend-appropriate preparation passes.
-4. Execute the prepared tree through the selected backend.
-5. Unwrap final control-flow state at the evaluation boundary.
+3. Select the execution path from engine configuration.
+4. Run the backend-appropriate validation and preparation passes.
+5. Execute through the interpreter or a cached compiled delegate.
+6. Unwrap final control-flow state at the evaluation boundary.
 
 The binder is the semantic center of the system. When static information is sufficient, it resolves calls, members, indexes, conversions, and construct legality before execution begins. When the declared type surface is deliberately open, such as `object`-typed values or runtime-shaped members, the binder records a dynamic operation and leaves final selection to runtime dispatch.
 

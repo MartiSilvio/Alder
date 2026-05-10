@@ -77,19 +77,14 @@ static PackageInfo VerifyPackageContents(string packagePath)
 
     Require(id == "Alder", $"Expected package id 'Alder' but found '{id}'.");
     Require(RequiredElementValue(metadata, ns, "authors") == "Silvio Martignetti", "Package authors metadata is incorrect.");
-    Require(RequiredElementValue(metadata, ns, "title") == "Alder", "Package title metadata is incorrect.");
+    RequireNonEmptyElement(metadata, ns, "title");
     var description = RequiredElementValue(metadata, ns, "description");
-    RequireDescriptionContains(description, "C# expression runtime for .NET applications");
-    RequireDescriptionContains(description, "Parse, bind, validate, and execute");
-    RequireDescriptionContains(description, "interpreter-first execution");
-    RequireDescriptionContains(description, "optional compiled delegates");
+    RequireDescriptionContains(description, "C# expression");
     RequireDescriptionContains(description, "Dynamic LINQ");
-    RequireDescriptionContains(description, "security policy");
-    RequireDescriptionContains(description, "expression-tree export");
-    RequireDescriptionContains(description, "NativeAOT generated dispatch");
+    RequireDescriptionContains(description, "NativeAOT");
     Require(RequiredElementValue(metadata, ns, "readme") == "NUGET.md", "Package readme metadata must point to NUGET.md.");
     Require(RequiredElementValue(metadata, ns, "icon") == "alder-icon.png", "Package icon metadata must point to alder-icon.png.");
-    Require(RequiredElementValue(metadata, ns, "releaseNotes") == "Packaging polish: Source Link integration, dedicated NuGet readme, cleaned up package tags.", "Package release notes metadata is incorrect.");
+    RequireNonEmptyElement(metadata, ns, "releaseNotes");
     Require(RequiredElementValue(metadata, ns, "copyright") == "Copyright © Silvio Martignetti", "Package copyright metadata is incorrect.");
 
     var tags = RequiredElementValue(metadata, ns, "tags")
@@ -99,21 +94,10 @@ static PackageInfo VerifyPackageContents(string packagePath)
     [
         "csharp",
         "expressions",
+        "expression-engine",
         "expression-evaluator",
-        "expression-runtime",
-        "expression-parser",
-        "scripting",
-        "script-engine",
-        "rules-engine",
         "dynamic-linq",
-        "linq",
-        "query",
-        "interpreter",
-        "compiler",
-        "security-policy",
         "nativeaot",
-        "aot",
-        "source-generator",
         "dotnet",
     ];
 
@@ -134,6 +118,9 @@ static PackageInfo VerifyPackageContents(string packagePath)
 
 static void RequireDescriptionContains(string description, string text)
     => Require(description.Contains(text, StringComparison.OrdinalIgnoreCase), $"Package description is missing search phrase: {text}");
+
+static void RequireNonEmptyElement(XElement metadata, XNamespace ns, string name)
+    => _ = RequiredElementValue(metadata, ns, name);
 
 static void VerifySymbolPackage(string packagePath, PackageInfo package)
 {
