@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);CA1822;CA1512;CA1513</NoWarn>
     <PackageId>Alder</PackageId>
-    <Description>C# expression runtime for .NET applications. Parse, bind, validate, and execute C# expressions and statement blocks against CLR types, with interpreter-first execution, optional compiled delegates, Dynamic LINQ, security policy, expression-tree export, and NativeAOT generated dispatch.</Description>
+    <Description>C# expression engine for .NET applications. Evaluate expressions and statement blocks against CLR types with compiler-style binding, host-controlled security policy, Dynamic LINQ, expression-tree export, optional compiled delegates, and NativeAOT generated dispatch.</Description>
     <IsPackable>true</IsPackable>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</IsAotCompatible>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>

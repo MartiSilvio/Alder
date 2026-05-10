@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <VersionPrefix Condition="'$(VersionPrefix)' == ''">1.0.1</VersionPrefix>
+    <VersionPrefix Condition="'$(VersionPrefix)' == ''">1.0.2</VersionPrefix>
     <Authors>Silvio Martignetti</Authors>
     <Company>Silvio Martignetti</Company>
     <RepositoryUrl>https://github.com/MartiSilvio/Alder</RepositoryUrl>
@@ -9,10 +9,10 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>NUGET.md</PackageReadmeFile>
     <PackageIcon>alder-icon.png</PackageIcon>
-    <Title>Alder</Title>
+    <Title>Alder - C# Expression Engine for .NET</Title>
     <Copyright>Copyright © Silvio Martignetti</Copyright>
-    <PackageTags>csharp expressions expression-evaluator expression-runtime expression-parser scripting script-engine rules-engine dynamic-linq linq query interpreter compiler security-policy nativeaot aot source-generator dotnet</PackageTags>
-    <PackageReleaseNotes>Packaging polish: Source Link integration, dedicated NuGet readme, cleaned up package tags.</PackageReleaseNotes>
+    <PackageTags>csharp expressions expression-engine expression-evaluator csharp-expression-engine csharp-expression-evaluator dotnet-expression-engine expression-parser formula-engine rules-engine query-engine dynamic-linq linq scripting interpreter compiler security-policy nativeaot aot source-generator dotnet</PackageTags>
+    <PackageReleaseNotes>Breaking change: removed predefined Safe and Strict security policy presets. Alder now exposes Trusted as the only named preset and documents explicit SecurityOptions policies for host-owned security posture.</PackageReleaseNotes>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

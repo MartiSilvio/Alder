@@ -402,7 +402,12 @@ public class DiagnosticCodeTests
     {
         var engine = new AlderEngine(new AlderOptions
         {
-            Security = SecurityOptions.Strict() with { AllowAssignment = false }
+            Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true
+            }
         });
         engine.SetVariable("x", 10);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("x = 5"));

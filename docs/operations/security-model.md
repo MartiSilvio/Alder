@@ -13,7 +13,7 @@ The boundary is in-process. Alder validates and constrains expression behavior i
 
 Security begins with `AlderOptions`. `SecurityOptions` controls which categories of runtime operations are allowed. `ExecutionConstraints` bounds statement count, loop iterations, and wall-clock time. Type, namespace, module, function, and extension-method registration determines what surface is visible to an expression.
 
-`AlderOptions` defaults to `SecurityOptions.Trusted()`. Hosts that evaluate tenant-authored, user-authored, or otherwise untrusted expressions should choose a narrower security policy explicitly and register only the APIs the expression surface needs.
+`AlderOptions` defaults to `SecurityOptions.Trusted()` for ease of adoption in trusted application code. Hosts that evaluate tenant-authored, user-authored, or otherwise untrusted expressions should choose a narrower security policy explicitly and register only the APIs the expression surface needs.
 
 Those are separate concerns. Registration makes names resolvable. The security policy decides whether operations on those names are legal. An engine can therefore expose a type or module and still reject part of its use at evaluation time.
 
@@ -40,29 +40,31 @@ Each callable form remains a distinct trust boundary with its own registration a
 
 Treat those callable surfaces as explicit trust boundaries. Prefer narrow functions and modules that expose the operation an expression needs. Broad services make the expression-facing authority harder to reason about, even when security policy flags remove some operation categories.
 
-## Security policy presets
+## Security policy configuration
 
-`SecurityOptions` exposes three presets. `Trusted()` enables method calls, reads, assignment, property and index writes, and object construction. `Safe()` allows reads, assignment, property and index writes, but disables ordinary method calls and object construction. `Strict()` is read-oriented and enables property and static member reads, but not ordinary method calls, assignment, mutation, or construction.
+`SecurityOptions` exposes explicit operation gates. `Trusted()` is the only named preset; it enables method calls, reads, assignment, property and index writes, and object construction for fully trusted expressions. It is also Alder's default so new users can evaluate trusted expressions without first designing a policy.
 
-You can start from a preset and override individual flags:
+Custom policies start from `new SecurityOptions { ... }`. Boolean operation gates default to `false`, so an empty `SecurityOptions` does not allow method calls, property reads, static reads, assignment, mutation, or construction. Hosts enable only the operation categories their expression surface needs:
 
-<!-- test: SecurityPolicyPresetOverrides_ConfigureOperationPolicy -->
+<!-- test: SecurityPolicyExplicitOptions_ConfigureOperationPolicy -->
 ```csharp
 var engine = new AlderEngine(options =>
 {
-    options.Security = SecurityOptions.Safe() with
+    options.Security = new SecurityOptions
     {
+        AllowPropertyRead = true,
+        AllowStaticPropertyRead = true,
+        AllowStaticFieldRead = true,
+        AllowAssignment = true,
+        AllowIndexSet = true,
         AllowConstruction = true,
-        AllowPropertySet = false
     };
 });
 ```
 
-An empty `new SecurityOptions()` is more restrictive than `Strict()`. It does not enable property reads or static member reads unless you turn them on explicitly.
+Alder does not define universal safe or strict policies. The host owns that decision because only the host knows the registered functions, modules, object graph, side effects, tenant model, and threat model.
 
-Preset names describe Alder operation categories, not isolation levels. `Safe()` disables ordinary method calls and construction, but expressions still run inside the host process and can still call registered functions, delegates, modules, and extension methods that the host made visible. Those callables execute with the authority and side effects of their CLR implementations.
-
-Use the presets as starting points, then make the expression-facing API small. A strict security policy around a broad module can still expose more authority than a permissive security policy around a purpose-built function.
+Make the expression-facing API small. A restrictive operation policy around a broad module can still expose more authority than a permissive operation policy around a purpose-built function.
 
 ## Trust and deny rules
 
@@ -72,12 +74,14 @@ Trust takes precedence over broader deny lists for normal type checks. A host ca
 
 Trusted types and namespaces should be small. Adding a type to the trusted surface makes its allowed members part of the expression-facing API, including any side effects reachable through those members.
 
-<!-- test: SecurityPolicyPresetOverrides_ConfigureOperationPolicy -->
+<!-- test: SecurityPolicyExplicitOptions_ConfigureOperationPolicy -->
 ```csharp
 var engine = new AlderEngine(options =>
 {
-    options.Security = SecurityOptions.Safe() with
+    options.Security = new SecurityOptions
     {
+        AllowPropertyRead = true,
+        AllowStaticPropertyRead = true,
         AllowConstruction = true,
         TrustedTypes = [typeof(System.Text.StringBuilder)]
     };

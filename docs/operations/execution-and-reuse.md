@@ -31,7 +31,13 @@ using Alder.Compiled;
 var engine = new AlderEngine(options =>
 {
     options.LanguageMode = LanguageMode.Standard;
-    options.Security = SecurityOptions.Safe();
+    options.Security = new SecurityOptions
+    {
+        AllowPropertyRead = true,
+        AllowStaticPropertyRead = true,
+        AllowStaticFieldRead = true,
+        AllowMethodCalls = true
+    };
     options.Constraints = new ExecutionConstraints
     {
         MaxStatements = 10_000,
@@ -66,7 +72,7 @@ public static class RuleRuntime
 {
     public static readonly AlderEngine Engine = new(options =>
     {
-        options.Security = SecurityOptions.Safe();
+        options.Security = SecurityOptions.Trusted();
         options.UseCompiler();
     });
 }
@@ -307,7 +313,7 @@ Use one engine when all callers share the same language, security policy, type r
 ```csharp
 var engine = new AlderEngine(options =>
 {
-    options.Security = SecurityOptions.Safe();
+    options.Security = SecurityOptions.Trusted();
     options.Types.AddAssembly(typeof(OrderRow).Assembly);
     options.UseCompiler();
 });

@@ -7,10 +7,17 @@ namespace Alder.Test.Security;
 public class SecurityPolicyTests(CompilationMode mode)
 {
     [Test]
-    public void Safe_AllowPropertyReadFalse_BlocksPropertyAccess()
+    public void ExplicitPolicy_AllowPropertyReadFalse_BlocksPropertyAccess()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Security = SecurityOptions.Safe() with { AllowPropertyRead = false });
+            o.Security = new SecurityOptions
+            {
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true,
+                AllowPropertySet = true,
+                AllowIndexSet = true
+            });
         engine.SetVariable("text", "hello");
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.Length"));
@@ -18,10 +25,17 @@ public class SecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_AllowAssignmentFalse_BlocksSimpleAssignment()
+    public void ExplicitPolicy_AllowAssignmentFalse_BlocksSimpleAssignment()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Security = SecurityOptions.Safe() with { AllowAssignment = false });
+            o.Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowPropertySet = true,
+                AllowIndexSet = true
+            });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("""
             var x = 1;
@@ -32,10 +46,17 @@ public class SecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_AllowAssignmentFalse_AllowsVariableDeclaration()
+    public void ExplicitPolicy_AllowAssignmentFalse_AllowsVariableDeclaration()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Security = SecurityOptions.Safe() with { AllowAssignment = false });
+            o.Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowPropertySet = true,
+                AllowIndexSet = true
+            });
 
         var result = engine.Evaluate("""
             var x = 5;
@@ -46,10 +67,17 @@ public class SecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_AllowPropertySetFalse_BlocksPropertyAssignment()
+    public void ExplicitPolicy_AllowPropertySetFalse_BlocksPropertyAssignment()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Security = SecurityOptions.Safe() with { AllowPropertySet = false });
+            o.Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true,
+                AllowIndexSet = true
+            });
         engine.SetVariable("obj", new TestMutableObject { Value = 10 });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("obj.Value = 99"));
@@ -57,10 +85,17 @@ public class SecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_AllowPropertySetFalse_AllowsPropertyRead()
+    public void ExplicitPolicy_AllowPropertySetFalse_AllowsPropertyRead()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Security = SecurityOptions.Safe() with { AllowPropertySet = false });
+            o.Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true,
+                AllowIndexSet = true
+            });
         engine.SetVariable("obj", new TestMutableObject { Value = 10 });
 
         var result = engine.Evaluate("obj.Value");
@@ -68,10 +103,17 @@ public class SecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_AllowIndexSetFalse_BlocksArrayIndexAssignment()
+    public void ExplicitPolicy_AllowIndexSetFalse_BlocksArrayIndexAssignment()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Security = SecurityOptions.Safe() with { AllowIndexSet = false });
+            o.Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true,
+                AllowPropertySet = true
+            });
         engine.SetVariable("items", new[] { 1, 2, 3 });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("items[0] = 99"));
@@ -79,10 +121,17 @@ public class SecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_AllowIndexSetFalse_AllowsDictionaryRead()
+    public void ExplicitPolicy_AllowIndexSetFalse_AllowsDictionaryRead()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Security = SecurityOptions.Safe() with { AllowIndexSet = false });
+            o.Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true,
+                AllowPropertySet = true
+            });
         engine.SetVariable("dict", new Dictionary<string, object?> { ["key"] = "value" });
 
         var result = engine.Evaluate("""dict["key"]""");
@@ -90,9 +139,14 @@ public class SecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Strict_AllowsOnlyVariableDeclarationAndRead()
+    public void ReadOnlyPolicy_AllowsOnlyVariableDeclarationAndRead()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Strict());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions
+        {
+            AllowPropertyRead = true,
+            AllowStaticPropertyRead = true,
+            AllowStaticFieldRead = true
+        });
 
         var result = engine.Evaluate("""
             var x = 5;
@@ -103,10 +157,16 @@ public class SecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Strict_WithAllowAssignmentTrue_AllowsAssignment()
+    public void ReadOnlyPolicy_WithAllowAssignmentTrue_AllowsAssignment()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Security = SecurityOptions.Strict() with { AllowAssignment = true });
+            o.Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true
+            });
 
         var result = engine.Evaluate("""
             var x = 1;
@@ -118,10 +178,16 @@ public class SecurityPolicyTests(CompilationMode mode)
     }
 
     [Test]
-    public void Strict_WithAllowMethodCallsTrue_AllowsMethodCalls()
+    public void ReadOnlyPolicy_WithAllowMethodCallsTrue_AllowsMethodCalls()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Security = SecurityOptions.Strict() with { AllowMethodCalls = true });
+            o.Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowMethodCalls = true
+            });
         engine.SetVariable("text", "hello");
 
         var result = engine.Evaluate("text.ToUpper()");
@@ -184,9 +250,11 @@ public class SecurityPolicyTests(CompilationMode mode)
     public void MemberAssign_AllowAssignmentFalse_AllowPropertySetTrue_Succeeds()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Security = SecurityOptions.Safe() with
+            o.Security = new SecurityOptions
             {
-                AllowAssignment = false,
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
                 AllowPropertySet = true
             });
         engine.SetVariable("obj", new TestMutableObject { Value = 10 });
@@ -203,7 +271,15 @@ public class SecurityPolicyTests(CompilationMode mode)
     public void SecurityPolicy_AllowConstruction_Blocks_New()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Security = SecurityOptions.Safe() with { AllowConstruction = false });
+            o.Security = new SecurityOptions
+            {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true,
+                AllowPropertySet = true,
+                AllowIndexSet = true
+            });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("new List<int>()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
@@ -224,8 +300,14 @@ public class SecurityPolicyTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o =>
         {
-            o.Security = SecurityOptions.Safe() with
+            o.Security = new SecurityOptions
             {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true,
+                AllowPropertySet = true,
+                AllowIndexSet = true,
                 TrustedTypes = [typeof(System.Text.StringBuilder)],
                 AllowConstruction = true
             };

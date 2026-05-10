@@ -119,8 +119,14 @@ public partial class DynamicLinqTests
                 options.UseCompiler();
                 options.Types.AddAssembly(typeof(DataRowExtensions).Assembly);
                 options.Types.AddExtensionMethods(typeof(DataRowExtensions));
-                options.Security = SecurityOptions.Safe() with
+                options.Security = new SecurityOptions
                 {
+                    AllowPropertyRead = true,
+                    AllowStaticPropertyRead = true,
+                    AllowStaticFieldRead = true,
+                    AllowAssignment = true,
+                    AllowPropertySet = true,
+                    AllowIndexSet = true,
                     TrustedNamespaces = ["System.Data"]
                 };
             });

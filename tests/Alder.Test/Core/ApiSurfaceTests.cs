@@ -23,6 +23,19 @@ public class ApiSurfaceTests
     }
 
     [Test]
+    public void SecurityOptions_ExposesOnlyTrustedPreset()
+    {
+        var presets = typeof(SecurityOptions)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(m => m.ReturnType == typeof(SecurityOptions))
+            .Select(m => m.Name)
+            .OrderBy(n => n)
+            .ToList();
+
+        Assert.That(presets, Is.EqualTo(new[] { "Trusted" }));
+    }
+
+    [Test]
     public void AlderDiagnostic_TypeExists_WithExpectedProperties()
     {
         var type = typeof(AlderDiagnostic);

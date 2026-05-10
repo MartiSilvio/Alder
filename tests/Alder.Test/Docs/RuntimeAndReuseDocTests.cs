@@ -34,7 +34,7 @@ public class RuntimeAndReuseDocTests(CompilationMode mode)
         using var engine = new AlderEngine(options =>
         {
             options.LanguageMode = LanguageMode.Standard;
-            options.Security = SecurityOptions.Safe();
+            options.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true };
             options.Constraints = new ExecutionConstraints
             {
                 MaxStatements = 10_000,

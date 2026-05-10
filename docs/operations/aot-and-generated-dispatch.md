@@ -124,6 +124,18 @@ Those omissions are part of the AOT contract. Under JIT they can continue throug
 
 For supported operations, Alder follows a typed-first policy:
 
+```mermaid
+flowchart LR
+    Operation["Runtime operation"] --> Exact["Exact generated dispatch"]
+    Exact -->|Hit| Execute["Execute operation"]
+    Exact -->|Miss| Base["Base-type generated dispatch"]
+    Base -->|Hit| Execute
+    Base -->|Miss| Runtime{"Reflection path available?"}
+    Runtime -->|Yes| Reflection["Reflection fallback"]
+    Reflection --> Execute
+    Runtime -->|No| Diagnostic["Generated-mode diagnostic"]
+```
+
 1. Try the registered `TypedDispatch` entry for the runtime type.
 2. Walk base-type dispatch entries where that operation allows a base-chain lookup.
 3. Fall back to the normal reflection path when dynamic code and metadata are available.

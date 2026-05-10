@@ -16,8 +16,14 @@ public class SecurityPolicyVerificationTests(CompilationMode mode)
     {
         return TestEngineFactory.Create(mode, o =>
         {
-            o.Security = SecurityOptions.Safe() with
+            o.Security = new SecurityOptions
             {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true,
+                AllowPropertySet = true,
+                AllowIndexSet = true,
                 DeniedNamespaces = new HashSet<string>
                 {
                     "System.IO",
@@ -51,7 +57,7 @@ public class SecurityPolicyVerificationTests(CompilationMode mode)
     [Test]
     public void Attack_ObjectReflection_GetTypeAssemblyGetTypes_Blocked()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
         engine.SetVariable<object>("o", "hello");
         // Start from allowed type (string), use reflection to enumerate all types in assembly.
         // GuardReflectionLeak should block returning Assembly, Type[], MethodInfo etc.
@@ -82,8 +88,14 @@ public class SecurityPolicyVerificationTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o =>
         {
-            o.Security = SecurityOptions.Safe() with
+            o.Security = new SecurityOptions
             {
+                AllowPropertyRead = true,
+                AllowStaticPropertyRead = true,
+                AllowStaticFieldRead = true,
+                AllowAssignment = true,
+                AllowPropertySet = true,
+                AllowIndexSet = true,
                 DeniedNamespaces = new HashSet<string> { "System.IO" }
             };
         });
@@ -112,11 +124,11 @@ public class SecurityPolicyVerificationTests(CompilationMode mode)
     [Test]
     public void Attack_DynamicCall_ObjectTypedVariable_BypassesMethodBlock()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
         // object-typed variable — binder can't resolve method, falls to BoundDynamicCallExpr
         engine.SetVariable("obj", (object)"hello");
 
-        // Safe mode has AllowMethodCalls=false. This should be blocked.
+        // This policy has AllowMethodCalls=false. This should be blocked.
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("return obj.ToUpper();"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100),
             "Dynamic calls on object-typed variables should respect AllowMethodCalls=false");
@@ -169,11 +181,11 @@ public class SecurityPolicyVerificationTests(CompilationMode mode)
     [Test]
     public void Attack_LambdaClosure_CannotAccessInternalState()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
         // Verify that lambda closures don't expose engine-internal objects
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
-        // Safe mode: property read is allowed, method calls are not.
+        // This policy allows property reads but not method calls.
         // The lambda itself (x => x) should be fine, but calling Where() is a method call.
         // Extension methods are exempted from AllowMethodCalls — this is by design.
         // But verify internal context/config objects are not reachable.

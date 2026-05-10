@@ -8,55 +8,55 @@ namespace Alder.Test.Security;
 public class RedTeamAttackTests(CompilationMode mode)
 {
     [Test]
-    public void Attack_FQN_Environment_MachineName_Safe()
+    public void Attack_FQN_Environment_MachineName_WithExplicitPolicy()
     {
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("System.Environment.MachineName"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
-    public void Attack_ShortName_Environment_Safe()
+    public void Attack_ShortName_Environment_WithExplicitPolicy()
     {
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("Environment.MachineName"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
-    public void Attack_FQN_Environment_Strict()
+    public void Attack_FQN_Environment_WithReadOnlyPolicy()
     {
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Strict())
+            TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true })
                 .Evaluate("System.Environment.MachineName"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
-    public void Attack_FQN_ProcessStart_Safe()
+    public void Attack_FQN_ProcessStart_WithExplicitPolicy()
     {
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("""System.Diagnostics.Process.Start("calc")"""));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107).Or.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
-    public void Attack_FQN_FileRead_Safe()
+    public void Attack_FQN_FileRead_WithExplicitPolicy()
     {
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("""System.IO.File.ReadAllText("/etc/passwd")"""));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
-    public void Attack_FQN_ReflectionAssembly_Safe()
+    public void Attack_FQN_ReflectionAssembly_WithExplicitPolicy()
     {
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("System.Reflection.Assembly.GetCallingAssembly()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
@@ -77,18 +77,18 @@ public class RedTeamAttackTests(CompilationMode mode)
     }
 
     [Test]
-    public void Attack_DelegateInvoke_SafeMode_Allowed()
+    public void Attack_DelegateInvoke_WhenMethodCallsDisabled_Allowed()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
         engine.SetVariable("fn", new Func<int, int>(x => x + 1));
         Assert.That(engine.Evaluate("fn(5)"), Is.EqualTo(6));
     }
 
     [Test]
-    public void Attack_NewProcess_Safe()
+    public void Attack_NewProcess_WithExplicitPolicy()
     {
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("new System.Diagnostics.Process()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
@@ -119,28 +119,28 @@ public class RedTeamAttackTests(CompilationMode mode)
     }
 
     [Test]
-    public void Attack_GC_Collect_Safe()
+    public void Attack_GC_Collect_WithExplicitPolicy()
     {
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("System.GC.Collect()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
-    public void Attack_ThreadSleep_Safe()
+    public void Attack_ThreadSleep_WithExplicitPolicy()
     {
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("System.Threading.Thread.Sleep(60000)"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
-    public void Attack_ConsoleReadLine_Safe()
+    public void Attack_ConsoleReadLine_WithExplicitPolicy()
     {
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("System.Console.ReadLine()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107).Or.EqualTo(DiagnosticCode.CS0246));
     }
@@ -148,15 +148,15 @@ public class RedTeamAttackTests(CompilationMode mode)
     [Test]
     public void Attack_ConditionalDeadBranch_DangerousBranch_NeverExecuted()
     {
-        var result = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe())
+        var result = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
             .Evaluate("""false ? "danger" : "safe" """);
         Assert.That(result, Is.EqualTo("safe"));
     }
 
     [Test]
-    public void Attack_ExceptionGetType_Safe()
+    public void Attack_ExceptionGetType_WithExplicitPolicy()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
         engine.SetVariable("x", 0);
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""
@@ -176,9 +176,9 @@ public class RedTeamAttackTests(CompilationMode mode)
     }
 
     [Test]
-    public void Attack_ExceptionMessage_Safe_Allowed()
+    public void Attack_ExceptionMessage_WithExplicitPolicy_Allowed()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
         engine.SetVariable("x", 0);
         var result = engine.Evaluate("""
             {
@@ -201,20 +201,20 @@ public class RedTeamAttackTests(CompilationMode mode)
     public void Parity_Construction_SameErrorCode()
     {
         var interpretedEx = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(CompilationMode.Interpreted, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(CompilationMode.Interpreted, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("new object()"));
         var compiledEx = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(CompilationMode.Compiled, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(CompilationMode.Compiled, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("new object()"));
         Assert.That(interpretedEx!.ErrorCode, Is.EqualTo(compiledEx!.ErrorCode));
     }
 #endif
 
     [Test]
-    public void Attack_ConstructAlderEngine_Safe()
+    public void Attack_ConstructAlderEngine_WithExplicitPolicy()
     {
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe())
+            TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true })
                 .Evaluate("""new Alder.AlderEngine().Evaluate("1 + 1")"""));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
@@ -235,7 +235,7 @@ public class RedTeamAttackTests(CompilationMode mode)
     [Test]
     public void Attack_AlderEngine_ViaVariable_MethodCall()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Security = SecurityOptions.Safe());
+        var engine = TestEngineFactory.Create(mode, o => o.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true });
         engine.SetVariable("eng", new AlderEngine());
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""eng.Evaluate("1 + 1")"""));

@@ -163,7 +163,7 @@ For user-authored expressions:
 
 - register only the assemblies, namespaces, and extension containers the expression surface needs
 - prefer small functions or explicit-only modules for business operations
-- use `SecurityOptions.Safe()` or a stricter custom policy
+- construct `new SecurityOptions { ... }` with only the operations the expression surface needs
 - deny broad namespaces or types when application assemblies expose mixed-trust APIs
 - validate expressions under the same engine policy used for execution
 
