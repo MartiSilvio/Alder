@@ -112,9 +112,11 @@ public class FunctionsModulesAndAsyncDocTests(CompilationMode mode)
         });
 
         var raw = await engine.EvaluateAsync("pricing.ComputeAsync(10, 20)");
+        var value = await engine.EvaluateAsync("await pricing.ComputeAsync(10, 20)");
 
         Assert.That(raw, Is.InstanceOf<Task<int>>());
         Assert.That(await (Task<int>)raw!, Is.EqualTo(30));
+        Assert.That(value, Is.EqualTo(30));
     }
 
     [Test]

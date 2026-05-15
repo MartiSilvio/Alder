@@ -95,10 +95,15 @@ Only `await` unwraps. If an expression calls an async method but does not await 
 
 <!-- test: EvaluateAsync_ReturnsRawTask_WhenExpressionDoesNotAwait -->
 ```csharp
-var raw = await engine.EvaluateAsync("svc.ComputeAsync(10, 20)");
+var engine = new AlderEngine(options =>
+{
+    options.Modules.Register<PricingModule>("pricing");
+});
+
+var raw = await engine.EvaluateAsync("pricing.ComputeAsync(10, 20)");
 // raw is a Task<int>
 
-var value = await engine.EvaluateAsync("await svc.ComputeAsync(10, 20)");
+var value = await engine.EvaluateAsync("await pricing.ComputeAsync(10, 20)");
 // value == 30
 ```
 
@@ -202,12 +207,18 @@ Async execution is the natural choice when expressions call host-provided servic
 
 <!-- test: AsyncModuleMethods_CanBeAwaited -->
 ```csharp
-var engine = new AlderEngine(o => o.Modules.Register<AsyncService>("svc"));
+var engine = new AlderEngine(options =>
+{
+    options.Modules.Register<PricingModule>("pricing");
+});
 
 var result = await engine.EvaluateAsync("""
-    var first = await svc.FetchValueAsync();
-    var second = await svc.ComputeAsync(first, 8);
-    return second;
+    var total = 0;
+    for (var i = 0; i < 3; i++)
+    {
+        total += await pricing.ComputeAsync(i, 1);
+    }
+    return total;
     """);
 ```
 
