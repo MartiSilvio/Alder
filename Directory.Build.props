@@ -12,7 +12,7 @@
     <Title>Alder - C# Expression Engine for .NET</Title>
     <Copyright>Copyright © Silvio Martignetti</Copyright>
     <PackageTags>csharp expressions expression-engine expression-evaluator csharp-expression-engine csharp-expression-evaluator dotnet-expression-engine expression-parser formula-engine rules-engine query-engine dynamic-linq linq scripting interpreter compiler security-policy nativeaot aot source-generator dotnet</PackageTags>
-    <PackageReleaseNotes>NativeAOT and semantic-correctness hardening: generated dispatch filters trim/AOT-unsafe members, AOT publish checks are clearer, foreach and using semantics are stricter, and compiled/interpreted parity is improved.</PackageReleaseNotes>
+    <PackageReleaseNotes>Documentation fix: the NuGet package README now renders as Markdown so the package description displays correctly. No runtime changes since 1.0.4.</PackageReleaseNotes>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

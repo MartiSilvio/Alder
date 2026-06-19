@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.5 - 2026-06-19
+
+Documentation fix; no runtime changes. The NuGet package README now uses Markdown instead of raw HTML so the package description renders correctly on NuGet.org.
+
 ## 1.0.4 - 2026-06-19
 
 ### Added
