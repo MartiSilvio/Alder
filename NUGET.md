@@ -1,23 +1,18 @@
 # Alder: C# Expression Engine for .NET
 
-<p align="center">
-  <a href="https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml"><img src="https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml/badge.svg?branch=master" alt=".NET CI"></a>
-  <a href="https://www.nuget.org/packages/Alder"><img src="https://img.shields.io/nuget/v/Alder?logo=nuget&logoColor=white" alt="NuGet"></a>
-  <img src="https://img.shields.io/badge/.NET-8%2B-512BD4?logo=dotnet&logoColor=white" alt=".NET 8+">
-  <img src="https://img.shields.io/badge/.NET%20Standard-2.0-512BD4?logo=dotnet&logoColor=white" alt=".NET Standard 2.0">
-  <img src="https://img.shields.io/badge/NativeAOT-generated%20dispatch-brightgreen" alt="NativeAOT generated dispatch">
-  <img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="No third-party runtime dependencies">
-  <a href="https://github.com/MartiSilvio/Alder/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License"></a>
-</p>
+[![.NET CI](https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml/badge.svg?branch=master)](https://github.com/MartiSilvio/Alder/actions/workflows/dotnet.yml)
+[![NuGet](https://img.shields.io/nuget/v/Alder?logo=nuget&logoColor=white)](https://www.nuget.org/packages/Alder)
+![.NET 8+](https://img.shields.io/badge/.NET-8%2B-512BD4?logo=dotnet&logoColor=white)
+![.NET Standard 2.0](https://img.shields.io/badge/.NET%20Standard-2.0-512BD4?logo=dotnet&logoColor=white)
+![NativeAOT generated dispatch](https://img.shields.io/badge/NativeAOT-generated%20dispatch-brightgreen)
+![No third-party runtime dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/MartiSilvio/Alder/blob/master/LICENSE)
 
-<p align="center">
-  <b>An embeddable C# expression evaluator with compiler-style binding for your .NET types.</b><br>
-  <sub>Interpreter-first execution with optional compiled delegates, Dynamic LINQ, expression-tree export, host-controlled security, and NativeAOT generated dispatch.</sub>
-</p>
+**An embeddable C# expression evaluator with compiler-style binding for your .NET types.**
 
-<p align="center">
-  C# semantics&nbsp; · &nbsp;AOT-aware&nbsp; · &nbsp;Async&nbsp; · &nbsp;Dynamic LINQ&nbsp; · &nbsp;Zero dependencies
-</p>
+Interpreter-first execution with optional compiled delegates, Dynamic LINQ, expression-tree export, host-controlled security, and NativeAOT generated dispatch.
+
+C# semantics · AOT-aware · Async · Dynamic LINQ · Zero dependencies
 
 Alder evaluates C# expressions and statement blocks at runtime against the objects your code supplies. Before execution, the parser and binder resolve types, overloads, conversions, and control flow. The same pipeline applies your security policy and execution limits.
 
