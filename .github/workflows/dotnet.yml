@@ -70,6 +70,11 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      # Alder.csproj bundles Alder.Compiled.dll via an MSBuild target rather than a
+      # ProjectReference, so packing it requires Alder.Compiled to be restored first.
+      - name: Restore dependencies
+        run: dotnet restore
+
       - name: Pack
         run: dotnet pack src/Alder/Alder.csproj --configuration Release --output artifacts/packages
 
