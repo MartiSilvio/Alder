@@ -101,7 +101,8 @@ internal sealed class ModuleInfo
         DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
         DynamicallyAccessedMemberTypes.PublicMethods |
         DynamicallyAccessedMemberTypes.PublicProperties |
-        DynamicallyAccessedMemberTypes.PublicFields)]
+        DynamicallyAccessedMemberTypes.PublicFields |
+        DynamicallyAccessedMemberTypes.Interfaces)]
     public Type Type { get; }
 
     public object? Instance { get; }
@@ -112,7 +113,8 @@ internal sealed class ModuleInfo
             DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
             DynamicallyAccessedMemberTypes.PublicMethods |
             DynamicallyAccessedMemberTypes.PublicProperties |
-            DynamicallyAccessedMemberTypes.PublicFields)]
+            DynamicallyAccessedMemberTypes.PublicFields |
+            DynamicallyAccessedMemberTypes.Interfaces)]
         Type type,
         object? instance,
         IReadOnlyDictionary<string, ModuleMemberEntry> members)

@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <VersionPrefix Condition="'$(VersionPrefix)' == ''">1.0.3</VersionPrefix>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
     <Authors>Silvio Martignetti</Authors>
     <Company>Silvio Martignetti</Company>
     <RepositoryUrl>https://github.com/MartiSilvio/Alder</RepositoryUrl>
@@ -12,7 +12,7 @@
     <Title>Alder - C# Expression Engine for .NET</Title>
     <Copyright>Copyright © Silvio Martignetti</Copyright>
     <PackageTags>csharp expressions expression-engine expression-evaluator csharp-expression-engine csharp-expression-evaluator dotnet-expression-engine expression-parser formula-engine rules-engine query-engine dynamic-linq linq scripting interpreter compiler security-policy nativeaot aot source-generator dotnet</PackageTags>
-    <PackageReleaseNotes>Documentation refresh: tightened README prose, updated code examples to use module registration, synced NUGET.md, added NuGet badge.</PackageReleaseNotes>
+    <PackageReleaseNotes>NativeAOT and semantic-correctness hardening: generated dispatch filters trim/AOT-unsafe members, AOT publish checks are clearer, foreach and using semantics are stricter, and compiled/interpreted parity is improved.</PackageReleaseNotes>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -20,4 +20,8 @@
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" Version="6.0.0" PrivateAssets="All" />
+  </ItemGroup>
 </Project>

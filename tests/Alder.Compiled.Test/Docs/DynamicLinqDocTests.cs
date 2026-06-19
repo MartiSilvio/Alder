@@ -3,6 +3,8 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Alder.Compiled;
 using Alder.Compiled.DynamicLinq;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 
 namespace Alder.Test.Docs;
 
@@ -35,6 +37,50 @@ public class DynamicLinqDocTests
             .ToList();
 
         Assert.That(page.Select(p => p.Name), Is.EqualTo(new[] { "Whatchamacallit", "Thingamajig" }));
+    }
+
+    [Test]
+    public async Task RootReadme_DynamicLinq_CartReviewPipeline_FiltersAndProjectsRows()
+    {
+        using var engine = new AlderEngine(options => options.UseCompiler());
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<CartDocsDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var db = new CartDocsDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+        db.Carts.AddRange(
+            new Cart { Id = 1, Subtotal = 80m, Discount = 5m, Tax = 6m, ItemCount = 1, PostalCode = "10001", CouponCode = "SAVE-2026", Channel = "web", Region = "east" },
+            new Cart { Id = 2, Subtotal = 120m, Discount = 20m, Tax = 8m, ItemCount = 3, PostalCode = "94107", CouponCode = "SHIP-2026", Channel = "mobile", Region = "bay-area" },
+            new Cart { Id = 3, Subtotal = 180m, Discount = 10m, Tax = 13.6m, ItemCount = 24, PostalCode = "94110", CouponCode = "SHIP-2027", Channel = "web", Region = "bay-area" });
+        await db.SaveChangesAsync();
+
+        var cartsForReview = await db.Carts
+            .WhereDynamic(engine, "Subtotal - Discount >= @0", 100m)
+            .OrderByDynamic<Cart, int>(engine, "ItemCount")
+            .SelectDynamic<Cart, CartReviewRow>(
+                engine,
+                "new { Id, Subtotal, Discount, ItemCount }")
+            .TakeDynamic(25)
+            .ToListAsync();
+
+        Assert.That(cartsForReview, Has.Count.EqualTo(2));
+        Assert.That(cartsForReview.Select(row => row.Id), Is.EqualTo(new[] { 2, 3 }));
+        Assert.That(cartsForReview[0].Subtotal, Is.EqualTo(120m));
+        Assert.That(cartsForReview[1].ItemCount, Is.EqualTo(24));
+    }
+
+    private sealed class CartDocsDbContext(DbContextOptions<CartDocsDbContext> options) : DbContext(options)
+    {
+        public DbSet<Cart> Carts => Set<Cart>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Cart>().HasKey(cart => cart.Id);
+        }
     }
 
     [Test]

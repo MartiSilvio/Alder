@@ -1,3 +1,9 @@
+using Alder.Binding;
+using Alder.Binding.BoundNodes;
+using Alder.Compiled.Compilation;
+using Alder.Diagnostics;
+using Alder.Runtime;
+
 namespace Alder.Test.Compilation;
 
 /// <summary>
@@ -145,6 +151,40 @@ public class ILCompilationTests
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(6)); // 1+2+3 = 6
+    }
+
+    [Test]
+    public void ILCompile_ForEachLoop_ExplicitReferenceIterationType_CastsBeforeBody()
+    {
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
+            .SetVariable("items", new List<object> { 1 });
+        var expr = engine.Parse("{ foreach (string item in items) { } return \"done\"; }");
+
+        Assert.That(engine.TryCompile(expr), Is.True);
+
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(expr));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0030));
+        Assert.That(ex.Message, Does.Contain("Int32"));
+        Assert.That(ex.Message, Does.Contain("String"));
+    }
+
+    [Test]
+    public void ILCompile_VariableDecl_ReadOnlyLocal_RemainsReadOnlyAtRuntime()
+    {
+        var declaration = new BoundVariableDeclExpr(
+            "resource",
+            BoundLiteralExpr.FromValue("value"),
+            typeof(string),
+            new BoundType(typeof(string)),
+            IsReadOnly: true);
+        var compiled = ILExpressionCompiler.TryCompile(declaration, AlderConfig.Empty);
+        var context = new AlderContext(AlderConfig.Empty);
+
+        Assert.That(compiled.IsCompilable, Is.True);
+
+        compiled.Delegate!(context, AlderConfig.Empty, new ExecutionConstraintState(), CancellationToken.None);
+
+        Assert.Throws<AlderException>(() => context.Set("resource", "changed"));
     }
 
     // Nested Loops Compilation

@@ -3,6 +3,7 @@ using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
+using Alder.Text;
 
 namespace Alder.Binding.Binders;
 
@@ -11,13 +12,51 @@ internal static class VariableDeclBinder
 {
     public static BoundExpr Bind(VariableDeclExpr expr, BindingContext context, BinderContext binder)
     {
-        var declaredType = expr.DeclaredType != null
-            ? context.RuntimeContext.TypeResolver.ResolveType(expr.DeclaredType.Value.Lexeme)
+        var readOnlyReason = expr.IsConst ? ReadOnlyReason.Const : ReadOnlyReason.None;
+        return BindDeclaration(
+            expr.DeclaredType,
+            expr.Name,
+            expr.Initializer,
+            expr.IsConst,
+            expr.TupleElementNames,
+            readOnlyReason,
+            expr.Span,
+            context,
+            binder);
+    }
+
+    internal static BoundVariableDeclExpr BindUsingResource(UsingResourceDeclExpr expr, BindingContext context, BinderContext binder)
+    {
+        return BindDeclaration(
+            expr.DeclaredType,
+            expr.Name,
+            expr.Initializer,
+            isConst: false,
+            expr.TupleElementNames,
+            ReadOnlyReason.UsingVariable,
+            expr.Span,
+            context,
+            binder);
+    }
+
+    private static BoundVariableDeclExpr BindDeclaration(
+        Token? declaredTypeToken,
+        Token name,
+        Expr initializerExpr,
+        bool isConst,
+        IReadOnlyList<string?>? tupleElementNames,
+        ReadOnlyReason readOnlyReason,
+        TextSpan sourceSpan,
+        BindingContext context,
+        BinderContext binder)
+    {
+        var declaredType = declaredTypeToken != null
+            ? context.RuntimeContext.TypeResolver.ResolveType(declaredTypeToken.Value.Lexeme)
             : null;
 
         BoundExpr initializer;
 
-        switch (expr.Initializer)
+        switch (initializerExpr)
         {
             case CollectionExpr collectionExpr when declaredType != null:
                 initializer = CollectionExprBinder.BindCollectionWithTargetType(collectionExpr, context, binder, declaredType);
@@ -25,9 +64,9 @@ internal static class VariableDeclBinder
             case TupleExpr tupleExpr when declaredType != null && TypeHelpers.IsValueTupleType(declaredType):
                 initializer = TupleBinder.BindWithTargetType(tupleExpr, context, binder, declaredType);
                 break;
-            case ObjectCreationExpr { TypeName: "" } targetTypedNew when expr.DeclaredType != null:
+            case ObjectCreationExpr { TypeName: "" } targetTypedNew when declaredTypeToken != null:
             {
-                var typedNew = targetTypedNew with { TypeName = expr.DeclaredType.Value.Lexeme };
+                var typedNew = targetTypedNew with { TypeName = declaredTypeToken.Value.Lexeme };
                 initializer = binder.Bind(typedNew, context);
                 break;
             }
@@ -53,15 +92,15 @@ internal static class VariableDeclBinder
                     ? new AlderException(DiagnosticDescriptors.CannotInferDelegateType)
                     : new AlderException(DiagnosticDescriptors.LambdaToNonDelegate, declaredType.Name);
             default:
-                initializer = binder.Bind(expr.Initializer, context);
+                initializer = binder.Bind(initializerExpr, context);
                 break;
         }
 
         // §13.6.3: const locals must be initialized with a compile-time constant expression.
-        if (expr.IsConst && !IsCompileTimeConstant(initializer))
+        if (isConst && !IsCompileTimeConstant(initializer))
         {
-            var ex = new AlderException(DiagnosticDescriptors.ConstInitializerMustBeConstant, expr.Name.Lexeme);
-            ex.EnrichDiagnosticsWithPosition(expr.Span, null, null);
+            var ex = new AlderException(DiagnosticDescriptors.ConstInitializerMustBeConstant, name.Lexeme);
+            ex.EnrichDiagnosticsWithPosition(sourceSpan, null, null);
             throw ex;
         }
 
@@ -77,18 +116,24 @@ internal static class VariableDeclBinder
             ValidateInitializerConversion(initializer, declaredType);
         }
 
-        var staticType = declaredType != null
-            ? CreateBoundType(declaredType, expr.TupleElementNames)
+        var staticType = IsDynamicDeclaration(declaredTypeToken)
+            ? BoundType.Unknown
+            : declaredType != null
+            ? CreateBoundType(declaredType, tupleElementNames)
             : initializer.StaticType;
-        var localId = context.DeclareLocal(expr.Name.Lexeme, staticType, expr.IsConst ? ReadOnlyReason.Const : ReadOnlyReason.None);
+        var localId = context.DeclareLocal(name.Lexeme, staticType, readOnlyReason);
         return new BoundVariableDeclExpr(
-            expr.Name.Lexeme,
+            name.Lexeme,
             initializer,
             declaredType,
             staticType,
-            IsConst: expr.IsConst,
+            IsConst: isConst,
+            IsReadOnly: readOnlyReason != ReadOnlyReason.None,
             LocalId: localId);
     }
+
+    private static bool IsDynamicDeclaration(Token? declaredType) =>
+        string.Equals(declaredType?.Lexeme, "dynamic", StringComparison.Ordinal);
 
     private static void ValidateInitializerConversion(BoundExpr initializer, Type declaredType)
     {

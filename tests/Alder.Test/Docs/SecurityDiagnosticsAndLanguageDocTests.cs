@@ -102,6 +102,22 @@ public class SecurityDiagnosticsAndLanguageDocTests(CompilationMode mode)
     }
 
     [Test]
+    public void RootReadme_ExecutionConstraints_ConfiguresWorkLimits()
+    {
+        using var engine = TestEngineFactory.Create(mode, options =>
+        {
+            options.Constraints = new ExecutionConstraints
+            {
+                MaxStatements = 10_000,
+                MaxLoopIterations = 1_000,
+                MaxTimeout = TimeSpan.FromSeconds(2),
+            };
+        });
+
+        Assert.That(engine.Evaluate<int>("1 + 2"), Is.EqualTo(3));
+    }
+
+    [Test]
     public void MaxCollectionSize_AppliesToCollectionProducingResults()
     {
         using var engine = TestEngineFactory.Create(mode, options =>
@@ -267,6 +283,135 @@ public class SecurityDiagnosticsAndLanguageDocTests(CompilationMode mode)
         Assert.That(count, Is.EqualTo(2));
         Assert.That(revenue, Is.EqualTo(675m));
         Assert.That(large, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void RootReadme_ExtendedCampaignDecision_UsesPredicateOperators()
+    {
+        using var engine = TestEngineFactory.Create(mode, options =>
+        {
+            options.LanguageMode = LanguageMode.Extended;
+        });
+
+        const string rule = """
+            let net = cart.Subtotal - cart.Discount in
+            if (cart.CouponCode =~ "^SHIP-[0-9]{4}$"
+                and net between 100m and 500m
+                and cart.ItemCount between 1 and 20
+                and cart.PostalCode like "94%"
+                and cart.Channel in new[] { "web", "mobile" }
+                and cart.Region not in new[] { "blocked", "manual-review" })
+                "auto-approve"
+            else if (net >= 500m or cart.ItemCount > 20)
+                "manual-review"
+            else
+                "standard"
+            """;
+
+        var cart = new Cart
+        {
+            Id = 42,
+            Subtotal = 160m,
+            Discount = 20m,
+            Tax = 11.2m,
+            ItemCount = 3,
+            PostalCode = "94107",
+            CouponCode = "SHIP-2026",
+            Channel = "mobile",
+            Region = "bay-area"
+        };
+
+        var campaignDecision = engine.Evaluate<string>(
+            rule,
+            new { cart });
+
+        var reviewCart = new Cart
+        {
+            Id = cart.Id,
+            Subtotal = 640m,
+            Discount = 20m,
+            Tax = cart.Tax,
+            ItemCount = cart.ItemCount,
+            PostalCode = cart.PostalCode,
+            CouponCode = cart.CouponCode,
+            Channel = cart.Channel,
+            Region = cart.Region
+        };
+        var blockedCart = new Cart
+        {
+            Id = cart.Id,
+            Subtotal = cart.Subtotal,
+            Discount = cart.Discount,
+            Tax = cart.Tax,
+            ItemCount = cart.ItemCount,
+            PostalCode = cart.PostalCode,
+            CouponCode = cart.CouponCode,
+            Channel = cart.Channel,
+            Region = "blocked"
+        };
+
+        Assert.That(campaignDecision, Is.EqualTo("auto-approve"));
+        Assert.That(
+            engine.Evaluate<string>(
+                rule,
+                new { cart = reviewCart }),
+            Is.EqualTo("manual-review"));
+        Assert.That(
+            engine.Evaluate<string>(
+                rule,
+                new { cart = blockedCart }),
+            Is.EqualTo("standard"));
+    }
+
+    [Test]
+    public void SiteExtendedMode_OperatorTour_EvaluatesSmallSamples()
+    {
+        using var engine = TestEngineFactory.Create(mode, options =>
+        {
+            options.LanguageMode = LanguageMode.Extended;
+        });
+        var cart = new Cart
+        {
+            Subtotal = 160m,
+            Discount = 20m,
+            ItemCount = 3,
+            PostalCode = "94107",
+            CouponCode = "SHIP-2026",
+            Channel = "mobile",
+            Region = "bay-area"
+        };
+
+        var couponMatches = engine.Evaluate<bool>(
+            """cart.CouponCode =~ "^SHIP-[0-9]{4}$" """,
+            new { cart });
+        var localPostalCode = engine.Evaluate<bool>(
+            """cart.PostalCode like "94%" """,
+            new { cart });
+        var normalOrderSize = engine.Evaluate<bool>(
+            "cart.ItemCount between 1 and 20",
+            new { cart });
+        var knownChannel = engine.Evaluate<bool>(
+            """cart.Channel in new[] { "web", "mobile" }""",
+            new { cart });
+        var safeRegion = engine.Evaluate<bool>(
+            """cart.Region not in new[] { "blocked", "manual-review" }""",
+            new { cart });
+        var net = engine.Evaluate<decimal>(
+            "let net = cart.Subtotal - cart.Discount in net",
+            new { cart });
+        var oddSquares = engine.Evaluate<int[]>(
+            "[x * x for x in 1..=5 if x % 2 == 1]");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(couponMatches, Is.True);
+            Assert.That(localPostalCode, Is.True);
+            Assert.That(normalOrderSize, Is.True);
+            Assert.That(knownChannel, Is.True);
+            Assert.That(safeRegion, Is.True);
+            Assert.That(net, Is.EqualTo(140m));
+            Assert.That(oddSquares, Is.EqualTo(new[] { 1, 9, 25 }));
+        });
     }
 
     [Test]

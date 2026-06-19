@@ -145,8 +145,9 @@ Authoritative generated mode reports missing runtime coverage with specific diag
 - `ALDR0316`: member unavailable in authoritative generated mode
 - `ALDR0317`: method unavailable in authoritative generated mode
 - `ALDR0318`: constructor unavailable in authoritative generated mode
+- `ALDR0319`: no rooted generic closure available in authoritative generated mode
 
-When one of those appears, inspect the expression's runtime path:
+These are host/deployment faults: a script's own `try`/`catch` cannot swallow them, and they propagate to the host so a missing registration surfaces instead of collapsing into a fallback result. When one of those appears, inspect the expression's runtime path:
 
 1. Identify the concrete runtime type reached by the expression.
 2. Add `[AlderRegistered(typeof(...))]` for that type if it is missing.
@@ -158,7 +159,23 @@ The error can appear several hops after the root variable. A failure on `order.C
 
 ## Publish and verify
 
-Run ordinary tests under JIT, then test the published NativeAOT artifact. JIT tests can prove expression semantics and generated-context integration. The published binary proves metadata retention, dynamic-code restrictions, and generated-mode behavior under the runtime that will ship.
+Run ordinary tests under JIT, then test the published NativeAOT artifact. JIT tests prove expression semantics and generated-context integration. The published binary proves metadata retention, dynamic-code restrictions, and generated-mode behavior under the runtime that will ship.
+
+NativeAOT verification should use the application's declared expression surface as its boundary. That surface is made from generated contexts, explicit modules and functions, closed `Task<T>` roots, delegate factories, and the built-in shapes Alder roots itself. A broader matrix can still run expressions outside that inventory. Those rows are useful when they name the missing shape precisely.
+
+Common matrix failures fall into a small number of AOT categories:
+
+| Category | Examples | AOT treatment |
+| --- | --- | --- |
+| Open-ended LINQ and extension pipelines | `Enumerable.Range(...)`, `items.Where(...)`, `items.Select(...)`, `SelectMany`, array `Sum(...)` | Use explicit host modules or functions for the query operations the application supports. Alder does not generate every LINQ overload and delegate shape by default. |
+| Unrooted delegate closure | `Func<T, TResult>`, `Func<TResult>`, async lambdas created from expression text | Add closed delegate factories through `AlderTypeContext.GetDelegateFactories()` for delegate types the host accepts. |
+| Unrooted generic collection or interface shapes | `IEnumerable<T>` closures, target-typed generic collection forms, iterator-returning local functions | Keep the AOT expression surface on concrete generated types or root the exact generic forms the application needs. |
+| Broad BCL helper families | `Regex.Match(...)`, unregistered `Task.FromResult<T>`, helper overloads selected only at runtime | Expose narrow wrappers as modules/functions, or register the exact closed roots such as `Task<OrderResult>`. |
+| Reflection-dependent discovery | assembly scanning, member access on unregistered runtime types, constructors or defaults for unpreserved types | Prefer generated contexts and explicit type/module registration. Treat assembly scanning as a development convenience unless the deployment roots the discovered types. |
+
+Generated dispatch intentionally excludes members and registered types annotated with `[RequiresDynamicCode]`, `[RequiresUnreferencedCode]`, or `[RequiresAssemblyFiles]`. Treat those omissions as part of the AOT contract: expose a safe wrapper, remove the annotation by making the member AOT-safe, or accept that the member is outside the generated surface.
+
+Trim and AOT analysis warnings are separate from matrix pass rates. The publish log describes metadata and dynamic-code assumptions in the binary. The runtime matrix describes which expression shapes execute through the generated and rooted surface. Before shipping, eliminate actionable trim/AOT warnings and make the supported AOT corpus explicit.
 
 For this repository, the AOT matrix harness lives under `tests/Alder.AotMatrix`, and the helper script is:
 
@@ -166,7 +183,16 @@ For this repository, the AOT matrix harness lives under `tests/Alder.AotMatrix`,
 ./scripts/aot-matrix.sh
 ```
 
-Application test suites should use the same pattern: run a representative expression corpus through the normal test host and through the published AOT binary.
+The publish-warning check is separate from the runtime matrix:
+
+```bash
+./scripts/aot-publish-check.sh
+./scripts/aot-publish-check.sh --strict
+```
+
+Use the default mode to capture and summarize actionable trim/AOT warning codes. Use `--strict` when the actionable warning baseline is zero. The script reports aggregate `IL2104` lines separately because they can remain after all source-level warning sites are suppressed with explicit justifications.
+
+Application test suites should use the same pattern: run a representative expression corpus through the normal test host and through the published AOT binary. The repository matrix is intentionally broader than the default AOT inventory and can exit nonzero while cataloging unsupported expression shapes; use it as a diagnostic report unless you have narrowed the corpus to your supported AOT surface.
 
 ## Checklist
 
@@ -181,6 +207,7 @@ Before shipping a NativeAOT build:
 - Assembly scanning is removed from production AOT configuration or intentionally justified.
 - Security policy is configured independently from type visibility.
 - Stored expressions are validated under the same engine policy used in production.
+- The published NativeAOT artifact has no unexpected trim or AOT analysis warnings.
 - The published NativeAOT artifact runs the representative expression corpus.
 
 ## Related pages

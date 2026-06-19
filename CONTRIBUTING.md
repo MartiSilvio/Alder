@@ -28,7 +28,7 @@ Use the smallest test shape that proves the behavior without duplicating coverag
 | Engine API behavior, caching, variables, child engines, lifecycle, options, or diagnostics surface | Focused fixture tests under `tests/Alder.Test/Core/`, `Integration/`, `Runtime/`, or `Verification/` |
 | Compiled backend behavior | `tests/Alder.Compiled.Test/Compilation/` and parity coverage in `tests/Alder.Test/` where the behavior is shared |
 | Dynamic LINQ provider behavior | `tests/Alder.Compiled.Test/Compilation/DynamicLinq/` or `DynamicLinqEfCore/` |
-| AOT or generated dispatch behavior | `tests/Alder.Test/AOT/`, `tests/Alder.Test/Verification/`, and `scripts/aot-matrix.sh` |
+| AOT or generated dispatch behavior | `tests/Alder.Test/AOT/`, `tests/Alder.Test/Verification/`, `scripts/aot-publish-check.sh --strict`, and targeted `scripts/aot-matrix.sh` runs when broad corpus coverage is needed |
 | Documentation examples | `tests/*/Docs/` with a matching `<!-- test: TestName -->` marker in the Markdown |
 
 The `.csx` corpus is the default place for language behavior. Do not add a hand-written fixture just to assert that an expression returns the same value under both backends. The parity runner already does that for corpus files in interpreted and compiled modes and compares the result against Roslyn.
@@ -101,10 +101,11 @@ dotnet test --filter "FullyQualifiedName~Alder.Test.Docs"
 dotnet test tests/Alder.Compiled.Test/Alder.Compiled.Test.csproj --filter "FullyQualifiedName~DynamicLinq"
 dotnet test --filter "FullyQualifiedName~AotGeneratedDispatchDocTests"
 dotnet test --filter "DisplayName~LangRef_Literal"
+./scripts/aot-publish-check.sh --strict
 ./scripts/aot-matrix.sh
 ```
 
-Run the narrowest useful command while developing. On macOS or Linux, the `net472` test command requires Mono; CI runs that lane on Windows. Before merging a runtime change, run the broader tests that cover the affected backend, parser, binder, security, and AOT paths.
+Run the narrowest useful command while developing. On macOS or Linux, the `net472` test command requires Mono; CI runs the `net8.0` lane across Linux, Windows, and macOS. Before merging a runtime change, run the broader tests that cover the affected backend, parser, binder, security, and AOT paths. Treat `aot-publish-check.sh --strict` as the NativeAOT warning gate; CI runs it on supported Unix hosts, and `aot-matrix.sh` is a broader diagnostic corpus that may be narrowed when validating the supported AOT surface.
 
 ## Runtime Changes
 

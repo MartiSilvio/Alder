@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using Alder.Compiled.Compilation;
+using Alder.Runtime.Introspection;
 
 namespace Alder.Compiled.DynamicLinq;
 
@@ -108,8 +109,8 @@ internal static partial class DynamicQueryDispatcher
                 return sequenceType.GetGenericArguments()[0];
         }
 
-        var enumerableInterface = sequenceType
-            .GetInterfaces()
+        var enumerableInterface = RuntimeTypeIntrospection
+            .GetInterfaces(sequenceType)
             .FirstOrDefault(static i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
 
         return enumerableInterface?.GetGenericArguments()[0]

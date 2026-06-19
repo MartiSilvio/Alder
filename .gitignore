@@ -1,5 +1,6 @@
 # Local agent and assistant configuration
 .claude/
+.codex/
 .agents/
 CLAUDE.md
 AGENTS.md

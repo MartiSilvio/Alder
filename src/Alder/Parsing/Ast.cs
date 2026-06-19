@@ -82,6 +82,7 @@ internal interface IExprVisitor<out T>
     T VisitYieldBreak(YieldBreakExpr expr);
 
     T VisitVariableDecl(VariableDeclExpr expr);
+    T VisitUsingResourceDecl(UsingResourceDeclExpr expr);
 
     T VisitDefault(DefaultExpr expr);
 
@@ -429,9 +430,23 @@ internal sealed record LockStatementExpr(Expr LockObject, Expr Body) : Expr
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLockStatement(this);
 }
 
-internal sealed record VariableDeclExpr(Token? DeclaredType, Token Name, Expr Initializer, bool IsConst = false, IReadOnlyList<string?>? TupleElementNames = null) : Expr
+internal sealed record VariableDeclExpr(
+    Token? DeclaredType,
+    Token Name,
+    Expr Initializer,
+    bool IsConst = false,
+    IReadOnlyList<string?>? TupleElementNames = null) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitVariableDecl(this);
+}
+
+internal sealed record UsingResourceDeclExpr(
+    Token? DeclaredType,
+    Token Name,
+    Expr Initializer,
+    IReadOnlyList<string?>? TupleElementNames = null) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitUsingResourceDecl(this);
 }
 
 // TypeToken is null for bare default literal (C# 7.1+)
@@ -549,7 +564,10 @@ internal sealed record TupleExpr(List<TupleElement> Elements) : Expr
 }
 
 // ECMA-334 §12.7
-internal sealed record DeconstructionExpr(List<string> VariableNames, Expr ValueExpression) : Expr
+internal sealed record DeconstructionExpr(
+    List<string> VariableNames,
+    Expr ValueExpression,
+    bool DeclaresIterationVariables = false) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitDeconstruction(this);
 }

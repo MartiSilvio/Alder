@@ -50,6 +50,14 @@ internal static class ExecutionRuntime
             asyncDisposable.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
+    public static async ValueTask DisposeResourceAsync(object? resource)
+    {
+        if (resource is IAsyncDisposable asyncDisposable)
+            await asyncDisposable.DisposeAsync();
+        else if (resource is IDisposable disposable)
+            disposable.Dispose();
+    }
+
     public static object ValidateLockObject(object? lockObj)
     {
         if (lockObj == null)

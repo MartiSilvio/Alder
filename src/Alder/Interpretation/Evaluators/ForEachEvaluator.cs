@@ -38,7 +38,7 @@ internal static class ForEachEvaluator
                 ControlFlowSignal? signal;
                 try
                 {
-                    ctx.Context.Define(node.VariableName, item, node.ElementType);
+                    ctx.Context.Define(node.VariableName, ConvertIterationValue(item, node, ctx), node.ElementType, isReadOnly: true);
                     signal = BlockEvaluator.ExecuteStatementBlock(node.Body, ctx, ct);
                 }
                 finally
@@ -91,7 +91,7 @@ internal static class ForEachEvaluator
                 ControlFlowSignal? signal;
                 try
                 {
-                    ctx.Context.Define(node.VariableName, item, node.ElementType);
+                    ctx.Context.Define(node.VariableName, ConvertIterationValue(item, node, ctx), node.ElementType, isReadOnly: true);
                     signal = await BlockEvaluator.ExecuteStatementBlockAsync(node.Body, ctx, ct);
                 }
                 finally
@@ -114,5 +114,13 @@ internal static class ForEachEvaluator
             ctx.LoopDepth--;
             ctx.BreakContextDepth--;
         }
+    }
+
+    private static object? ConvertIterationValue(object? value, BoundForEachExpr node, EvaluationContext ctx)
+    {
+        if (!TypeHelpers.RequiresIterationCast(node.ElementType, node.SourceElementType))
+            return value;
+
+        return TypeHelpers.ExplicitCast(value, node.ElementType, node.SourceElementType, ctx.IsChecked);
     }
 }

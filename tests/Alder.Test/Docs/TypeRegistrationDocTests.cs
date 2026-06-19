@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Alder.Test._Infrastructure;
 using Billing;
 
@@ -84,6 +86,42 @@ public class TypeRegistrationDocTests(CompilationMode mode)
             new { money = new Money(125m) });
 
         Assert.That(accepted, Is.True);
+    }
+
+    [Test]
+    public async Task RootReadme_HostIntegration_ConfiguresModulesFunctionsTypesAndExtensions()
+    {
+        using var engine = TestEngineFactory.Create(mode, options =>
+        {
+            options.Modules.Register<DocTaxModule>("tax");
+            options.Functions.Register("hash", args => Sha256((string)args[0]!));
+            options.Types.AddAssembly(typeof(Money).Assembly);
+            options.Types.AddNamespace("Billing");
+            options.Types.AddExtensionMethods(typeof(MoneyExtensions));
+        });
+        var cart = new Cart { Subtotal = 120m, Discount = 20m, PostalCode = "94107" };
+
+        var total = await engine.EvaluateAsync<decimal>(
+            """
+            var discounted = cart.Subtotal - cart.Discount;
+            var tax = await tax.CalculateAsync(cart.PostalCode, discounted);
+            return discounted + tax;
+            """,
+            new { cart });
+
+        Assert.That(total, Is.EqualTo(108m));
+        Assert.That(engine.Evaluate<string>("""hash("cart")"""), Has.Length.EqualTo(64));
+        Assert.That(engine.Evaluate<decimal>("Money.FromDollars(125m).Amount"), Is.EqualTo(125m));
+        Assert.That(
+            engine.Evaluate<bool>("money.IsHighValue(100m)", new { money = new Money(125m) }),
+            Is.True);
+    }
+
+    private static string Sha256(string value)
+    {
+        using var sha256 = SHA256.Create();
+        var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(value));
+        return BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant();
     }
 
     public sealed class DocPricingRules

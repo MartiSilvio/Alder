@@ -18,6 +18,27 @@ public sealed record DocOrderRow(decimal Total, DocCustomerInfo Customer, bool I
 
 public sealed record DocCustomerInfo(string Name);
 
+public sealed class Cart
+{
+    public int Id { get; set; }
+    public decimal Subtotal { get; set; }
+    public decimal Discount { get; set; }
+    public decimal Tax { get; set; }
+    public int ItemCount { get; set; }
+    public string PostalCode { get; set; } = "";
+    public string CouponCode { get; set; } = "";
+    public string Channel { get; set; } = "";
+    public string Region { get; set; } = "";
+}
+
+public sealed class CartReviewRow
+{
+    public int Id { get; init; }
+    public decimal Subtotal { get; init; }
+    public decimal Discount { get; init; }
+    public int ItemCount { get; init; }
+}
+
 public sealed class DocProductSummaryDto
 {
     public string Name { get; init; } = "";
@@ -31,6 +52,15 @@ public sealed class DocPricingService
 
     public Task<int> ComputeAsync(int left, int right) =>
         Task.FromResult(left + right);
+}
+
+public sealed class DocTaxModule
+{
+    public Task<decimal> CalculateAsync(string postalCode, decimal discounted) =>
+        Task.FromResult(
+            postalCode.StartsWith("94", StringComparison.Ordinal)
+                ? discounted * 0.08m
+                : discounted * 0.05m);
 }
 
 public sealed class DocStatefulModule

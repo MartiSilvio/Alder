@@ -330,11 +330,20 @@ internal static class BlockEmitter
         string variableName,
         ParameterExpression currentValue,
         ImmutableArray<BoundExpr> statements,
-        Type elementType)
+        Type elementType,
+        Type? sourceElementType)
     {
         var previousContextVar = LinqExpression.Variable(typeof(AlderContext), "foreachPrevCtx");
         var resultVar = LinqExpression.Variable(typeof(object), "foreachIterResult");
         var doneLabel = LinqExpression.Label("foreachIterDone");
+        LinqExpression iterationValue = !TypeHelpers.RequiresIterationCast(elementType, sourceElementType)
+            ? currentValue
+            : LinqExpression.Call(
+                ExplicitCastMethod,
+                currentValue,
+                LinqExpression.Constant(elementType, typeof(Type)),
+                LinqExpression.Constant(sourceElementType, typeof(Type)),
+                LinqExpression.Constant(ctx.IsChecked));
         var body = new List<LinqExpression>
         {
             LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))),
@@ -342,9 +351,9 @@ internal static class BlockEmitter
                 ctx.ContextParam,
                 ContextDefineNewMethod,
                 LinqExpression.Constant(variableName),
-                currentValue,
+                iterationValue,
                 LinqExpression.Constant(elementType, typeof(Type)),
-                LinqExpression.Constant(false))
+                LinqExpression.Constant(true))
         };
         var emitted = new List<LinqExpression>();
         EmitStatementListUncheckedInto(ctx, emitted, statements, doneLabel);

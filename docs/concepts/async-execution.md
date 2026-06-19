@@ -7,7 +7,7 @@ description: How Alder evaluates asynchronous expressions through its interprete
 
 Alder's async execution path is a dedicated interpreter-backed runtime path. It evaluates expressions that contain asynchronous work, preserves `await` semantics inside evaluation, carries cancellation and execution limits through that work, and returns results through `ValueTask`-based APIs that match the shape of the computation being performed.
 
-The entry point is `EvaluateAsync(...)`. Alder parses and binds asynchronous expressions through the same front end it uses for synchronous execution, then runs the bound tree through the interpreter so asynchronous operations can suspend and resume inside expression nodes, loops, conditionals, and user-provided call targets. `System.Linq.Expressions` does not provide that async execution model, so async evaluation remains on the interpreter even when the engine is configured with the compiled backend.
+The entry point is `EvaluateAsync(...)`. Alder parses and binds asynchronous expressions through the same front end it uses for synchronous execution. The interpreter then runs the bound tree, so asynchronous operations can suspend and resume inside expression nodes, loops, conditionals, and user-provided call targets. `System.Linq.Expressions` does not provide that async execution model, so async evaluation remains on the interpreter even when the engine is configured with the compiled backend.
 
 ## Execution boundary
 
@@ -20,7 +20,7 @@ Async evaluation begins at the same semantic boundary as synchronous evaluation:
 
 The parser, binder, diagnostics, security policy, and execution constraints are shared. What changes is the execution mechanism after binding. `Evaluate(...)` dispatches to the compiled backend when a compiler is configured. `EvaluateAsync(...)` dispatches to the interpreter regardless of compiler configuration.
 
-Alder's compiled backend lowers bound code into `System.Linq.Expressions` and then into delegates. That route is well-suited to synchronous execution; separate export APIs use expression trees for provider integration. `System.Linq.Expressions` does not provide the async execution model Alder needs, so asynchronous evaluation awaits inside the interpreter. The interpreter can await intermediate results inside the runtime tree, propagate asynchronous control flow, and continue evaluation after the awaited operation completes.
+The compiled backend lowers expressions into `System.Linq.Expressions` and then into delegates. That path is synchronous by design. It cannot suspend on `await` and resume after the awaited work completes. The interpreter can do exactly that, so `EvaluateAsync(...)` runs through the interpreter even when a compiler is configured. Asynchronous control flow propagates through awaited results inside the running expression, and evaluation continues once each awaited operation completes.
 
 ## `EvaluateAsync(...)` as a public surface
 

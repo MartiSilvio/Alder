@@ -386,6 +386,22 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor GeneratedConstructorRequired =
         new(DiagnosticCode.ALDR0318, "Constructor on type '{0}' with {1} arguments is not available in authoritative generated mode.");
 
+    public static readonly DiagnosticDescriptor GeneratedClosureRequired =
+        new(DiagnosticCode.ALDR0319, "No rooted generic closure is available for '{0}' in authoritative generated mode.");
+
+    /// <summary>
+    /// True for diagnostics that represent an engine/host AOT limitation (a type, member,
+    /// constructor, or generic closure that isn't in the generated dispatch surface) rather
+    /// than a rule-domain error. These are deployment faults — the host must root the type
+    /// for NativeAOT — so they must propagate to the host and are never silently catchable
+    /// by a rule's own try/catch. Single source of truth for that classification.
+    /// </summary>
+    public static bool IsEngineLimitation(DiagnosticCode code) =>
+        code is DiagnosticCode.ALDR0316
+             or DiagnosticCode.ALDR0317
+             or DiagnosticCode.ALDR0318
+             or DiagnosticCode.ALDR0319;
+
     public static readonly DiagnosticDescriptor SliceNull =
         new(DiagnosticCode.ALDR0400, "Cannot slice null");
 

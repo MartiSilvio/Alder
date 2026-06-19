@@ -96,6 +96,26 @@ public class CompiledBackendDocTests
     }
 
     [Test]
+    public void RootReadme_ParseAsExpression_CartPredicate_ExportsProviderShape()
+    {
+        using var engine = new AlderEngine(options => options.UseCompiler());
+
+        Expression<Func<Cart, bool>> predicate =
+            engine.ParseAsExpression<Func<Cart, bool>>(
+                """
+                cart => cart.Subtotal - cart.Discount >= 100m &&
+                    cart.ItemCount > 0
+                """);
+
+        var accepted = new Cart { Id = 1, Subtotal = 120m, Discount = 20m, Tax = 8m, ItemCount = 3 };
+        var rejected = new Cart { Id = 2, Subtotal = 75m, Discount = 5m, Tax = 4m, ItemCount = 0 };
+        var fn = predicate.Compile();
+
+        Assert.That(fn(accepted), Is.True);
+        Assert.That(fn(rejected), Is.False);
+    }
+
+    [Test]
     public void ParseAsExpression_ParsesStandardMode_AndRejectsExtendedOnlySyntax()
     {
         using var engine = new AlderEngine(options =>

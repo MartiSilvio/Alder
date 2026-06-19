@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
+using Alder.Runtime.Introspection;
 
 namespace Alder.Compiled.DynamicLinq;
 
@@ -228,7 +229,8 @@ internal static partial class DynamicQueryMethodCache
         ((type.IsGenericType &&
           (type.GetGenericTypeDefinition() == typeof(IEnumerable<>)
            || type.GetGenericTypeDefinition() == typeof(IQueryable<>)))
-         || type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>)));
+         || RuntimeTypeIntrospection.GetInterfaces(type)
+             .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>)));
 
     private static Type GetFuncType(int genericArity) => genericArity switch
     {

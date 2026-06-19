@@ -54,6 +54,48 @@ public class DocumentationSampleCoverageTests
         });
     }
 
+    [Test]
+    public void RootReadmeAndNugetSampleMarkers_ReferenceExistingDocTests()
+    {
+        var root = FindRepositoryRoot();
+        var testMethods = GetDocTestMethodNames(root);
+        var missingMarkers = new List<string>();
+        var missingTests = new List<string>();
+
+        foreach (var fileName in new[] { "README.md", "NUGET.md" })
+        {
+            var path = Path.Combine(root, fileName);
+            var lines = File.ReadAllLines(path);
+
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var fence = FenceStartPattern.Match(lines[i]);
+                if (fence.Success && fence.Groups["language"].Value == "csharp")
+                {
+                    var adjacentMarker = FindAdjacentTestMarker(lines, i);
+                    if (adjacentMarker is null)
+                    {
+                        missingMarkers.Add($"{fileName}:{i + 1}");
+                    }
+
+                    continue;
+                }
+
+                var marker = TestMarkerPattern.Match(lines[i]);
+                if (marker.Success && !testMethods.Contains(marker.Groups["name"].Value))
+                {
+                    missingTests.Add($"{fileName}:{i + 1} -> {marker.Groups["name"].Value}");
+                }
+            }
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(missingMarkers, Is.Empty, "Root README/NUGET C# samples without adjacent test markers");
+            Assert.That(missingTests, Is.Empty, "Root README/NUGET markers without matching NUnit doc tests");
+        });
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);

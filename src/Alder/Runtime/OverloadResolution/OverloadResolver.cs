@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Alder.Runtime.OverloadResolution;
 
@@ -539,6 +540,10 @@ internal static class OverloadResolver
         return true;
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2067",
+        Justification = "Extension receiver compatibility falls back to reflected interface discovery; NativeAOT hosts must use registered/generated types whose interface metadata is rooted.")]
     private static bool IsExtensionCompatible(Type sourceType, Type targetType)
     {
         if (targetType.IsAssignableFrom(sourceType))

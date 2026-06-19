@@ -20,6 +20,9 @@ internal static class TypeMetadataEmitter
 
         using (w.Block($"file sealed class {reg.MetadataClassName} : global::Alder.Aot.TypedDispatch"))
         {
+            w.AppendLine("#if NET5_0_OR_GREATER");
+            w.AppendLine("[global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]");
+            w.AppendLine("#endif");
             w.AppendLine($"public override global::System.Type Type => typeof({reg.TypeFullName});");
 
             EmitTryGetIfNeeded(w, reg);

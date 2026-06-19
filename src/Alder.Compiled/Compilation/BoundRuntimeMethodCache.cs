@@ -212,7 +212,9 @@ internal static class BoundRuntimeMethodCache
             [typeof(string[]), typeof(object?[])])!;
 
     internal static readonly MethodInfo DeconstructTupleMethod =
-        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.DeconstructTuple))!;
+        typeof(ConstructionRuntime).GetMethod(
+            nameof(ConstructionRuntime.DeconstructTuple),
+            [typeof(object), typeof(string[]), typeof(AlderContext), typeof(bool)])!;
 
     internal static readonly MethodInfo MultiDimArrayGetMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.MultiDimArrayGet))!;

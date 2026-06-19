@@ -45,12 +45,19 @@ internal static class PatternRuntime
                             if (enumType is { IsEnum: true })
                             {
                                 var memberName = lexeme[(lastDot + 1)..];
+#if NET7_0_OR_GREATER
+                                if (Enum.TryParse(enumType, memberName, false, out var enumValue))
+                                {
+                                    return TypeHelpers.RequireBoolean(Operators.Equals(value, enumValue));
+                                }
+#else
                                 var field = enumType.GetField(memberName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
                                 if (field is not null)
                                 {
                                     var enumValue = field.GetValue(null);
                                     return TypeHelpers.RequireBoolean(Operators.Equals(value, enumValue));
                                 }
+#endif
                             }
                         }
                     }

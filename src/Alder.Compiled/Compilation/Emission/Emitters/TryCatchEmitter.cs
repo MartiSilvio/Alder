@@ -117,10 +117,19 @@ internal static class TryCatchEmitter
                 ctx.CancellationTokenParam);
         }
 
-        if (typeFilter == null)
-            return whenFilter;
-        if (whenFilter == null)
-            return typeFilter;
-        return LinqExpression.AndAlso(typeFilter, whenFilter);
+        // Engine/host AOT faults must propagate to the host, never be caught by a rule's own catch
+        // clauses. This mirrors the interpreter (TryCatchEvaluator) so both backends behave
+        // identically; it leads the conjunction so AndAlso short-circuits before any when guard runs.
+        LinqExpression filter = LinqExpression.Not(
+            LinqExpression.Call(
+                typeof(AlderException).GetMethod(nameof(AlderException.IsEngineFaultException))!,
+                exParam));
+
+        if (typeFilter != null)
+            filter = LinqExpression.AndAlso(filter, typeFilter);
+        if (whenFilter != null)
+            filter = LinqExpression.AndAlso(filter, whenFilter);
+
+        return filter;
     }
 }

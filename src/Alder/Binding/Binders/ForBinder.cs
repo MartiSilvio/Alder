@@ -10,7 +10,10 @@ internal static class ForBinder
     public static BoundExpr Bind(ForStatementExpr expr, BindingContext context, BinderContext binder)
     {
         var loopScope = context.CreateChildScope();
-        var loopBinder = binder.WithAdditionalFlags(BinderFlags.InLoop);
+        var loopFlags = BinderFlags.InLoop;
+        if (binder.Includes(BinderFlags.InFinally))
+            loopFlags |= BinderFlags.InFinallyLoop;
+        var loopBinder = binder.WithAdditionalFlags(loopFlags);
         var initializers = expr.Initializers
             .Select(initializer => loopBinder.Bind(initializer, loopScope))
             .ToImmutableArray();

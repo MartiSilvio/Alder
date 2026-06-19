@@ -110,6 +110,13 @@ internal static class TryCatchEvaluator
         EvaluationContext ctx,
         CancellationToken ct)
     {
+        // Engine/host AOT faults (missing generated dispatch / unrooted closure) are not
+        // part of a rule's exception surface. They must propagate to the host rather than be
+        // silently caught by the rule's own catch clauses (which would substitute wrong
+        // control flow). Classification lives with the diagnostics (AlderException.IsEngineFault).
+        if (AlderException.IsEngineFaultException(ex))
+            return (false, null, null);
+
         foreach (var catchClause in catchClauses)
         {
             if (catchClause.ExceptionTypeName != null)
@@ -180,6 +187,13 @@ internal static class TryCatchEvaluator
         EvaluationContext ctx,
         CancellationToken ct)
     {
+        // Engine/host AOT faults (missing generated dispatch / unrooted closure) are not
+        // part of a rule's exception surface. They must propagate to the host rather than be
+        // silently caught by the rule's own catch clauses (which would substitute wrong
+        // control flow). Classification lives with the diagnostics (AlderException.IsEngineFault).
+        if (AlderException.IsEngineFaultException(ex))
+            return (false, null, null);
+
         foreach (var catchClause in catchClauses)
         {
             if (catchClause.ExceptionTypeName != null)

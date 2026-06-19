@@ -26,6 +26,26 @@ internal static class DeconstructionBinder
             }
         }
 
+        if (expr.DeclaresIterationVariables)
+            DeclareIterationVariables(expr, context, sourceType);
+
         return new BoundDeconstructionExpr(expr, valueExpression, valueExpression.StaticType);
+    }
+
+    private static void DeclareIterationVariables(DeconstructionExpr expr, BindingContext context, Type sourceType)
+    {
+        var tupleArgs = TypeHelpers.IsValueTupleType(sourceType)
+            ? sourceType.GetGenericArguments()
+            : [];
+
+        for (var i = 0; i < expr.VariableNames.Count; i++)
+        {
+            var name = expr.VariableNames[i];
+            if (name == TokenLexemes.DiscardIdentifier)
+                continue;
+
+            var elementType = i < tupleArgs.Length ? tupleArgs[i] : typeof(object);
+            context.DeclareLocal(name, new BoundType(elementType), ReadOnlyReason.IterationVariable);
+        }
     }
 }

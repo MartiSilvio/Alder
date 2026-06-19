@@ -25,6 +25,23 @@ public class AlderException : Exception
     public string? FormattedCode => ErrorCode?.ToDiagnosticId();
 
     /// <summary>
+    /// True when this represents an engine/host AOT limitation (a type, member, constructor,
+    /// or generic closure absent from the generated dispatch surface) rather than a rule-domain
+    /// error. Such faults are not part of a rule's exception surface: they propagate to the host
+    /// and are never silently caught by a rule's own try/catch.
+    /// </summary>
+    public bool IsEngineFault => ErrorCode is { } code && DiagnosticDescriptors.IsEngineLimitation(code);
+
+    /// <summary>
+    /// True when <paramref name="exception"/> is an engine/host AOT limitation fault (see
+    /// <see cref="IsEngineFault"/>). Such faults must propagate to the host and are never silently
+    /// caught by a rule's own try/catch. This is the single classification both the interpreter and
+    /// the compiled backend consult, so their catch behavior stays identical.
+    /// </summary>
+    public static bool IsEngineFaultException(Exception? exception) =>
+        exception is AlderException { IsEngineFault: true };
+
+    /// <summary>
     /// Gets the source span of the first diagnostic.
     /// </summary>
     public TextSpan Span => Diagnostics.Count > 0 ? Diagnostics[0].Span : default;

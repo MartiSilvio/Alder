@@ -15,7 +15,7 @@ internal static class VariableDeclEvaluator
             value,
             node.DeclaredType,
             ctx.Context,
-            node.IsConst,
+            node.IsReadOnly,
             isConstantExpression: BoundExpr.IsConstantExpression(node.Initializer));
     }
 
@@ -27,7 +27,7 @@ internal static class VariableDeclEvaluator
             value,
             node.DeclaredType,
             ctx.Context,
-            node.IsConst,
+            node.IsReadOnly,
             isConstantExpression: BoundExpr.IsConstantExpression(node.Initializer));
     }
 }

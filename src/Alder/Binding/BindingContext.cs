@@ -7,6 +7,7 @@ internal enum ReadOnlyReason
     None,
     Const,
     IterationVariable,
+    UsingVariable,
 }
 
 internal sealed class BindingContext

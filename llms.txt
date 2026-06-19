@@ -1,6 +1,6 @@
 # Alder
 
-Alder is an embeddable C# expression engine for .NET applications. It evaluates expressions and statement blocks against host CLR types through a compiler-style semantic pipeline: parsing, binding, validation, interpretation, optional delegate compilation, Dynamic LINQ adaptation, expression-tree export, execution limits, and generated dispatch for NativeAOT.
+Alder is an embeddable C# expression engine for .NET applications. It evaluates expressions and statement blocks against the .NET types your host exposes through a compiler-style pipeline: parsing, binding, validation, interpretation, optional delegate compilation, Dynamic LINQ adaptation, expression-tree export, execution limits, and generated dispatch for NativeAOT.
 
 ## Primary Documents
 

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Parsing;
@@ -25,7 +26,7 @@ internal static class ForEachBinder
                 && collection.StaticType.ClrType != typeof(object)
                 && inferredElementType != typeof(object)
                 && iterationType != inferredElementType
-                && !TypeHelpers.CanImplicitlyConvert(inferredElementType, iterationType))
+                && !TypeHelpers.HasExplicitConversion(inferredElementType, iterationType))
             {
                 // Roslyn reports a foreach element-type mismatch as CS0030 (an explicit cast
                 // would be required inside the loop), not CS0029, because foreach treats the
@@ -37,14 +38,24 @@ internal static class ForEachBinder
             }
         }
 
-        var loopBinder = binder.WithAdditionalFlags(BinderFlags.InLoop);
+        var loopFlags = BinderFlags.InLoop;
+        if (binder.Includes(BinderFlags.InFinally))
+            loopFlags |= BinderFlags.InFinallyLoop;
+        var loopBinder = binder.WithAdditionalFlags(loopFlags);
         var bodyScope = context.CreateChildScope();
         // §13.9.5: the iteration variable is readonly within the loop body.
         var foreachLocalId = bodyScope.DeclareLocal(expr.VariableName.Lexeme, new BoundType(iterationType), ReadOnlyReason.IterationVariable);
         var body = expr.Body
             .Select(statement => loopBinder.Bind(statement, bodyScope))
             .ToImmutableArray();
-        return new BoundForEachExpr(expr.VariableName.Lexeme, collection, body, iterationType, BoundType.Void, foreachLocalId);
+        return new BoundForEachExpr(
+            expr.VariableName.Lexeme,
+            collection,
+            body,
+            iterationType,
+            BoundType.Void,
+            foreachLocalId,
+            inferredElementType);
     }
 
     internal static Type InferElementType(Type collectionType)
@@ -52,15 +63,27 @@ internal static class ForEachBinder
         if (collectionType.IsArray)
             return collectionType.GetElementType()!;
 
+        return TryGetEnumerableInterface(collectionType)?.GetGenericArguments()[0] ?? typeof(object);
+    }
+
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2067",
+        Justification = "Foreach element inference is a reflection compatibility path; NativeAOT hosts must use registered/generated types whose interface metadata is rooted.")]
+    private static Type? TryGetEnumerableInterface(Type collectionType)
+    {
+        if (collectionType.IsArray)
+            return null;
+
+        if (collectionType.IsGenericType && collectionType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            return collectionType;
+
         foreach (var iface in RuntimeTypeIntrospection.GetInterfaces(collectionType))
         {
             if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-                return iface.GetGenericArguments()[0];
+                return iface;
         }
 
-        if (collectionType.IsGenericType && collectionType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-            return collectionType.GetGenericArguments()[0];
-
-        return typeof(object);
+        return null;
     }
 }

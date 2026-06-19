@@ -1,7 +1,6 @@
-using System.Runtime.CompilerServices;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Alder.Diagnostics;
+using Alder.Parity;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Parity;
@@ -241,10 +240,6 @@ public class ParityTests(CompilationMode mode)
             : RoslynCodeRegex.Match(message) is { Success: true } m ? m.Value
             : null;
 
-    private static bool IsAnonymousType(Type? type) =>
-        type != null && Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute)) &&
-        type.Name.Contains("AnonymousType");
-
     private void AssertNoFallbackInCompiledMode(AlderEngine engine, AlderExpression expression, string source)
     {
         if (mode != CompilationMode.Compiled)
@@ -256,7 +251,7 @@ public class ParityTests(CompilationMode mode)
 
     private static void AssertResultEqual(object? result, object? expected, string exprInfo)
     {
-        if (TryReadStructuralParityProperties(expected, result, out var expectedProperties, out var actualProperties))
+        if (StructuralParity.TryReadStructuralParityProperties(expected, result, out var expectedProperties, out var actualProperties))
         {
             AssertStructuralObjectEqual(actualProperties, expectedProperties);
             return;
@@ -276,61 +271,6 @@ public class ParityTests(CompilationMode mode)
             Assert.That(actualProperties.TryGetValue(name, out var actualValue), Is.True, $"Missing property '{name}'");
             Assert.That(actualValue, Is.EqualTo(expectedValue), $"Property '{name}' value mismatch");
         }
-    }
-
-    private static bool TryReadStructuralParityProperties(
-        object? expected,
-        object? result,
-        out IReadOnlyDictionary<string, object?> expectedProperties,
-        out IReadOnlyDictionary<string, object?> actualProperties)
-    {
-        expectedProperties = null!;
-        actualProperties = null!;
-
-        if (expected == null || !TryReadObjectProperties(result, out actualProperties))
-            return false;
-
-        if (IsAnonymousType(expected.GetType()))
-        {
-            return TryReadObjectProperties(expected, out expectedProperties);
-        }
-
-        return false;
-    }
-
-    private static bool TryReadObjectProperties(object? value, out IReadOnlyDictionary<string, object?> properties)
-    {
-        properties = null!;
-        if (value == null)
-            return false;
-        if (value is Type)
-            return false;
-
-        if (value is IDictionary<string, object?> dict)
-        {
-            properties = new Dictionary<string, object?>(dict);
-            return true;
-        }
-
-        if (value is IReadOnlyDictionary<string, object?> readOnlyDict)
-        {
-            properties = readOnlyDict.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-            return true;
-        }
-
-        var readableProperties = value.GetType()
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(property => property.CanRead && property.GetIndexParameters().Length == 0)
-            .ToArray();
-        if (readableProperties.Length == 0)
-            return false;
-
-        var propertyValues = new Dictionary<string, object?>();
-        foreach (var property in readableProperties)
-            propertyValues[property.Name] = property.GetValue(value);
-
-        properties = propertyValues;
-        return true;
     }
 
     private static IEnumerable<TestCaseData> DiscoverExpressions(string relativePath)

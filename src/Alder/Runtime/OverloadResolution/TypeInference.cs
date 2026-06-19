@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Alder.Runtime.OverloadResolution;
 
 internal static class TypeInference
@@ -459,6 +461,10 @@ internal static class TypeInference
         return true;
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2067",
+        Justification = "Generic method type inference uses reflected interface discovery for C# compatibility; NativeAOT hosts must use registered/generated types whose interface metadata is rooted.")]
     private static Type? FindUniqueConstructedType(Type type, Type genericDef)
     {
         if (type.IsGenericType && type.GetGenericTypeDefinition() == genericDef)

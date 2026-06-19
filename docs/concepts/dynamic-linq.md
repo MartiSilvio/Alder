@@ -11,7 +11,7 @@ Use [Use Dynamic LINQ](../guides/use-dynamic-linq.md) for workflow examples and 
 
 ## Runtime query composition
 
-Dynamic LINQ is Alder's runtime query-composition layer. It fits applications where the host owns the source and surrounding LINQ pipeline while predicates, selectors, keys, joins, projections, or aggregate selectors come from stored filters, configurable views, report definitions, policy-controlled search screens, or user-authored query fragments.
+Dynamic LINQ is Alder's runtime query-composition layer. It fits applications where the host owns the source and the surrounding LINQ pipeline, but the actual query fragments come from somewhere outside the application code. Predicates, selectors, keys, joins, projections, and aggregate selectors arrive from stored filters, configurable views, report definitions, policy-controlled search screens, or user-authored query input.
 
 ```mermaid
 flowchart LR

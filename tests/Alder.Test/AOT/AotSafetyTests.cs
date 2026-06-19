@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Alder.Aot;
+using Alder.Diagnostics;
 using Alder.Runtime;
 using Alder.Runtime.Introspection;
 using Alder.Test._Infrastructure;
@@ -543,5 +544,35 @@ public class AotSafetyTests
         var result = engine.Evaluate<Func<int, int>>("x => x + 1");
 
         Assert.That(result!(5), Is.EqualTo(321));
+    }
+
+    [Test]
+    public void SimulatedAot_EngineFault_FromUnrootedExceptionThrow_PropagatesNotSilentlyCaught()
+    {
+        using var _ = RuntimeGenericClosure.OverrideDynamicCodeSupportForTesting(false);
+        var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
+
+        // NotImplementedException's ctor isn't in the generated dispatch surface, so its
+        // construction is an engine fault (ALDR0318). It must propagate to the host, NOT be
+        // silently caught by the rule's own catch(Exception) (which would return "caught").
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(
+            """try { throw new System.NotImplementedException(); } catch (Exception) { return "caught"; }"""));
+
+        Assert.That(ex!.IsEngineFault, Is.True);
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0318));
+    }
+
+    [Test]
+    public void SimulatedAot_RuleDomainException_RemainsCatchable()
+    {
+        using var _ = RuntimeGenericClosure.OverrideDynamicCodeSupportForTesting(false);
+        var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
+
+        // A genuine rule-domain exception (divide by zero) is not an engine fault and must
+        // remain catchable by the rule's own try/catch.
+        var result = engine.Evaluate(
+            """try { var x = 1 / 0; return "no"; } catch (System.DivideByZeroException) { return "caught"; }""");
+
+        Assert.That(result, Is.EqualTo("caught"));
     }
 }

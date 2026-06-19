@@ -68,33 +68,26 @@ internal static class ILExpressionCompiler
 
     private static CompiledExpressionDelegate? TryCompileBound(BoundExpr bound, AlderConfig config)
     {
-        try
-        {
-            var contextParam = LinqExpression.Parameter(typeof(AlderContext), "context");
-            var configParam = LinqExpression.Parameter(typeof(AlderConfig), "config");
-            var constraintStateParam = LinqExpression.Parameter(typeof(ExecutionConstraintState), "constraintState");
-            var ctParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
-            var resolvedDispatchMode =
-                !MethodDispatchCache.DynamicCodeSupported
-                    ? Emission.ResolvedDispatchMode.RuntimeDispatch
-                    : Emission.ResolvedDispatchMode.Direct;
+        var contextParam = LinqExpression.Parameter(typeof(AlderContext), "context");
+        var configParam = LinqExpression.Parameter(typeof(AlderConfig), "config");
+        var constraintStateParam = LinqExpression.Parameter(typeof(ExecutionConstraintState), "constraintState");
+        var ctParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
+        var resolvedDispatchMode =
+            !MethodDispatchCache.DynamicCodeSupported
+                ? Emission.ResolvedDispatchMode.RuntimeDispatch
+                : Emission.ResolvedDispatchMode.Direct;
 
-            var emitter = new BoundExpressionEmitter(
-                contextParam,
-                configParam,
-                constraintStateParam,
-                resolvedDispatchMode,
-                ctParam);
-            var body = emitter.EmitRoot(bound);
-            if (body.Type != typeof(object))
-                body = LinqExpression.Convert(body, typeof(object));
+        var emitter = new BoundExpressionEmitter(
+            contextParam,
+            configParam,
+            constraintStateParam,
+            resolvedDispatchMode,
+            ctParam);
+        var body = emitter.EmitRoot(bound);
+        if (body.Type != typeof(object))
+            body = LinqExpression.Convert(body, typeof(object));
 
-            var lambda = LinqExpression.Lambda<CompiledExpressionDelegate>(body, contextParam, configParam, constraintStateParam, ctParam);
-            return config.ExpressionCompiler.Compile(lambda);
-        }
-        catch (BindingNotSupportedException)
-        {
-            return null;
-        }
+        var lambda = LinqExpression.Lambda<CompiledExpressionDelegate>(body, contextParam, configParam, constraintStateParam, ctParam);
+        return config.ExpressionCompiler.Compile(lambda);
     }
 }

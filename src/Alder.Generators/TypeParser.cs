@@ -29,6 +29,22 @@ internal static class TypeParser
             ? type.TypeArguments.Select(CreateTypeArgumentModel).ToImmutableArray()
             : ImmutableArray<TypeArgumentModel>.Empty;
 
+        if (HasTrimOrAotUnsafeAttribute(type))
+        {
+            return new TypeRegistrationModel(
+                typeFullName,
+                originalDefinitionNamespace,
+                originalDefinitionMetadataName,
+                typeArguments,
+                metadataClassName,
+                isValueType,
+                ImmutableArray<PropertyModel>.Empty,
+                ImmutableArray<FieldModel>.Empty,
+                ImmutableArray<ConstructorModel>.Empty,
+                ImmutableArray<IndexerModel>.Empty,
+                ImmutableArray<MethodModel>.Empty);
+        }
+
         var properties = ImmutableArray.CreateBuilder<PropertyModel>();
         var fields = ImmutableArray.CreateBuilder<FieldModel>();
         var constructors = ImmutableArray.CreateBuilder<ConstructorModel>();
@@ -43,19 +59,43 @@ internal static class TypeParser
             switch (member)
             {
                 case IPropertySymbol { IsIndexer: true } prop:
-                    if (prop.Parameters.Length == 1)
+                {
+                    if (prop.Parameters.Length == 1 &&
+                        !IsUnsupportedDispatchType(prop.Parameters[0].Type) &&
+                        !IsUnsupportedDispatchType(prop.Type))
                     {
+                        var propertyUnsafe = HasTrimOrAotUnsafeAttribute(prop);
+                        var canRead = !propertyUnsafe &&
+                                      prop.GetMethod is { DeclaredAccessibility: Accessibility.Public } getMethod &&
+                                      !HasTrimOrAotUnsafeAttribute(getMethod);
+                        var canWrite = !propertyUnsafe &&
+                                       prop.SetMethod is { DeclaredAccessibility: Accessibility.Public } setMethod &&
+                                       !HasTrimOrAotUnsafeAttribute(setMethod);
+                        if (!canRead && !canWrite)
+                            break;
+
                         indexers.Add(new IndexerModel(
                             GetFullyQualifiedTypeName(prop.Parameters[0].Type),
                             GetFullyQualifiedTypeName(prop.Type),
-                            prop.GetMethod != null,
-                            prop.SetMethod is { DeclaredAccessibility: Accessibility.Public }));
+                            canRead,
+                            canWrite));
                     }
                     break;
+                }
 
                 case IPropertySymbol prop:
-                    var canRead = prop.GetMethod is { DeclaredAccessibility: Accessibility.Public };
-                    var canWrite = prop.SetMethod is { DeclaredAccessibility: Accessibility.Public, IsInitOnly: false };
+                {
+                    var propertyUnsafe = HasTrimOrAotUnsafeAttribute(prop) ||
+                                         IsUnsupportedDispatchType(prop.Type);
+                    var canRead = !propertyUnsafe &&
+                                  prop.GetMethod is { DeclaredAccessibility: Accessibility.Public } getMethod &&
+                                  !HasTrimOrAotUnsafeAttribute(getMethod);
+                    var canWrite = !propertyUnsafe &&
+                                   prop.SetMethod is { DeclaredAccessibility: Accessibility.Public, IsInitOnly: false } setMethod &&
+                                   !HasTrimOrAotUnsafeAttribute(setMethod);
+                    if (!canRead && !canWrite)
+                        break;
+
                     properties.Add(new PropertyModel(
                         prop.Name,
                         GetFullyQualifiedTypeName(prop.Type),
@@ -63,8 +103,10 @@ internal static class TypeParser
                         canWrite,
                         prop.IsStatic));
                     break;
+                }
 
-                case IFieldSymbol field when !field.IsImplicitlyDeclared || type.IsTupleType:
+                case IFieldSymbol field when (!field.IsImplicitlyDeclared || type.IsTupleType) &&
+                                             !IsUnsupportedDispatchType(field.Type):
                     fields.Add(new FieldModel(
                         field.Name,
                         GetFullyQualifiedTypeName(field.Type),
@@ -73,6 +115,8 @@ internal static class TypeParser
                     break;
 
                 case IMethodSymbol { MethodKind: MethodKind.Constructor } method:
+                    if (HasTrimOrAotUnsafeAttribute(method))
+                        break;
                     if (HasUnsafeParameters(method))
                         break;
                     var ctorParams = ImmutableArray.CreateBuilder<ParameterModel>();
@@ -87,9 +131,13 @@ internal static class TypeParser
                     break;
 
                 case IMethodSymbol { MethodKind: MethodKind.Ordinary } method:
+                    if (HasTrimOrAotUnsafeAttribute(method))
+                        break;
                     if (method.IsGenericMethod)
                         break;
                     if (method.ReturnsByRef || method.ReturnsByRefReadonly)
+                        break;
+                    if (!method.ReturnsVoid && IsUnsupportedDispatchType(method.ReturnType))
                         break;
                     if (HasUnsafeParameters(method) || HasUnsupportedByRefParameters(method) || HasDelegateParameters(method))
                         break;
@@ -142,13 +190,34 @@ internal static class TypeParser
         method.Parameters.Any(p => IsDelegateType(p.Type));
 
     private static bool HasUnsafeParameters(IMethodSymbol method) =>
-        method.Parameters.Any(p =>
-            p.Type.TypeKind == TypeKind.Pointer ||
-            p.Type.TypeKind == TypeKind.FunctionPointer ||
-            p.Type.IsRefLikeType);
+        method.Parameters.Any(p => IsUnsupportedDispatchType(p.Type));
+
+    private static bool IsUnsupportedDispatchType(ITypeSymbol type) =>
+        type.TypeKind is TypeKind.Pointer or TypeKind.FunctionPointer ||
+        type.IsRefLikeType;
 
     private static bool HasUnsupportedByRefParameters(IMethodSymbol method) =>
         method.Parameters.Any(p => p.RefKind is RefKind.Ref or RefKind.In);
+
+    private static bool HasTrimOrAotUnsafeAttribute(ISymbol? symbol)
+    {
+        if (symbol == null)
+            return false;
+
+        foreach (var attribute in symbol.GetAttributes())
+        {
+            var fullName = attribute.AttributeClass?.ToDisplayString();
+            if (fullName is
+                "System.Diagnostics.CodeAnalysis.RequiresDynamicCodeAttribute" or
+                "System.Diagnostics.CodeAnalysis.RequiresUnreferencedCodeAttribute" or
+                "System.Diagnostics.CodeAnalysis.RequiresAssemblyFilesAttribute")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static bool IsDelegateType(ITypeSymbol type)
     {

@@ -6,6 +6,7 @@ using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
 using Alder.Runtime.Collections;
+using Alder.Runtime.Introspection;
 
 namespace Alder.Compiled.Compilation;
 
@@ -207,7 +208,8 @@ internal static class QueryExpressionPreparer
 
     private static bool ImplementsGenericInterface(Type type, Type genericInterface) =>
         type.IsGenericType && type.GetGenericTypeDefinition() == genericInterface
-        || type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == genericInterface);
+        || RuntimeTypeIntrospection.GetInterfaces(type)
+            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == genericInterface);
 
     private static AlderContext CreateQueryBindingRuntimeContext(AlderConfig config)
     {

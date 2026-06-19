@@ -1,6 +1,8 @@
 using Alder;
 using Alder.AotMatrix;
 
+if (args.Length > 1 && args[0] == "--canonical")
+    return await TestSingle.RunCanonical(args[1]);
 if (args.Length > 0 && args[0] == "--single" && args.Length > 1)
     return await TestSingle.Run(args[1]);
 if (args.Length > 0 && args[0] == "--diag")
@@ -194,6 +196,26 @@ foreach (var mode in new[] { "Sync", "Async" })
     Console.WriteLine($"  {mode} top failing categories:");
     foreach (var g in byCategory)
         Console.WriteLine($"    {g.Key,-35} {g.Count(),5}");
+    Console.WriteLine();
+}
+
+if (failures.Count > 0)
+{
+    Console.WriteLine("  Representative failures:");
+    var representativeFailures = failures
+        .GroupBy(f => new { f.Mode, f.ErrorType, f.Message })
+        .OrderByDescending(g => g.Count())
+        .ThenBy(g => g.Key.Mode, StringComparer.Ordinal)
+        .ThenBy(g => g.Key.Message, StringComparer.Ordinal)
+        .Take(20);
+
+    foreach (var group in representativeFailures)
+    {
+        var exampleFiles = string.Join(", ", group.Select(f => f.File).Distinct().Take(3));
+        Console.WriteLine($"    [{group.Count(),4}] {group.Key.Mode} {group.Key.ErrorType}: {group.Key.Message}");
+        Console.WriteLine($"           e.g. {exampleFiles}");
+    }
+
     Console.WriteLine();
 }
 

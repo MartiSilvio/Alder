@@ -9,4 +9,5 @@ internal sealed partial record BoundForEachExpr(
     ImmutableArray<BoundExpr> Body,
     Type ElementType,
     BoundType StaticType,
-    int? LocalId = null) : BoundExpr(StaticType);
+    int? LocalId = null,
+    Type? SourceElementType = null) : BoundExpr(StaticType);

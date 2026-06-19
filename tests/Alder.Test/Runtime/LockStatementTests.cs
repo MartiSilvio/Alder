@@ -27,6 +27,40 @@ public class LockStatementTests(CompilationMode mode)
         Assert.That(probe.DisposeCount, Is.EqualTo(1));
     }
 
+    [Test]
+    public void UsingResourceDeclaration_Assignment_ThrowsCs1656()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.SetVariable("probe", new AsyncDisposeProbe());
+        var ex = Assert.Throws<AlderException>(() =>
+            engine.Evaluate("{ using (var r = probe) { r = null; } }"));
+
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1656));
+    }
+
+    [Test]
+    public void UsingResourceDeclaration_DoesNotLeakOutsideStatement()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.SetVariable("probe", new AsyncDisposeProbe());
+        var ex = Assert.Throws<AlderException>(() =>
+            engine.Evaluate("{ using (var r = probe) { } return r; }"));
+
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
+    }
+
+    [Test]
+    public void UsingResourceDeclaration_SiblingStatementsCanReuseName()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.SetVariable("first", new object());
+        engine.SetVariable("second", new object());
+
+        var result = engine.Evaluate("{ using (object r = first); using (object r = second); return 42; }");
+
+        Assert.That(result, Is.EqualTo(42));
+    }
+
     private sealed class AsyncDisposeProbe : IAsyncDisposable
     {
         public int DisposeCount { get; private set; }

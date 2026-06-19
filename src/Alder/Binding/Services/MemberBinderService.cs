@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Alder.Diagnostics;
 using Alder.Runtime;
 
@@ -206,6 +207,10 @@ internal sealed class MemberBinderService
         return false;
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2067",
+        Justification = "Index binding interface discovery is a reflection compatibility path; NativeAOT hosts must use registered/generated types whose interface metadata is rooted.")]
     private static IEnumerable<Type> EnumerateSelfAndInterfaces(Type type)
     {
         yield return type;

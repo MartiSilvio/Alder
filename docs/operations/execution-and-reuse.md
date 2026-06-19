@@ -5,7 +5,7 @@ description: How to operate Alder engines, parsed expressions, compiled delegate
 
 # Execution and reuse
 
-Alder is designed to be operated as a reusable runtime component. An application configures an `AlderEngine`, gives it a stable type and policy surface, and evaluates parsed expressions, compiled artifacts, and query plans many times. The performance model follows from that lifecycle: configure once, parse where code enters the system, and keep high-throughput calls on reusable artifacts. The exact evaluation lifecycle and cache semantics belong in [Execution model](../reference/execution-model.md).
+Operate Alder as a reusable runtime component. An application configures an `AlderEngine`, gives it a stable type and policy surface, and evaluates parsed expressions, compiled artifacts, and query plans many times. The performance model follows from that lifecycle: configure once, parse where code enters the system, and keep high-throughput calls on reusable artifacts. The exact evaluation lifecycle and cache semantics belong in [Execution model](../reference/execution-model.md).
 
 The core distinction is between source text, parsed syntax, bound semantics, and executable form. `AlderExpression` preserves parsed syntax. The engine caches bound and compiled state during evaluation. Compiled wrappers and Dynamic LINQ plans expose explicit artifacts for hot paths and query composition.
 

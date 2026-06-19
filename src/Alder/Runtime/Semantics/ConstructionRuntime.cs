@@ -1,5 +1,6 @@
 using System.Runtime.ExceptionServices;
 using Alder.Diagnostics;
+using Alder.Parsing;
 using Alder.Runtime.OverloadResolution;
 
 namespace Alder.Runtime.Semantics;
@@ -114,7 +115,11 @@ internal static class ConstructionRuntime
         return InvokeConstructor(resolvedType, ctorArgs, context)!;
     }
 
-    public static object? DeconstructTuple(object? tupleValue, string[] variableNames, AlderContext context)
+    public static object? DeconstructTuple(
+        object? tupleValue,
+        string[] variableNames,
+        AlderContext context,
+        bool isReadOnly = false)
     {
         if (tupleValue is System.Runtime.CompilerServices.ITuple tuple)
         {
@@ -124,7 +129,7 @@ internal static class ConstructionRuntime
             {
                 var elementValue = tuple[i];
                 var elementType = elementValue?.GetType() ?? typeof(object);
-                context.DefineNew(variableNames[i], elementValue, elementType);
+                DefineDeconstructionVariable(context, variableNames[i], elementValue, elementType, isReadOnly);
             }
 
             return tupleValue;
@@ -139,7 +144,7 @@ internal static class ConstructionRuntime
                 {
                     var elementValue = deconstructed[i];
                     var elementType = elementValue?.GetType() ?? typeof(object);
-                    context.DefineNew(variableNames[i], elementValue, elementType);
+                    DefineDeconstructionVariable(context, variableNames[i], elementValue, elementType, isReadOnly);
                 }
 
                 return tupleValue;
@@ -147,6 +152,19 @@ internal static class ConstructionRuntime
         }
 
         throw new AlderException(DiagnosticDescriptors.DeconstructionFailed, TypeNameFormatter.Of(tupleValue));
+    }
+
+    private static void DefineDeconstructionVariable(
+        AlderContext context,
+        string name,
+        object? value,
+        Type elementType,
+        bool isReadOnly)
+    {
+        if (name == TokenLexemes.DiscardIdentifier)
+            return;
+
+        context.DefineNew(name, value, elementType, isReadOnly);
     }
 
     public static object?[]? TryDeconstruct(object value, int parameterCount)

@@ -166,13 +166,15 @@ internal sealed class TypeAssemblyIndex
         return (frozenNamespaceIndex, frozenFullNameIndex, namespacePrefixes, implicitImports);
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "Assembly scanning is best-effort for configured resolver imports; NativeAOT support is defined by explicitly rooted/generated types, not arbitrary trimmed assembly contents.")]
     private static IEnumerable<Type> EnumerateAssemblyTypes(Assembly assembly)
     {
         try
         {
-#pragma warning disable IL2026
             return assembly.DefinedTypes.Select(static typeInfo => typeInfo.AsType()).ToArray();
-#pragma warning restore IL2026
         }
         catch (ReflectionTypeLoadException ex)
         {

@@ -8,9 +8,9 @@ namespace Alder.Generators.Tests;
 public static class GeneratorTestHelper
 {
     public static (ImmutableArray<Diagnostic> Diagnostics, Microsoft.CodeAnalysis.Compilation OutputCompilation, ImmutableArray<SyntaxTree> GeneratedTrees)
-        RunGenerator(string source)
+        RunGenerator(string source, bool allowUnsafe = false, params string[] preprocessorSymbols)
     {
-        var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp12);
+        var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp12, preprocessorSymbols: preprocessorSymbols);
         var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
 
         var references = AppDomain.CurrentDomain.GetAssemblies()
@@ -27,7 +27,7 @@ public static class GeneratorTestHelper
             "GeneratorTestAssembly",
             new[] { syntaxTree },
             references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: allowUnsafe));
 
         var generator = new AlderSourceGenerator();
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
