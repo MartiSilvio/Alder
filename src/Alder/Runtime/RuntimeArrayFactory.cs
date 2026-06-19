@@ -1,7 +1,13 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Alder.Runtime;
 
 internal static class RuntimeArrayFactory
 {
+    [UnconditionalSuppressMessage(
+        "AOT",
+        "IL3050",
+        Justification = "NativeAOT array support is bounded to element types already bound, generated, or rooted by the host; arbitrary runtime element types are outside the AOT contract.")]
     public static Type GetArrayType(Type elementType, int rank = 1)
     {
         if (elementType is null) throw new ArgumentNullException(nameof(elementType));
@@ -29,6 +35,10 @@ internal static class RuntimeArrayFactory
     /// Creates an array with a configurable maximum length limit from the security policy.
     /// Used by the interpreter which has access to the engine's SecurityPolicy.
     /// </summary>
+    [UnconditionalSuppressMessage(
+        "AOT",
+        "IL3050",
+        Justification = "NativeAOT array support is bounded to element types already bound, generated, or rooted by the host; arbitrary runtime element types are outside the AOT contract.")]
     public static Array Create(Type elementType, int length, int maxLength)
     {
         if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
@@ -40,6 +50,10 @@ internal static class RuntimeArrayFactory
 #pragma warning restore IL3050
     }
 
+    [UnconditionalSuppressMessage(
+        "AOT",
+        "IL3050",
+        Justification = "NativeAOT array support is bounded to element types already bound, generated, or rooted by the host; arbitrary multidimensional runtime element types are outside the AOT contract.")]
     public static Array Create(Type elementType, int[] lengths)
     {
         if (lengths is null) throw new ArgumentNullException(nameof(lengths));

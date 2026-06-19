@@ -868,7 +868,10 @@ internal sealed class StatementParser : ParserBase
         if (deconstructionNames is not null)
         {
             var iterRef = new IdentifierExpr(variableName) { Span = variableName.Span };
-            var deconstruct = new DeconstructionExpr(deconstructionNames, iterRef) { Span = SpanFrom(mark) };
+            var deconstruct = new DeconstructionExpr(
+                deconstructionNames,
+                iterRef,
+                DeclaresIterationVariables: true) { Span = SpanFrom(mark) };
             body.Insert(0, deconstruct);
         }
 
@@ -886,15 +889,10 @@ internal sealed class StatementParser : ParserBase
             var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
             Consume(TokenType.Equal, "Expected '=' in using declaration");
             var init = _expression.ParseExpression();
-            resource = new VariableDeclExpr(null, name, init) { Span = SpanFrom(markRes) };
+            resource = new UsingResourceDeclExpr(null, name, init) { Span = SpanFrom(markRes) };
         }
-        else if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot && MatchTypeKeyword(out var typeToken))
+        else if (TryParseUsingResourceDeclaration(out resource))
         {
-            var markRes = Mark();
-            var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
-            Consume(TokenType.Equal, "Expected '=' in using declaration");
-            var init = _expression.ParseExpression();
-            resource = new VariableDeclExpr(typeToken, name, init) { Span = SpanFrom(markRes) };
         }
         else
         {
@@ -911,12 +909,43 @@ internal sealed class StatementParser : ParserBase
             Consume(TokenType.RightBrace, "Expected '}' after using body");
             body = new BlockExpr(statements, null) { Span = SpanFrom(markBody) };
         }
+        else if (Match(TokenType.Semicolon))
+        {
+            body = new BlockExpr([], null) { Span = SpanFrom(mark) };
+        }
         else
         {
             body = ParseStatement()!;
         }
 
         return new UsingStatementExpr(resource, body) { Span = SpanFrom(mark) };
+    }
+
+    private bool TryParseUsingResourceDeclaration(out Expr resource)
+    {
+        var saved = State.Current;
+        var markRes = Mark();
+        resource = null!;
+
+        var typeName = TryParseTypeName();
+        if (typeName == null || !CheckIdentifierOrContextualKeyword())
+        {
+            State.Current = saved;
+            return false;
+        }
+
+        var name = Advance();
+        if (!Match(TokenType.Equal))
+        {
+            State.Current = saved;
+            return false;
+        }
+
+        var init = _expression.ParseExpression();
+        var typeToken = new Token(TokenType.Identifier, typeName, null,
+            State.Tokens[saved].Line, State.Tokens[saved].Column, State.Tokens[saved].Start);
+        resource = new UsingResourceDeclExpr(typeToken, name, init) { Span = SpanFrom(markRes) };
+        return true;
     }
 
     private Expr ParseLockStatement(int mark)

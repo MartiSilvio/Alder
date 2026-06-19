@@ -152,7 +152,7 @@ namespace System.Diagnostics.CodeAnalysis
         public string? Url { get; set; }
     }
 
-    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor, Inherited = false)]
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor, Inherited = false, AllowMultiple = true)]
     internal sealed class UnconditionalSuppressMessageAttribute : Attribute
     {
         public UnconditionalSuppressMessageAttribute(string category, string checkId)

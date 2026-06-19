@@ -541,6 +541,13 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    public virtual T VisitUsingResourceDecl(UsingResourceDeclExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Initializer);
+        return OnLeave(expr);
+    }
+
     public virtual T VisitDefault(DefaultExpr expr)
     {
         OnEnter(expr);

@@ -8,8 +8,9 @@ internal static class UsingBinder
 {
     public static BoundExpr Bind(UsingStatementExpr expr, BindingContext context, BinderContext binder)
     {
-        var resource = binder.Bind(expr.ResourceDeclaration, context);
-        var body = binder.Bind(expr.Body, context.CreateChildScope());
+        var usingScope = context.CreateChildScope();
+        var resource = binder.Bind(expr.ResourceDeclaration, usingScope);
+        var body = binder.Bind(expr.Body, usingScope);
         return new BoundUsingStatementExpr(resource, body, BoundType.Void);
     }
 }

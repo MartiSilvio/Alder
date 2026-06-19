@@ -137,41 +137,26 @@ public sealed class SecurityPolicy
             typeof(WeakReference),
             typeof(WeakReference<>),
         };
-        AddIfAvailable(types, "System.Threading.Thread, System.Threading.Thread");
-        AddIfAvailable(types, "System.Threading.ThreadPool, System.Threading.ThreadPool");
-        AddIfAvailable(types, "System.Threading.Mutex, System.Threading");
-        AddIfAvailable(types, "System.Threading.Semaphore, System.Threading");
-        AddIfAvailable(types, "System.Threading.Timer, System.Threading");
-        AddIfAvailable(types, "System.Threading.ManualResetEvent, System.Threading");
-        AddIfAvailable(types, "System.Threading.AutoResetEvent, System.Threading");
-        AddIfAvailable(types, "System.Threading.Barrier, System.Threading");
-        AddIfAvailable(types, "System.Diagnostics.Process, System.Diagnostics.Process");
-        AddIfAvailable(types, "System.Diagnostics.ProcessStartInfo, System.Diagnostics.Process");
-        AddIfAvailable(types, "System.Runtime.InteropServices.Marshal, System.Runtime.InteropServices");
+        AddDefaultDeniedTypes(
+            types,
+            typeof(System.Threading.Thread),
+            typeof(System.Threading.ThreadPool),
+            typeof(System.Threading.Mutex),
+            typeof(System.Threading.Semaphore),
+            typeof(System.Threading.Timer),
+            typeof(System.Threading.ManualResetEvent),
+            typeof(System.Threading.AutoResetEvent),
+            typeof(System.Threading.Barrier),
+            typeof(System.Diagnostics.Process),
+            typeof(System.Diagnostics.ProcessStartInfo),
+            typeof(System.Runtime.InteropServices.Marshal));
         return types;
     }
 
-    private static void AddIfAvailable(HashSet<Type> set, string assemblyQualifiedName)
+    private static void AddDefaultDeniedTypes(HashSet<Type> set, params Type[] types)
     {
-        var comma = assemblyQualifiedName.IndexOf(',');
-        if (comma <= 0)
-            return;
-
-        var typeName = assemblyQualifiedName[..comma].Trim();
-        var assemblyName = assemblyQualifiedName[(comma + 1)..].Trim();
-
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            if (!string.Equals(assembly.GetName().Name, assemblyName, StringComparison.Ordinal))
-                continue;
-
-#pragma warning disable IL2026
-            var resolved = assembly.GetType(typeName, throwOnError: false, ignoreCase: false);
-#pragma warning restore IL2026
-            if (resolved != null)
-                set.Add(resolved);
-            return;
-        }
+        foreach (var type in types)
+            set.Add(type);
     }
 
     private static readonly HashSet<string> DefaultDeniedNamespaces = new()

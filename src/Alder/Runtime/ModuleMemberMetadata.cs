@@ -38,7 +38,8 @@ internal static class ModuleMemberMetadata
         [DynamicallyAccessedMembers(
             DynamicallyAccessedMemberTypes.PublicMethods |
             DynamicallyAccessedMemberTypes.PublicProperties |
-            DynamicallyAccessedMemberTypes.PublicFields)] Type type,
+            DynamicallyAccessedMemberTypes.PublicFields |
+            DynamicallyAccessedMemberTypes.Interfaces)] Type type,
         bool explicitOnly,
         StringComparer comparer)
     {

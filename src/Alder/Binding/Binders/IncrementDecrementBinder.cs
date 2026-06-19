@@ -18,6 +18,10 @@ internal static class IncrementDecrementBinder
             throw new AlderException(
                 DiagnosticDescriptors.ReadOnlyAssignmentToReservedKind,
                 expr.Name.Lexeme, "foreach iteration variable");
+        if (readOnlyReason == ReadOnlyReason.UsingVariable)
+            throw new AlderException(
+                DiagnosticDescriptors.ReadOnlyAssignmentToReservedKind,
+                expr.Name.Lexeme, "using variable");
         if (readOnlyReason != ReadOnlyReason.None)
             throw new AlderException(DiagnosticDescriptors.IncrementDecrementRequiresVariable);
         var target = NamedTargetBindingService.Resolve(expr.Name.Lexeme, context, BoundType.Unknown);

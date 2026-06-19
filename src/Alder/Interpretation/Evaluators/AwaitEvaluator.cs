@@ -15,6 +15,6 @@ internal static class AwaitEvaluator
         if (operand == null)
             throw new AlderException(DiagnosticDescriptors.NotAwaitable, "null");
 
-        return await TaskUnwrapper.AwaitDynamic(operand);
+        return await TaskUnwrapper.AwaitDynamic(operand, ctx.Context);
     }
 }

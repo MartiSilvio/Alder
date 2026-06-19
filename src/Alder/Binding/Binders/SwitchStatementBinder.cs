@@ -13,7 +13,10 @@ internal static class SwitchStatementBinder
         ValidateCaseLabels(expr);
 
         var expression = binder.Bind(expr.Expression, context);
-        var switchBinder = binder.WithAdditionalFlags(BinderFlags.InSwitch);
+        var switchFlags = BinderFlags.InSwitch;
+        if (binder.Includes(BinderFlags.InFinally))
+            switchFlags |= BinderFlags.InFinallySwitch;
+        var switchBinder = binder.WithAdditionalFlags(switchFlags);
         var cases = expr.Cases
             .Select(switchCase =>
             {

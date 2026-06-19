@@ -158,6 +158,9 @@ The failure mode is explicit:
 - `ALDR0316`: a member is unavailable in authoritative generated mode
 - `ALDR0317`: a method is unavailable in authoritative generated mode
 - `ALDR0318`: a constructor is unavailable in authoritative generated mode
+- `ALDR0319`: no rooted generic closure is available in authoritative generated mode
+
+These four codes are engine/host deployment faults, not rule-domain errors. They are **not** part of a script's exception surface: a script's own `try`/`catch` cannot swallow them, and they always propagate to the host so the missing registration surfaces instead of being silently absorbed into a fallback result. (The interpreter and the compiled backend enforce this identically.)
 
 That turns deployment mistakes into clear integration errors. If an expression reads `order.Customer.Name`, the registered context must cover the runtime type of `order.Customer` as well as `OrderRow` when that customer object is reached dynamically. If an expression constructs `new Money(...)`, the generated context must include `Money` and the generated constructor shape must match the arguments Alder will pass.
 
@@ -256,9 +259,15 @@ AOT deployment trades runtime breadth for explicit reachability. The interpreter
 
 Startup configuration becomes part of the deployment contract. The engine must be built with the same generated contexts that the published binary expects to use.
 
-Expression design should avoid unbounded runtime shapes. Open-ended extension-method chains, arbitrary generic method closure, and delegate shapes discovered only from expression text are poor fits unless the host explicitly roots the relevant forms.
+Expression design should avoid unbounded runtime shapes. Open-ended extension-method chains, arbitrary generic method closure, and delegate shapes discovered only from expression text fit NativeAOT when the host roots the relevant forms or replaces them with explicit modules and functions.
 
-Parity testing should include both the ordinary JIT path and the published AOT artifact. Alder's tests simulate missing dynamic-code support for many paths, and the repository also contains an AOT matrix harness for real NativeAOT execution. Application test suites should follow the same principle: validate the expression set under the runtime that will ship.
+Generated dispatch excludes types and members annotated with `[RequiresDynamicCode]`, `[RequiresUnreferencedCode]`, or `[RequiresAssemblyFiles]`. The generator omits those members rather than emitting code that would move trim/AOT obligations into the generated surface. If an expression needs one of those operations, expose an AOT-safe host wrapper or explicitly keep that expression outside the NativeAOT-supported surface.
+
+The AOT matrix should be read by failure class. Failures around `Enumerable.Range`, `Where`, `Select`, `SelectMany`, or array `Sum` are LINQ surface failures: they require specific extension methods and delegate closures that are not part of the default generated surface. Failures around `Func<T, TResult>`, `Func<TResult>`, async lambdas, or iterator-returning local functions are delegate or generic-closure failures. Failures around `Regex.Match`, unregistered `Task.FromResult<T>`, and similar BCL helpers are helper-surface failures; they belong behind explicit modules or exact closed roots when an application needs them. Failures on unregistered runtime types, assembly scanning, or reflection-created defaults are reflection-inventory failures.
+
+Parity testing should compare the ordinary JIT path with the published AOT artifact for the selected AOT surface. The JIT path can discover library and application shapes through reflection. A trimmed binary needs those shapes expressed as generated dispatch, rooted generic/static forms, or host delegate factories. A matrix failure inside the declared surface is a gap. A failure in an open-ended LINQ, delegate, BCL helper, or reflection-discovery path records behavior outside the current AOT inventory.
+
+A clean AOT release has two checks. The publish log should have no actionable trim or AOT analysis warnings. The published binary should run the expression corpus the application supports under AOT.
 
 ## Practical model
 

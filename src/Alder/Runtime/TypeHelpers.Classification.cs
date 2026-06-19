@@ -5,6 +5,10 @@ namespace Alder.Runtime;
 
 internal static partial class TypeHelpers
 {
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2067",
+        Justification = "Enumerable element inference uses reflected interface discovery for compatibility; NativeAOT hosts must use registered/generated types whose interface metadata is rooted.")]
     internal static Type? GetEnumerableElementType(Type type)
     {
         if (type.IsArray)
@@ -77,6 +81,10 @@ internal static partial class TypeHelpers
     /// For value types, returns the zero/false/null equivalent.
     /// For reference types and nullable types, returns null.
     /// </summary>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2067",
+        Justification = "Known scalar, enum, and nullable defaults are handled explicitly; the Activator fallback is only for value types whose constructors are part of the host-rooted AOT surface.")]
     public static object? GetDefaultValue(Type type)
     {
         if (!type.IsValueType)
@@ -104,9 +112,7 @@ internal static partial class TypeHelpers
             TypeCode.Double => 0d,
             TypeCode.Decimal => 0m,
             TypeCode.DateTime => default(DateTime),
-#pragma warning disable IL2067
             _ => Activator.CreateInstance(type)!
-#pragma warning restore IL2067
         };
     }
 

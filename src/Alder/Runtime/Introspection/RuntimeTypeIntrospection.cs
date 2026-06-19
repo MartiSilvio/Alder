@@ -1,6 +1,7 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Alder.Runtime.Introspection;
 
-#pragma warning disable IL2067, IL2070, IL2072, IL2075, IL2077
 internal static class RuntimeTypeIntrospection
 {
     public static PropertyInfo? FindProperty(Type type, string name, BindingFlags flags)
@@ -83,6 +84,10 @@ internal static class RuntimeTypeIntrospection
         return results.ToArray();
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2070",
+        Justification = "Runtime constructor discovery is a fallback metadata path; NativeAOT support requires constructors to be generated, registered, or otherwise rooted by the host.")]
     public static ConstructorInfo[] GetConstructors(Type type, BindingFlags flags) =>
         type.GetConstructors(flags);
 
@@ -124,9 +129,18 @@ internal static class RuntimeTypeIntrospection
         return null;
     }
 
-    public static IEnumerable<Type> GetInterfaces(Type type) =>
-        type.GetTypeInfo().ImplementedInterfaces;
+    public static IEnumerable<Type> GetInterfaces(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type type) =>
+        type.GetInterfaces();
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2070",
+        Justification = "Runtime property discovery is a fallback metadata path; NativeAOT support requires properties to be generated, registered, or otherwise rooted by the host.")]
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075",
+        Justification = "Interface property discovery is bounded to rooted interface metadata in NativeAOT.")]
     private static PropertyInfo[] EnumeratePropertyCandidates(Type type, BindingFlags flags)
     {
         var effectiveFlags = flags & ~BindingFlags.IgnoreCase;
@@ -135,7 +149,7 @@ internal static class RuntimeTypeIntrospection
         if (type.IsInterface)
         {
             var all = new List<PropertyInfo>(props);
-            foreach (var iface in GetInterfaces(type))
+            foreach (var iface in GetInterfacesForInterfaceMemberFallback(type))
                 all.AddRange(iface.GetProperties(effectiveFlags));
             return all.ToArray();
         }
@@ -143,9 +157,21 @@ internal static class RuntimeTypeIntrospection
         return props;
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2070",
+        Justification = "Runtime field discovery is a fallback metadata path; NativeAOT support requires fields to be generated, registered, or otherwise rooted by the host.")]
     private static FieldInfo[] EnumerateFieldCandidates(Type type, BindingFlags flags) =>
         type.GetFields(flags & ~BindingFlags.IgnoreCase);
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2070",
+        Justification = "Runtime method discovery is a fallback metadata path; NativeAOT support requires methods to be generated, registered, or otherwise rooted by the host.")]
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075",
+        Justification = "Interface method discovery is bounded to rooted interface metadata in NativeAOT.")]
     private static MethodInfo[] EnumerateMethodCandidates(Type type, BindingFlags flags)
     {
         var effectiveFlags = flags & ~BindingFlags.IgnoreCase;
@@ -153,12 +179,19 @@ internal static class RuntimeTypeIntrospection
         if (type.IsInterface)
         {
             var all = new List<MethodInfo>(methods);
-            foreach (var iface in GetInterfaces(type))
+            foreach (var iface in GetInterfacesForInterfaceMemberFallback(type))
                 all.AddRange(iface.GetMethods(effectiveFlags));
             return all.ToArray();
         }
         return methods;
     }
+
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2067",
+        Justification = "Inherited interface member reflection is part of the existing member-reflection fallback; NativeAOT support requires those interface members to be generated, registered, or otherwise rooted by the host.")]
+    private static IEnumerable<Type> GetInterfacesForInterfaceMemberFallback(Type type) =>
+        GetInterfaces(type);
 
     private static bool MatchesProperty(Type sourceType, PropertyInfo property, BindingFlags flags)
     {
@@ -246,4 +279,3 @@ internal static class RuntimeTypeIntrospection
         return int.MaxValue;
     }
 }
-#pragma warning restore IL2067, IL2070, IL2072, IL2075, IL2077

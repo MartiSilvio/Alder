@@ -87,10 +87,6 @@ Security policy and execution constraints are separate runtime controls. The sec
 
 Those controls live in the shared pipeline and runtime support code, so they apply to interpreted execution, compiled synchronous execution, and generated dispatch paths.
 
-## Design tradeoffs
-
-Alder's architecture deliberately concentrates semantic decisions before execution. That gives the system stable diagnostics, backend parity, reusable artifacts, and a clear place to enforce language rules. The cost is discipline: binding bugs affect both backends, dynamic dispatch must remain semantically aligned with resolved binding, and cache reuse has to prefer correctness over hit rate.
-
 ## Related pages
 
 - [Binding system](./binding-system.md)

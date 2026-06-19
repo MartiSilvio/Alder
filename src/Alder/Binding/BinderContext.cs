@@ -24,5 +24,8 @@ internal sealed class BinderContext
     internal BinderContext WithAdditionalFlags(BinderFlags flags)
         => Includes(flags) ? this : new(_bind, Flags | flags);
 
+    internal BinderContext WithFlags(BinderFlags flags)
+        => Flags == flags ? this : new(_bind, flags);
+
     internal bool Includes(BinderFlags flag) => (Flags & flag) != 0;
 }

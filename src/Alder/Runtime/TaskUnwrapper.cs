@@ -5,17 +5,22 @@ namespace Alder.Runtime;
 
 internal static class TaskUnwrapper
 {
-    private static readonly ConcurrentDictionary<Type, Func<object, object?>?> TaskResultAccessorCache = new();
-    private static readonly ConcurrentDictionary<Type, Func<object, Task>?> ValueTaskAsTaskCache = new();
-
-    internal static ValueTask<object?> AwaitDynamic(object operand)
+    // JIT-path caches keyed by runtime type. Resolving Task<T>.Result and ValueTask<T>.AsTask
+    // through RuntimeTypeIntrospection runs GetMethods/GetProperties (array allocation) plus a
+    // LINQ scan, so without memoization every await re-pays that lookup. The cached closure still
+    // reflection-invokes the member, exactly as before the AOT rewrite. The NativeAOT branches
+    // below dispatch through generated code and are cached by that machinery, so these caches are
+    // only consulted when dynamic code is supported. A null entry means "no such member" (e.g. a
+    // non-generic Task has no Result), which is itself worth caching.
+    private static readonly ConcurrentDictionary<Type, Func<object, object?>?> JitResultAccessorCache = new();
+    private static readonly ConcurrentDictionary<Type, Func<object, Task>?> JitAsTaskAdapterCache = new();
+    internal static ValueTask<object?> AwaitDynamic(object operand, AlderContext context)
     {
         if (operand is Task task)
         {
-            var accessor = GetTaskResultAccessor(task.GetType());
             if (task.Status == TaskStatus.RanToCompletion)
-                return new ValueTask<object?>(accessor?.Invoke(task));
-            return AwaitTaskSlow(task, accessor);
+                return new ValueTask<object?>(GetTaskResult(task, context));
+            return AwaitTaskSlow(task, context);
         }
 
         if (operand is ValueTask vt)
@@ -25,21 +30,20 @@ internal static class TaskUnwrapper
             return AwaitValueTaskSlow(vt);
         }
 
+        // ValueTask<T> (and other Task-returning awaitables) expose a parameterless
+        // AsTask() returning Task. Invoke it through generated dispatch (reflection
+        // invoke is unavailable under NativeAOT), then await the resulting Task.
         var type = operand.GetType();
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ValueTask<>))
-        {
-            var asTask = GetValueTaskAsTaskAdapter(type);
-            if (asTask != null)
-                return AwaitDynamic(asTask(operand));
-        }
+        if (TryConvertToTask(operand, type, context, out var asTask))
+            return AwaitDynamic(asTask!, context);
 
         throw new AlderException(DiagnosticDescriptors.NotAwaitable, type.Name);
     }
 
-    private static async ValueTask<object?> AwaitTaskSlow(Task task, Func<object, object?>? accessor)
+    private static async ValueTask<object?> AwaitTaskSlow(Task task, AlderContext context)
     {
         await task.ConfigureAwait(false);
-        return accessor?.Invoke(task);
+        return GetTaskResult(task, context);
     }
 
     private static async ValueTask<object?> AwaitValueTaskSlow(ValueTask vt)
@@ -48,42 +52,62 @@ internal static class TaskUnwrapper
         return null;
     }
 
-    // Walk the type hierarchy to find Task<T> and cache per runtime type.
-    // Uses PropertyInfo.GetValue for the Result property (AOT-safe, no MakeGenericMethod).
-    private static Func<object, object?>? GetTaskResultAccessor(Type runtimeType)
+    // Read Task<T>.Result the same way member access reads any property: through the
+    // generated dispatch under NativeAOT, and through reflection otherwise. The original
+    // code read Result via reflection (PropertyInfo.GetValue), which is dead under
+    // NativeAOT — there is no dynamic invoke and the Result metadata is trimmed — so it
+    // silently returned null for every awaited Task<T>. (The open-generic identity check
+    // it also used, `GetGenericTypeDefinition() == typeof(Task<>)`, was sound and not the
+    // cause.) A dispatch miss yields null: a non-generic Task has no Result, and neither
+    // do the internal Task<VoidTaskResult> instances behind Task.CompletedTask /
+    // Task.Delay; awaiting those is void.
+    private static object? GetTaskResult(Task task, AlderContext context)
     {
-        return TaskResultAccessorCache.GetOrAdd(runtimeType, static type =>
+        var type = task.GetType();
+
+        if (!MethodDispatchCache.DynamicCodeSupported)
         {
-            var current = type;
-            while (current != null && current != typeof(Task))
-            {
-                if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(Task<>))
-                {
-                    var prop = RuntimeTypeIntrospection.FindProperty(current, "Result", BindingFlags.Public | BindingFlags.Instance);
-                    if (prop != null)
-                        return task => prop.GetValue(task);
-                    return null;
-                }
-                current = current.BaseType;
-            }
-            return null;
+            return TypedDispatchHelper.TryGetMember(context.Config, type, "Result", task, out var value)
+                ? value
+                : null;
+        }
+
+        var accessor = JitResultAccessorCache.GetOrAdd(type, static t =>
+        {
+            var prop = RuntimeTypeIntrospection.FindProperty(t, "Result", BindingFlags.Public | BindingFlags.Instance);
+            return prop == null ? null : task => prop.GetValue(task);
         });
+        return accessor?.Invoke(task);
     }
 
-    private static Func<object, Task>? GetValueTaskAsTaskAdapter(Type runtimeType)
+    private static bool TryConvertToTask(object operand, Type type, AlderContext context, out Task? asTask)
     {
-        return ValueTaskAsTaskCache.GetOrAdd(runtimeType, static type =>
+        asTask = null;
+
+        if (!MethodDispatchCache.DynamicCodeSupported)
+        {
+            if (TypedDispatchHelper.TryInvokeInstance(context.Config, type, "AsTask", operand, [], out var result)
+                && result is Task dispatched)
+            {
+                asTask = dispatched;
+                return true;
+            }
+            return false;
+        }
+
+        var adapter = JitAsTaskAdapterCache.GetOrAdd(type, static t =>
         {
             var method = RuntimeTypeIntrospection.FindMethod(
-                type,
-                nameof(ValueTask<int>.AsTask),
-                BindingFlags.Public | BindingFlags.Instance,
-                []);
-
+                t, "AsTask", BindingFlags.Public | BindingFlags.Instance, []);
             if (method == null || !typeof(Task).IsAssignableFrom(method.ReturnType))
                 return null;
-
-            return boxed => (Task)method.Invoke(boxed, null)!;
+            return operand => (Task)method.Invoke(operand, null)!;
         });
+
+        if (adapter == null)
+            return false;
+
+        asTask = adapter(operand);
+        return true;
     }
 }

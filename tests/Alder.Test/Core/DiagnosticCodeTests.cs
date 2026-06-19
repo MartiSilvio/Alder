@@ -190,6 +190,52 @@ public class DiagnosticCodeTests
         }
     }
 
+    [Test]
+    public void CS0157_BreakOutOfFinally_Throws()
+    {
+        foreach (var mode in CompilationModeFixtures.AllModes)
+        {
+            var engine = TestEngineFactory.Create(mode);
+            var ex = Assert.Throws<AlderException>(() =>
+                engine.Evaluate("{ while (true) { try { } finally { break; } } }"));
+            Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0157), $"Mode: {mode}");
+        }
+    }
+
+    [Test]
+    public void CS0157_ContinueOutOfFinally_Throws()
+    {
+        foreach (var mode in CompilationModeFixtures.AllModes)
+        {
+            var engine = TestEngineFactory.Create(mode);
+            var ex = Assert.Throws<AlderException>(() =>
+                engine.Evaluate("{ while (true) { try { } finally { continue; } } }"));
+            Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0157), $"Mode: {mode}");
+        }
+    }
+
+    [Test]
+    public void CS0157_BreakInsideLoopNestedInFinally_IsAllowed()
+    {
+        foreach (var mode in CompilationModeFixtures.AllModes)
+        {
+            var engine = TestEngineFactory.Create(mode);
+            var result = engine.Evaluate("{ var x = 0; try { } finally { while (true) { x = 1; break; } } return x; }");
+            Assert.That(result, Is.EqualTo(1), $"Mode: {mode}");
+        }
+    }
+
+    [Test]
+    public void CS0157_ContinueInsideLoopNestedInFinally_IsAllowed()
+    {
+        foreach (var mode in CompilationModeFixtures.AllModes)
+        {
+            var engine = TestEngineFactory.Create(mode);
+            var result = engine.Evaluate("{ var x = 0; try { } finally { for (var i = 0; i < 2; i++) { if (i == 0) continue; x = i; } } return x; }");
+            Assert.That(result, Is.EqualTo(1), $"Mode: {mode}");
+        }
+    }
+
     // --- CS0156: Throw statement with no arguments outside catch ---
 
     [Test]

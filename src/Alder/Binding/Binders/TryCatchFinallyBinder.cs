@@ -79,7 +79,9 @@ internal static class TryCatchFinallyBinder
         if (expr.FinallyBody != null)
         {
             var finallyScope = context.CreateChildScope();
-            var finallyBinder = binder.WithAdditionalFlags(BinderFlags.InFinally);
+            var finallyFlags = (binder.Flags & ~(BinderFlags.InFinallyLoop | BinderFlags.InFinallySwitch))
+                | BinderFlags.InFinally;
+            var finallyBinder = binder.WithFlags(finallyFlags);
             finallyBody = [
                 ..expr.FinallyBody
                     .Select(statement => finallyBinder.Bind(statement, finallyScope))

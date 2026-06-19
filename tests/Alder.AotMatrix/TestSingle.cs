@@ -1,7 +1,43 @@
+using Alder;
+using Alder.Parity;
+
 namespace Alder.AotMatrix;
 
 public static class TestSingle
 {
+    /// <summary>
+    /// Evaluates a single expression and emits one canonical record the parity
+    /// orchestrator can parse: <c>CANON\t{OK|ERR}\t{type}\t{value}</c>, with the
+    /// type and value fields transport-escaped. The sync vs. async path is chosen
+    /// the same way the matrix run does (async for ValidAsyncExpressions). When
+    /// run as the published NativeAOT binary this line carries the AOT value;
+    /// run via `dotnet run` it carries the JIT value.
+    /// </summary>
+    public static async Task<int> RunCanonical(string filePath)
+    {
+        var engine = new AlderEngine(new AlderOptions
+        {
+            LanguageMode = LanguageMode.Extended,
+            Constraints = new ExecutionConstraints { MaxStatements = 500_000 }
+        });
+
+        var isAsync = filePath.Replace('\\', '/').Contains("ValidAsyncExpressions");
+        try
+        {
+            var expr = File.ReadAllText(filePath).Trim();
+            var result = isAsync ? await engine.EvaluateAsync(expr) : engine.Evaluate(expr);
+            Emit("OK", CanonicalValue.TypeOf(result), CanonicalValue.Render(result));
+        }
+        catch (Exception ex)
+        {
+            Emit("ERR", ex.GetType().FullName ?? ex.GetType().Name, ex.Message);
+        }
+        return 0;
+
+        static void Emit(string status, string type, string value) =>
+            Console.WriteLine($"CANON\t{status}\t{CanonicalValue.EscapeField(type)}\t{CanonicalValue.EscapeField(value)}");
+    }
+
     public static async Task<int> Run(string filePath)
     {
         if (filePath == "--diag")

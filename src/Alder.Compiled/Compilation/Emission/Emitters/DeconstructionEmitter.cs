@@ -17,6 +17,7 @@ internal static class DeconstructionEmitter
             DeconstructTupleMethod,
             ctx.EmitBoxed(node.ValueExpression),
             variableNames,
-            ctx.ContextParam);
+            ctx.ContextParam,
+            LinqExpression.Constant(node.Source.DeclaresIterationVariables));
     }
 }

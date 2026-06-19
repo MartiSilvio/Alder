@@ -23,7 +23,13 @@ internal static class ForEachEmitter
         ctx.LoopDepth = previousDepth + 1;
         try
         {
-            var iterationBody = BlockEmitter.EmitForeachIteration(ctx, node.VariableName, currentVar, node.Body, node.ElementType);
+            var iterationBody = BlockEmitter.EmitForeachIteration(
+                ctx,
+                node.VariableName,
+                currentVar,
+                node.Body,
+                node.ElementType,
+                node.SourceElementType);
             loopBody = new List<LinqExpression>
             {
                 LinqExpression.Call(

@@ -9,7 +9,7 @@ Alder is an embeddable C# expression engine for .NET applications that need runt
 
 ## Is Alder a C# expression evaluator?
 
-Yes. Alder evaluates C# expressions and statement blocks against CLR objects supplied by the host. The evaluation path parses source text, binds it against the configured type surface, validates it under the active security policy, and executes the bound tree through the interpreter or the compiled backend.
+Yes. Alder evaluates C# expressions and statement blocks against the objects your code supplies. The evaluation path parses source text, binds it against the configured type surface, validates it under the active security policy, and executes the result through the interpreter or the compiled backend.
 
 ## How is Alder different from Dynamic LINQ?
 
@@ -21,7 +21,7 @@ Yes. Standard mode supports expression input and statement-block input, includin
 
 ## Does Alder support async expressions?
 
-Yes. `EvaluateAsync(...)` runs through the interpreter and awaits expression-level asynchronous work inside the bound tree. Alder supports `await`, async calls, `IAsyncEnumerable<T>`, `await foreach`, iterator forms, cancellation, and execution constraints on the async path.
+Yes. `EvaluateAsync(...)` runs through the interpreter and awaits expression-level asynchronous work inside the expression itself. Alder supports `await`, async calls, iterator forms, cancellation, and execution constraints on the async path.
 
 ## Does Alder support NativeAOT?
 
@@ -37,7 +37,7 @@ Alder can power rules, policy checks, formulas, and configurable calculations, b
 
 ## Is Alder a scripting engine?
 
-Alder supports expression and statement-block evaluation over host-provided CLR types. It does not implement C# compilation units, type declarations, namespaces, attributes, preprocessor directives, or unsafe code.
+Alder supports expression and statement-block evaluation over the .NET types your host provides. It does not implement C# compilation units, type declarations, namespaces, attributes, preprocessor directives, or unsafe code.
 
 ## Is Alder a sandbox?
 

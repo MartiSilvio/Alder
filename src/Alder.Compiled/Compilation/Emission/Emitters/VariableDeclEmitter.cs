@@ -34,7 +34,7 @@ internal static class VariableDeclEmitter
                 ? LinqExpression.Constant(node.DeclaredType, typeof(Type))
                 : LinqExpression.Constant(null, typeof(Type)),
             ctx.ContextParam,
-            LinqExpression.Constant(node.IsConst),
+            LinqExpression.Constant(node.IsReadOnly),
             LinqExpression.Constant(BoundExpr.IsConstantExpression(node.Initializer)));
     }
 }

@@ -7,4 +7,5 @@ internal sealed partial record BoundVariableDeclExpr(
     Type? DeclaredType,
     BoundType StaticType,
     bool IsConst = false,
+    bool IsReadOnly = false,
     int? LocalId = null) : BoundExpr(StaticType);

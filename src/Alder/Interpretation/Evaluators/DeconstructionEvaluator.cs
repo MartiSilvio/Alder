@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
+using Alder.Parsing;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
@@ -25,7 +26,7 @@ internal static class DeconstructionEvaluator
             {
                 var elementValue = tuple[i];
                 var elementType = elementValue?.GetType() ?? typeof(object);
-                ctx.Context.DefineNew(node.VariableNames[i], elementValue, elementType);
+                DefineVariable(node, ctx, i, elementValue, elementType);
             }
 
             return value;
@@ -40,7 +41,7 @@ internal static class DeconstructionEvaluator
                 {
                     var elementValue = deconstructed[i];
                     var elementType = elementValue?.GetType() ?? typeof(object);
-                    ctx.Context.DefineNew(node.VariableNames[i], elementValue, elementType);
+                    DefineVariable(node, ctx, i, elementValue, elementType);
                 }
 
                 return value;
@@ -66,7 +67,7 @@ internal static class DeconstructionEvaluator
             {
                 var elementValue = tuple[i];
                 var elementType = elementValue?.GetType() ?? typeof(object);
-                ctx.Context.DefineNew(node.VariableNames[i], elementValue, elementType);
+                DefineVariable(node, ctx, i, elementValue, elementType);
             }
 
             return value;
@@ -81,7 +82,7 @@ internal static class DeconstructionEvaluator
                 {
                     var elementValue = deconstructed[i];
                     var elementType = elementValue?.GetType() ?? typeof(object);
-                    ctx.Context.DefineNew(node.VariableNames[i], elementValue, elementType);
+                    DefineVariable(node, ctx, i, elementValue, elementType);
                 }
 
                 return value;
@@ -89,5 +90,23 @@ internal static class DeconstructionEvaluator
         }
 
         throw new AlderException(DiagnosticDescriptors.DeconstructionFailed, value?.GetType().Name ?? "null");
+    }
+
+    private static void DefineVariable(
+        BoundDeconstructionExpr node,
+        EvaluationContext ctx,
+        int index,
+        object? value,
+        Type elementType)
+    {
+        var name = node.VariableNames[index];
+        if (name == TokenLexemes.DiscardIdentifier)
+            return;
+
+        ctx.Context.DefineNew(
+            name,
+            value,
+            elementType,
+            isReadOnly: node.Source.DeclaresIterationVariables);
     }
 }

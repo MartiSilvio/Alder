@@ -35,6 +35,10 @@ internal static class AssignBinder
             throw new AlderException(
                 DiagnosticDescriptors.ReadOnlyAssignmentToReservedKind,
                 variableName, "foreach iteration variable");
+        if (reason == ReadOnlyReason.UsingVariable)
+            throw new AlderException(
+                DiagnosticDescriptors.ReadOnlyAssignmentToReservedKind,
+                variableName, "using variable");
 
         throw new AlderException(DiagnosticDescriptors.AssignmentRequiresVariable);
     }

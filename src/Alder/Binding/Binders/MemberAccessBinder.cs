@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Alder.Binding.BoundNodes;
 using Alder.Binding.Services;
 using Alder.Parsing;
@@ -61,6 +62,10 @@ internal static class MemberAccessBinder
         return result;
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075",
+        Justification = "Named tuple field metadata is used only for statically bound ValueTuple shapes produced by the binder; arbitrary runtime tuple field discovery is outside the NativeAOT contract.")]
     internal static BoundMemberAccessBase BindSingleMemberAccess(BoundExpr target, string name, bool nullSafe, BindingContext context)
     {
         var (targetBoundType, isStatic) = ResolveMemberTarget(target);

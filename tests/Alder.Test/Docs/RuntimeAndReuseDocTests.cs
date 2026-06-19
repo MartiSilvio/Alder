@@ -3,6 +3,7 @@ using Alder.Compiled;
 using Alder.Compiled.DynamicLinq;
 #endif
 using Alder.Diagnostics;
+using Alder.Test.AOT;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Docs;
@@ -29,12 +30,14 @@ public class RuntimeAndReuseDocTests(CompilationMode mode)
 
 #if NET8_0_OR_GREATER
     [Test]
-    public void EngineConfiguration_CanCombinePolicyAndCompilerSettings()
+    public async Task EngineConfiguration_CanCombinePolicyAndCompilerSettings()
     {
         using var engine = new AlderEngine(options =>
         {
             options.LanguageMode = LanguageMode.Standard;
             options.Security = new SecurityOptions { AllowPropertyRead = true, AllowStaticPropertyRead = true, AllowStaticFieldRead = true, AllowAssignment = true, AllowPropertySet = true, AllowIndexSet = true };
+            options.Modules.Register<DocTaxModule>("tax");
+            options.Aot.UseGeneratedContext(TestGeneratedContext.Default);
             options.Constraints = new ExecutionConstraints
             {
                 MaxStatements = 10_000,
@@ -45,6 +48,28 @@ public class RuntimeAndReuseDocTests(CompilationMode mode)
         });
 
         Assert.That(engine.Evaluate<int>("1 + 2"), Is.EqualTo(3));
+
+        var cart = new Cart
+        {
+            Id = 42,
+            Subtotal = 120m,
+            Discount = 20m,
+            Tax = 8m,
+            ItemCount = 3,
+            PostalCode = "94107",
+            CouponCode = "SHIP-2026",
+            Channel = "mobile",
+            Region = "bay-area"
+        };
+        var totalWithLiveTax = await engine.EvaluateAsync<decimal>(
+            """
+            var discounted = cart.Subtotal - cart.Discount;
+            var tax = await tax.CalculateAsync(cart.PostalCode, discounted);
+            return discounted + tax;
+            """,
+            new { cart });
+
+        Assert.That(totalWithLiveTax, Is.EqualTo(108m));
     }
 #endif
 
@@ -63,6 +88,114 @@ public class RuntimeAndReuseDocTests(CompilationMode mode)
             vars);
 
         Assert.That(result, Is.EqualTo(150.0));
+    }
+
+    [Test]
+    public void RootReadme_CartFirstLook_EvaluatesTotalAndShippingRule()
+    {
+        using var engine = TestEngineFactory.Create(mode);
+        var cart = new
+        {
+            Subtotal = 120m,
+            Discount = 20m,
+            Tax = 8m,
+            ItemCount = 3,
+            PostalCode = "94107"
+        };
+
+        var total = engine.Evaluate<decimal>(
+            "cart.Subtotal - cart.Discount + cart.Tax",
+            new { cart });
+
+        var shipping = engine.Evaluate<string>(
+            """
+            var total = cart.Subtotal - cart.Discount + cart.Tax;
+
+            if (total >= freeShippingMinimum)
+                return "free-shipping";
+
+            if (cart.ItemCount > 20)
+                return "bulk-review";
+
+            return "standard";
+            """,
+            new { cart, freeShippingMinimum = 100m });
+
+        Assert.That(total, Is.EqualTo(108m));
+        Assert.That(shipping, Is.EqualTo("free-shipping"));
+    }
+
+    [Test]
+    public void RootReadme_CartRuleValidationEvaluationAndTrace_UseTypedCartShape()
+    {
+        using var engine = TestEngineFactory.Create(mode);
+        var totalRule = "cart.Subtotal - cart.Discount + cart.Tax";
+        var sampleCart = new Cart
+        {
+            Id = 42,
+            Subtotal = 120m,
+            Discount = 20m,
+            Tax = 8m,
+            ItemCount = 3,
+            PostalCode = "94107",
+            CouponCode = "SHIP-2026",
+            Channel = "mobile",
+            Region = "bay-area"
+        };
+
+        engine.SetVariable<Cart>("cart", sampleCart);
+
+        Assert.That(engine.TryValidate(totalRule, out var diagnostics), Is.True);
+        Assert.That(diagnostics, Is.Empty);
+
+        var total = engine.Evaluate<decimal>(
+            totalRule,
+            new { cart = sampleCart });
+        var trace = engine.EvaluateWithTrace(totalRule);
+
+        Assert.That(total, Is.EqualTo(108m));
+        Assert.That(trace.Result, Is.EqualTo(108m));
+        Assert.That(trace.Tree.Source, Is.EqualTo(totalRule));
+        Assert.That(trace.Error, Is.Null);
+    }
+
+    [Test]
+    public void SiteTraceCard_PrintsTraceTreeForCartTotal()
+    {
+        using var engine = TestEngineFactory.Create(mode);
+        var totalRule = "cart.Subtotal - cart.Discount + cart.Tax";
+        var cart = new Cart
+        {
+            Subtotal = 120m,
+            Discount = 20m,
+            Tax = 8m
+        };
+
+        engine.SetVariable<Cart>("cart", cart);
+        var trace = engine.EvaluateWithTrace(totalRule);
+        var root = trace.Tree;
+        var discounted = root.Children[0];
+        var subtotal = discounted.Children[0];
+        var discount = discounted.Children[1];
+        var tax = root.Children[1];
+
+        var output = new[]
+        {
+            $"{root.Source} = {trace.Result}",
+            $"  {discounted.Source} = {discounted.Value}",
+            $"    {subtotal.Source} = {subtotal.Value}",
+            $"    {discount.Source} = {discount.Value}",
+            $"  {tax.Source} = {tax.Value}"
+        };
+
+        Assert.That(output, Is.EqualTo(new[]
+        {
+            "cart.Subtotal - cart.Discount + cart.Tax = 108",
+            "  cart.Subtotal - cart.Discount = 100",
+            "    cart.Subtotal = 120",
+            "    cart.Discount = 20",
+            "  cart.Tax = 8"
+        }));
     }
 
     [Test]
@@ -268,6 +401,55 @@ public class RuntimeAndReuseDocTests(CompilationMode mode)
         Assert.That(DocSamples.Products.Where(compiled).Select(p => p.Name), Is.EqualTo(enumerable));
     }
 #endif
+
+    [Test]
+    public void RootReadme_ParseCartTotalOnce_ReusesRuleForManyCarts()
+    {
+        using var engine = TestEngineFactory.Create(mode);
+        var carts = new[]
+        {
+            new Cart
+            {
+                Id = 1,
+                Subtotal = 120m,
+                Discount = 20m,
+                Tax = 8m,
+                ItemCount = 3,
+                PostalCode = "94107",
+                CouponCode = "SHIP-2026",
+                Channel = "mobile",
+                Region = "bay-area"
+            },
+            new Cart
+            {
+                Id = 2,
+                Subtotal = 80m,
+                Discount = 5m,
+                Tax = 6m,
+                ItemCount = 1,
+                PostalCode = "10001",
+                CouponCode = "SAVE-2026",
+                Channel = "web",
+                Region = "east"
+            }
+        };
+
+        var totalRule = engine.Parse(
+            "cart.Subtotal - cart.Discount + cart.Tax");
+
+        var totals = new List<decimal>();
+
+        foreach (var cart in carts)
+        {
+            var total = engine.Evaluate<decimal>(
+                totalRule,
+                new { cart });
+
+            totals.Add(total);
+        }
+
+        Assert.That(totals, Is.EqualTo(new[] { 108m, 81m }));
+    }
 
     [Test]
     public void TypedResultConversion_MaterializesStructuralProjection()

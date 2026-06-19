@@ -171,10 +171,18 @@ internal static class MemberAccess
                 var listType = list.GetType();
                 if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
                 {
-                    var resultList = (IList)Activator.CreateInstance(listType)!;
-                    for (var i = offset; i < offset + len; i++)
-                        resultList.Add(list[i]);
-                    return resultList;
+#if NET7_0_OR_GREATER
+                    if (System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported &&
+                        RuntimeGenericClosure.DynamicCodeSupported)
+#else
+                    if (RuntimeGenericClosure.DynamicCodeSupported)
+#endif
+                    {
+                        var resultList = (IList)Activator.CreateInstance(listType)!;
+                        for (var i = offset; i < offset + len; i++)
+                            resultList.Add(list[i]);
+                        return resultList;
+                    }
                 }
                 var items = new object?[len];
                 for (var i = 0; i < len; i++)
@@ -210,7 +218,11 @@ internal static class MemberAccess
         if (TypedDispatchHelper.TryGetIndex(context.Config, type, obj, index!, out var aotIndexValue))
             return aotIndexValue;
 
-        if (!MethodDispatchCache.DynamicCodeSupported)
+        if (
+#if NET7_0_OR_GREATER
+            !System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported ||
+#endif
+            !MethodDispatchCache.DynamicCodeSupported)
             throw new AlderException(DiagnosticDescriptors.GeneratedMemberRequired, type.Name, "this[]");
 
         var indexer = FindMatchingIndexer(type, index);
@@ -327,7 +339,11 @@ internal static class MemberAccess
         if (TypedDispatchHelper.TrySetIndex(context.Config, type, obj, index!, value))
             return;
 
-        if (!MethodDispatchCache.DynamicCodeSupported)
+        if (
+#if NET7_0_OR_GREATER
+            !System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported ||
+#endif
+            !MethodDispatchCache.DynamicCodeSupported)
             throw new AlderException(DiagnosticDescriptors.GeneratedMemberRequired, type.Name, "this[]");
 
         var indexer = FindMatchingIndexer(type, index);
@@ -559,6 +575,7 @@ internal static class MemberAccess
         if (!int.TryParse(name.Substring(4), out var itemIndex) || itemIndex < 8)
             return false;
 
+#if NETSTANDARD2_0
         var current = tuple;
         while (itemIndex > 7)
         {
@@ -571,6 +588,13 @@ internal static class MemberAccess
         var field = current.GetType().GetField($"Item{itemIndex}");
         if (field == null) return false;
         value = field.GetValue(current);
+#else
+        if (tuple is not System.Runtime.CompilerServices.ITuple tupleValue ||
+            itemIndex > tupleValue.Length)
+            return false;
+
+        value = tupleValue[itemIndex - 1];
+#endif
         return true;
     }
 
@@ -774,7 +798,15 @@ internal static class MemberAccess
     {
         var listType = list.GetType();
         if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
-            return Activator.CreateInstance(listType)!;
+        {
+#if NET7_0_OR_GREATER
+            if (System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported &&
+                RuntimeGenericClosure.DynamicCodeSupported)
+#else
+            if (RuntimeGenericClosure.DynamicCodeSupported)
+#endif
+                return Activator.CreateInstance(listType)!;
+        }
         return Array.Empty<object?>();
     }
 
@@ -783,10 +815,18 @@ internal static class MemberAccess
         var listType = list.GetType();
         if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
         {
-            var resultList = (IList)Activator.CreateInstance(listType)!;
-            foreach (var i in indices)
-                resultList.Add(list[i]);
-            return resultList;
+#if NET7_0_OR_GREATER
+            if (System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported &&
+                RuntimeGenericClosure.DynamicCodeSupported)
+#else
+            if (RuntimeGenericClosure.DynamicCodeSupported)
+#endif
+            {
+                var resultList = (IList)Activator.CreateInstance(listType)!;
+                foreach (var i in indices)
+                    resultList.Add(list[i]);
+                return resultList;
+            }
         }
         var result = new List<object?>();
         foreach (var i in indices)

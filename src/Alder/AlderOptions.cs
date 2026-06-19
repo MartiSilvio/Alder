@@ -120,7 +120,8 @@ public sealed class AlderOptions
                 DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
                 DynamicallyAccessedMemberTypes.PublicMethods |
                 DynamicallyAccessedMemberTypes.PublicProperties |
-                DynamicallyAccessedMemberTypes.PublicFields)] T>(
+                DynamicallyAccessedMemberTypes.PublicFields |
+                DynamicallyAccessedMemberTypes.Interfaces)] T>(
             string moduleName, bool explicitOnly = false, T? instance = default) where T : class
         {
             return Register(moduleName, typeof(T), explicitOnly, instance);
@@ -139,7 +140,8 @@ public sealed class AlderOptions
                 DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
                 DynamicallyAccessedMemberTypes.PublicMethods |
                 DynamicallyAccessedMemberTypes.PublicProperties |
-                DynamicallyAccessedMemberTypes.PublicFields)] Type type,
+                DynamicallyAccessedMemberTypes.PublicFields |
+                DynamicallyAccessedMemberTypes.Interfaces)] Type type,
             bool explicitOnly = false,
             object? instance = null)
         {
@@ -166,7 +168,8 @@ public sealed class AlderOptions
                 DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
                 DynamicallyAccessedMemberTypes.PublicMethods |
                 DynamicallyAccessedMemberTypes.PublicProperties |
-                DynamicallyAccessedMemberTypes.PublicFields)] Type type,
+                DynamicallyAccessedMemberTypes.PublicFields |
+                DynamicallyAccessedMemberTypes.Interfaces)] Type type,
             IReadOnlyDictionary<string, IReadOnlyCollection<MemberInfo>> members)
         {
             RegisteredTypes.Add(new RegisteredType(type, null, moduleName, ModuleMemberMetadata.BuildFromMemberMap(members, _options.StringComparer)));
@@ -185,7 +188,8 @@ public sealed class AlderOptions
                 DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
                 DynamicallyAccessedMemberTypes.PublicMethods |
                 DynamicallyAccessedMemberTypes.PublicProperties |
-                DynamicallyAccessedMemberTypes.PublicFields)] Type type,
+                DynamicallyAccessedMemberTypes.PublicFields |
+                DynamicallyAccessedMemberTypes.Interfaces)] Type type,
             object? instance = null)
         {
             var moduleAttr = type.GetCustomAttribute<AlderModuleAttribute>();
@@ -206,7 +210,8 @@ public sealed class AlderOptions
                 DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
                 DynamicallyAccessedMemberTypes.PublicMethods |
                 DynamicallyAccessedMemberTypes.PublicProperties |
-                DynamicallyAccessedMemberTypes.PublicFields)] T>(T? instance = default) where T : class
+                DynamicallyAccessedMemberTypes.PublicFields |
+                DynamicallyAccessedMemberTypes.Interfaces)] T>(T? instance = default) where T : class
         {
             return RegisterFromType(typeof(T), instance);
         }
@@ -355,12 +360,14 @@ public sealed class AlderOptions
             DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
             DynamicallyAccessedMemberTypes.PublicMethods |
             DynamicallyAccessedMemberTypes.PublicProperties |
-            DynamicallyAccessedMemberTypes.PublicFields)]
+            DynamicallyAccessedMemberTypes.PublicFields |
+            DynamicallyAccessedMemberTypes.Interfaces)]
         [property: DynamicallyAccessedMembers(
             DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
             DynamicallyAccessedMemberTypes.PublicMethods |
             DynamicallyAccessedMemberTypes.PublicProperties |
-            DynamicallyAccessedMemberTypes.PublicFields)]
+            DynamicallyAccessedMemberTypes.PublicFields |
+            DynamicallyAccessedMemberTypes.Interfaces)]
         Type Type,
         object? Instance,
         string? ModuleName,

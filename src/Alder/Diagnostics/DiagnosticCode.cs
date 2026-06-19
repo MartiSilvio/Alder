@@ -275,6 +275,8 @@ public enum DiagnosticCode
     ALDR0317 = 1_000_317,
     /// <summary>Constructor requires generated dispatch in authoritative generated mode</summary>
     ALDR0318 = 1_000_318,
+    /// <summary>Generic type/method closure is not rooted for authoritative generated mode</summary>
+    ALDR0319 = 1_000_319,
 
     /// <summary>Cannot slice null</summary>
     ALDR0400 = 1_000_400,

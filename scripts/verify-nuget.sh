@@ -17,6 +17,16 @@ case "$(uname -s)" in
     fi
     ;;
 esac
+
+case "$(uname -s)/$(uname -m)" in
+  Darwin/*|Linux/*)
+    ./scripts/aot-publish-check.sh --strict
+    ;;
+  *)
+    echo "Skipping NativeAOT warning gate: unsupported host platform." >&2
+    ;;
+esac
+
 rm -rf artifacts/packages
 dotnet pack src/Alder/Alder.csproj --configuration Release --output artifacts/packages
 dotnet run --project tests/Alder.PackageVerification/Alder.PackageVerification.csproj -- artifacts/packages

@@ -9,7 +9,10 @@ internal static class WhileBinder
 {
     public static BoundExpr Bind(WhileStatementExpr expr, BindingContext context, BinderContext binder)
     {
-        var loopBinder = binder.WithAdditionalFlags(BinderFlags.InLoop);
+        var loopFlags = BinderFlags.InLoop;
+        if (binder.Includes(BinderFlags.InFinally))
+            loopFlags |= BinderFlags.InFinallyLoop;
+        var loopBinder = binder.WithAdditionalFlags(loopFlags);
         var condition = loopBinder.Bind(expr.Condition, context);
         var bodyScope = context.CreateChildScope();
         var body = expr.Body

@@ -106,15 +106,6 @@ These settings define the binder's world view. They are not incidental runtime o
 
 Dynamic LINQ uses the same binding boundary for query fragments. A runtime filter, selector, key, join predicate, or projection is still parsed and bound against a CLR type surface before it becomes a delegate, expression tree, or reusable query plan.
 
-## Tradeoffs
-
-The binding system is conservative by design:
-
-- semantic correctness takes precedence over forcing early resolution
-- dynamic execution remains available when static resolution is inconclusive
-- bound reuse is aggressive only while the surrounding type information remains stable
-- both backends inherit the same semantic decisions, which reduces drift but raises the cost of binding bugs
-
 ## Related pages
 
 - [Architecture](./architecture.md)

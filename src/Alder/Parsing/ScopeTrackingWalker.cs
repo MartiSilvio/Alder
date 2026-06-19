@@ -35,6 +35,13 @@ internal abstract class ScopeTrackingWalker : AstWalker<byte>
         return 0;
     }
 
+    public override byte VisitUsingResourceDecl(UsingResourceDeclExpr expr)
+    {
+        Visit(expr.Initializer);
+        CurrentScope.Add(expr.Name.Lexeme);
+        return 0;
+    }
+
     public override byte VisitLambda(LambdaExpr expr)
     {
         PushScope();
@@ -63,6 +70,15 @@ internal abstract class ScopeTrackingWalker : AstWalker<byte>
         CurrentScope.Add(expr.VariableName.Lexeme);
         foreach (var stmt in expr.Body)
             Visit(stmt);
+        PopScope();
+        return 0;
+    }
+
+    public override byte VisitUsingStatement(UsingStatementExpr expr)
+    {
+        PushScope();
+        Visit(expr.ResourceDeclaration);
+        Visit(expr.Body);
         PopScope();
         return 0;
     }

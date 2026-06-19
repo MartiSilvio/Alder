@@ -104,6 +104,37 @@ public class FunctionsModulesAndAsyncDocTests(CompilationMode mode)
     }
 
     [Test]
+    public async Task RootReadme_AsyncTaxModule_ComputesCartTotal()
+    {
+        using var engine = TestEngineFactory.Create(mode, options =>
+        {
+            options.Modules.Register<DocTaxModule>("tax");
+        });
+        var cart = new Cart
+        {
+            Id = 42,
+            Subtotal = 120m,
+            Discount = 20m,
+            Tax = 8m,
+            ItemCount = 3,
+            PostalCode = "94107",
+            CouponCode = "SHIP-2026",
+            Channel = "mobile",
+            Region = "bay-area"
+        };
+
+        var totalWithLiveTax = await engine.EvaluateAsync<decimal>(
+            """
+            var discounted = cart.Subtotal - cart.Discount;
+            var tax = await tax.CalculateAsync(cart.PostalCode, discounted);
+            return discounted + tax;
+            """,
+            new { cart });
+
+        Assert.That(totalWithLiveTax, Is.EqualTo(108m));
+    }
+
+    [Test]
     public async Task EvaluateAsync_ReturnsRawTask_WhenExpressionDoesNotAwait()
     {
         using var engine = TestEngineFactory.Create(mode, options =>

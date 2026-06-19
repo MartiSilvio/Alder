@@ -1,23 +1,26 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Alder.Aot;
+using Alder.Diagnostics;
 
 namespace Alder.Runtime.Introspection;
 
 internal static class RuntimeGenericClosure
 {
-    private static readonly bool RuntimeDynamicCodeSupported =
-#if NET7_0_OR_GREATER
-        RuntimeFeature.IsDynamicCodeSupported;
-#else
-        true;
-#endif
-
     private static bool? s_dynamicCodeSupportedOverride;
     private static RootedType[]? s_builtInRootedGenericTypes;
     private static RootedType[]? s_builtInRootedDelegateTypes;
 
-    internal static bool DynamicCodeSupported => s_dynamicCodeSupportedOverride ?? RuntimeDynamicCodeSupported;
+    // Single source of truth for whether runtime-emitted generic closures (MakeGenericType /
+    // MakeGenericMethod) are usable. A test override, when set, is authoritative — so a harness can
+    // force either path on, including under NativeAOT publish where the runtime flag is false.
+    // With no override it reports the real runtime capability.
+    internal static bool DynamicCodeSupported =>
+#if NET7_0_OR_GREATER
+        s_dynamicCodeSupportedOverride ?? RuntimeFeature.IsDynamicCodeSupported;
+#else
+        s_dynamicCodeSupportedOverride ?? true;
+#endif
 
     internal static IDisposable OverrideDynamicCodeSupportForTesting(bool supported)
     {
@@ -38,8 +41,7 @@ internal static class RuntimeGenericClosure
         if (TryCloseType(openGenericType, typeArguments, rootedDelegateTypes, out var closedType))
             return closedType!;
 
-        throw new InvalidOperationException(
-            $"No rooted generic closure is available for '{openGenericType}'.");
+        throw new AlderException(DiagnosticDescriptors.GeneratedClosureRequired, openGenericType);
     }
 
     public static MethodInfo CloseMethod(MethodInfo genericMethod, Type[] typeArguments)
@@ -47,8 +49,7 @@ internal static class RuntimeGenericClosure
         if (TryCloseMethod(genericMethod, typeArguments, out var closedMethod))
             return closedMethod!;
 
-        throw new InvalidOperationException(
-            $"No rooted generic method closure is available for '{genericMethod}'.");
+        throw new AlderException(DiagnosticDescriptors.GeneratedClosureRequired, genericMethod);
     }
 
     public static bool TryCloseType(
@@ -74,6 +75,18 @@ internal static class RuntimeGenericClosure
             return false;
         }
 
+#if NET7_0_OR_GREATER
+        // Direct RuntimeFeature guard: the ILLink/AOT analyzer recognizes this intrinsic and proves
+        // the MakeGenericType call below unreachable under NativeAOT. DynamicCodeSupported wraps it
+        // behind a property/override the analyzer cannot see, so this guard must stay to keep the
+        // AOT publish free of IL2055/IL3050 warnings.
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+        {
+            closedType = null;
+            return false;
+        }
+#endif
+
         try
         {
             #pragma warning disable IL3050
@@ -95,6 +108,16 @@ internal static class RuntimeGenericClosure
             closedMethod = null;
             return false;
         }
+
+#if NET7_0_OR_GREATER
+        // See TryCloseType: the analyzer-recognized RuntimeFeature guard keeps the MakeGenericMethod
+        // call below provably unreachable under NativeAOT (suppresses IL2060/IL3050).
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+        {
+            closedMethod = null;
+            return false;
+        }
+#endif
 
         try
         {

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Alder\Alder.csproj" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.0.0" />
+  </ItemGroup>
+
+  <!-- The canonical value renderer is shared verbatim with the AOT worker so both
+       sides serialize results identically. The structural-projection helpers are shared
+       with the in-process ParityTests. Linked rather than copied. -->
+  <ItemGroup>
+    <Compile Include="..\Alder.AotMatrix\CanonicalValue.cs" Link="CanonicalValue.cs" />
+    <Compile Include="..\Alder.Test\Parity\StructuralParity.cs" Link="StructuralParity.cs" />
+  </ItemGroup>
+
+</Project>

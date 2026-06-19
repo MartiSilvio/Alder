@@ -55,7 +55,7 @@ Alder uses Roslyn-compatible `CS` codes when the failure corresponds to C# behav
 - `ALDR0020`: an Extended-mode feature was used under Standard mode.
 - `ALDR0100`-`ALDR0108`: security policy blocked a method call, assignment, property access, construction, type access, or reflection type.
 - `ALDR0200`-`ALDR0203`: execution constraints were exceeded.
-- `ALDR0300`-`ALDR0318`: runtime semantic and dispatch failures, including null member access, failed invocation, unsupported runtime shapes, module instance resolution, and authoritative generated-mode misses.
+- `ALDR0300`-`ALDR0319`: runtime semantic and dispatch failures, including null member access, failed invocation, unsupported runtime shapes, module instance resolution, and authoritative generated-mode misses.
 - `ALDR0400`-`ALDR0406`: Extended-language runtime failures such as invalid slicing, spread placement, chained comparison support, and projection materialization.
 
 Code-first handling should group by family only when that is operationally useful. User-facing messages should still show the exact code and source location.
@@ -266,8 +266,11 @@ In JIT deployments, Alder tries generated dispatch first and then uses reflectio
 - `ALDR0316`: a member is unavailable in authoritative generated mode.
 - `ALDR0317`: a method is unavailable in authoritative generated mode.
 - `ALDR0318`: a constructor is unavailable in authoritative generated mode.
+- `ALDR0319`: no rooted generic closure is available in authoritative generated mode.
 
 These errors mean the expression reached a CLR operation that must be represented by generated metadata. Register the relevant type in an `AlderTypeContext`, make the expression-facing member public and supported by generated dispatch, or change the expression surface. For stored expressions, include the generated-context version in activation records so a production failure can be tied to the metadata set that was deployed.
+
+These four codes are engine/host deployment faults rather than rule-domain errors, so a script's own `try`/`catch` cannot catch them — they always propagate to the host. Handle them in host code, not inside the expression.
 
 ## Host logging
 
@@ -296,6 +299,6 @@ A practical debugging loop is:
 4. If validation succeeds, run `EvaluateWithTrace(...)` with a representative variable set.
 5. If compiled execution fails, reproduce with interpreted `EvaluateWithTrace(...)` to isolate expression semantics from compiled backend behavior.
 6. If provider execution fails, run `TryParseAsExpression(...)`, inspect the exported expression, then reproduce against the provider.
-7. If AOT execution fails with `ALDR0316`, `ALDR0317`, or `ALDR0318`, inspect the generated context for the runtime type and operation shape.
+7. If AOT execution fails with `ALDR0316`, `ALDR0317`, `ALDR0318`, or `ALDR0319`, inspect the generated context for the runtime type and operation shape. These faults reach the host directly — a script `try`/`catch` will not intercept them.
 
 The distinction between validation and representative execution matters. Validation confirms the expression is syntactically and semantically acceptable under a policy. Trace execution explains what happened for one value set. Provider execution shows whether a specific downstream translator accepts the exported tree. AOT execution checks whether the deployed metadata surface contains the runtime shapes the expression reaches.

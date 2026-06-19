@@ -109,7 +109,7 @@ Typed delegate compilation and expression-tree export solve different problems.
 
 `ParseAsExpression<TDelegate>(...)` produces a LINQ expression tree for providers, `IQueryable`, and explicit downstream compilation. It parses in Standard mode regardless of the engine's `LanguageMode`. Engine variables visible during export are captured into the resulting tree as constants. That gives Alder a direct integration boundary with external LINQ systems.
 
-The export flow has its own preparation sequence. Alder creates typed parameter bindings from the target delegate, binds the lambda against a query-specific runtime context, reruns the compilation pipeline over the bound body, and then exports the supported node set into a provider-facing tree. Zero-parameter delegates may use body-only input; parameterized delegates use lambda syntax.
+The export flow has its own preparation sequence: Alder creates typed parameter bindings from the target delegate, binds the lambda against a query-specific runtime context, reruns the compilation pipeline over the body, and exports the supported node set into a provider-facing tree. Zero-parameter delegates may use body-only input; parameterized delegates use lambda syntax.
 
 This export path serves a different integration target than direct evaluation. Unsupported shapes are rejected during export. Dynamic call shapes, unsupported node kinds, and expression-tree-incompatible constructs fail there. Block-bodied lambdas are one concrete example. Reflection-oriented types are also blocked from this route.
 

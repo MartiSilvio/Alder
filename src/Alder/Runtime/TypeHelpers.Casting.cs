@@ -19,6 +19,18 @@ internal static partial class TypeHelpers
         || target == typeof(System.Linq.Expressions.Expression);
 
     /// <summary>
+    /// True when a foreach iteration value of <paramref name="sourceElementType"/> must be explicitly
+    /// cast to the declared <paramref name="elementType"/>. No cast is needed when the source type is
+    /// unknown, already matches the declared type, or the declared type is <see cref="object"/> (which
+    /// accepts any value). Both the interpreter and the compiled backend consult this so they agree on
+    /// when to cast.
+    /// </summary>
+    public static bool RequiresIterationCast(Type elementType, Type? sourceElementType) =>
+        sourceElementType != null
+        && elementType != sourceElementType
+        && elementType != typeof(object);
+
+    /// <summary>
     /// Performs an explicit cast with optional static-type guidance.
     /// When <paramref name="sourceStaticType"/> is <see cref="object"/>, the runtime enforces C# unboxing semantics
     /// and only allows unboxing to the exact boxed value type.

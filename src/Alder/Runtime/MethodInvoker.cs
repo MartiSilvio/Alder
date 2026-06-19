@@ -1,4 +1,5 @@
 using System.Runtime.ExceptionServices;
+using System.Diagnostics.CodeAnalysis;
 using Alder.Binding;
 using Alder.Diagnostics;
 using Alder.Interpretation;
@@ -560,6 +561,10 @@ internal static class MethodInvoker
         return false;
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2067",
+        Justification = "Extension receiver discovery is a JIT/reflection fallback used only after generated-mode dispatch is unavailable; NativeAOT hosts must use registered/generated types whose interface metadata is rooted.")]
     private static bool IsExtensionReceiverApplicable(Type receiverType, Type firstParamType)
     {
         if (firstParamType.IsAssignableFrom(receiverType))

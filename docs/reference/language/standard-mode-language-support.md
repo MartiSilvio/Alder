@@ -20,7 +20,7 @@ The ECMA mapping records Standard-mode support against ECMA-334 sections. The C#
 Extended mode builds on this baseline. It adds Alder-specific convenience syntax such as pipelines, inclusive and exclusive range helpers, collection literals without target types, regex predicates, SQL-style comparison helpers, date arithmetic sugar, and concise aggregate helpers. Extended-only syntax is documented separately and is excluded from the ECMA mapping here.
 
 **Spec edition:** ECMA-334, 7th edition (December 2023).
-**Last verified:** 2026-05-01.
+**Last verified:** 2026-05-27.
 
 ## Standard mode at a glance
 
@@ -44,6 +44,7 @@ These language areas are intentionally out of scope for Alder input:
 | Attributes | Out of scope | Attribute syntax is not part of the input surface. |
 | Type member declarations | Out of scope | Type-level methods, properties, fields, events, and access modifiers are not declared inside Alder expressions. Local functions are statement-level declarations and are covered separately. |
 | Preprocessor directives | Out of scope | `#if`, `#define`, and related directives are not supported. |
+| Async iterators | Out of scope | `async IAsyncEnumerable<T>` local functions are not supported. Synchronous iterators (`yield return` / `yield break`) are first-class. |
 
 Extended mode adds syntax outside ECMA-334; that syntax belongs to the Extended language reference, outside the Standard ECMA mapping.
 

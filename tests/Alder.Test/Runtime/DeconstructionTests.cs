@@ -48,4 +48,32 @@ public class DeconstructionTests(CompilationMode mode)
     }
 
     #endregion
+
+    [Test]
+    public void Deconstruct_RepeatedDiscards_DoNotDeclareLocals()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        var result = engine.Evaluate("{ var (_, _) = (1, 2); return 42; }");
+
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void ForeachDeconstruction_IterationVariableAssignment_ThrowsCs1656()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        var ex = Assert.Throws<AlderException>(() =>
+            engine.Evaluate("{ foreach (var (x, y) in new[] { (1, 2) }) { x = 3; } }"));
+
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1656));
+    }
+
+    [Test]
+    public void ForeachDeconstruction_LargeTuple_UsesFlattenedElementTypes()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        var result = engine.Evaluate("{ foreach (var (a, b, c, d, e, f, g, h) in new[] { (1, 2, 3, 4, 5, 6, 7, \"eight\") }) { return h.Length; } return 0; }");
+
+        Assert.That(result, Is.EqualTo(5));
+    }
 }
